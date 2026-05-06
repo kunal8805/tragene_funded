@@ -1,0 +1,381 @@
+{% extends "user/base.html" %}
+
+{% block title %}Tragene Funded - Trading Challenges{% endblock %}
+
+{% block header_title %}Trading Challenges{% endblock %}
+{% block header_subtitle %}Start your funded trading journey{% endblock %}
+
+{% block head %}
+<style>
+    /* Gradient backgrounds for challenge cards */
+    .card-gradient-beginner {
+        background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 50%, #bae6fd 100%);
+    }
+
+    .card-gradient-intermediate {
+        background: linear-gradient(135deg, #fefce8 0%, #fef9c3 50%, #fef08a 100%);
+        border: 2px solid #f59e0b;
+    }
+
+    .card-gradient-advanced {
+        background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 50%, #ddd6fe 100%);
+    }
+
+    /* Dark Mode Gradients */
+    .dark .card-gradient-beginner {
+        background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 50%, #1d4ed8 100%);
+        border: 1px solid #1e40af;
+    }
+
+    .dark .card-gradient-intermediate {
+        background: linear-gradient(135deg, #422006 0%, #713f12 50%, #854d0e 100%);
+        border: 2px solid #f59e0b;
+    }
+
+    .dark .card-gradient-advanced {
+        background: linear-gradient(135deg, #3b0764 0%, #581c87 50%, #6b21a8 100%);
+        border: 1px solid #6b21a8;
+    }
+
+    /* Glowing effect for popular card */
+    .glow {
+        box-shadow: 0 0 20px rgba(245, 158, 11, 0.3);
+    }
+
+    .dark .glow {
+        box-shadow: 0 0 20px rgba(245, 158, 11, 0.5);
+    }
+
+    /* Pulse animation for CTA */
+    @keyframes pulse {
+
+        0%,
+        100% {
+            transform: scale(1);
+        }
+
+        50% {
+            transform: scale(1.05);
+        }
+    }
+
+    .pulse-button {
+        animation: pulse 2s infinite;
+    }
+
+    .floating {
+        animation: floating 3s ease-in-out infinite;
+    }
+
+    @keyframes floating {
+
+        0%,
+        100% {
+            transform: translateY(0px);
+        }
+
+        50% {
+            transform: translateY(-5px);
+        }
+    }
+
+    /* Mobile Back Button */
+    .mobile-back-btn {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 100;
+        display: none;
+    }
+
+    @media (max-width: 768px) {
+        .mobile-back-btn {
+            display: block;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- KYC Warning -->
+{% if user and user.kyc_status != 'approved' %}
+<div class="glass-card p-4 mb-6 border-l-4 border-orange-500" data-aos="fade-up">
+    <div class="flex flex-col sm:flex-row items-center justify-between space-y-3 sm:space-y-0">
+        <div class="flex items-center space-x-4">
+            <div class="w-12 h-12 bg-orange-100 dark:bg-orange-900/30 rounded-xl flex items-center justify-center">
+                <i class="fas fa-id-card text-orange-600 dark:text-orange-400 text-xl"></i>
+            </div>
+            <div>
+                <h3 class="font-semibold text-lg text-gray-900 dark:text-white">KYC Verification Required</h3>
+                <p class="text-gray-600 dark:text-gray-400">Complete verification to purchase challenges</p>
+            </div>
+        </div>
+        <a href="/user/kyc"
+            class="bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-xl font-semibold transition whitespace-nowrap">
+            Start Verification
+        </a>
+    </div>
+</div>
+{% endif %}
+
+<!-- Page Header -->
+<div class="mb-8 text-center">
+    <h1 class="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-3">Start Your Funded Trading Journey</h1>
+    <p class="text-gray-600 dark:text-gray-400 text-lg">Choose a challenge, pass it, and get funded up to $100,000</p>
+</div>
+
+<!-- Challenge Cards Grid -->
+{% if challenges %}
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 mb-12">
+    {% for challenge in challenges %}
+    <div class="rounded-3xl overflow-hidden {% if challenge.price == 149 %}glow floating{% endif %} 
+                    {% if challenge.price == 99 %}card-gradient-beginner
+                    {% elif challenge.price == 149 %}card-gradient-intermediate
+                    {% else %}card-gradient-advanced{% endif %}" data-aos="fade-up"
+        data-aos-delay="{{ loop.index0 * 100 }}">
+
+        <!-- Popular Badge -->
+        {% if challenge.price == 149 %}
+        <div class="absolute top-0 right-0 z-10">
+            <div class="bg-gradient-to-r from-yellow-500 to-orange-500 text-white px-4 py-1.5 rounded-bl-lg">
+                <i class="fas fa-crown mr-1"></i> MOST POPULAR
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="p-6 lg:p-8">
+            <!-- Challenge Header -->
+            <div class="text-center mb-6">
+                <div class="inline-flex items-center justify-center w-20 h-20 rounded-2xl mb-4 
+                                {% if challenge.price == 99 %}bg-blue-100 dark:bg-blue-900/50
+                                {% elif challenge.price == 149 %}bg-yellow-100 dark:bg-yellow-900/50
+                                {% else %}bg-purple-100 dark:bg-purple-900/50{% endif %}">
+                    <i class="fas 
+                                    {% if challenge.price == 99 %}fa-seedling text-blue-600 dark:text-blue-300
+                                    {% elif challenge.price == 149 %}fa-rocket text-yellow-600 dark:text-yellow-300
+                                    {% else %}fa-crown text-purple-600 dark:text-purple-300{% endif %} text-3xl">
+                    </i>
+                </div>
+
+                <h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+                    {{ challenge.name }}
+                </h3>
+
+                <div class="flex items-center justify-center gap-2 mb-1">
+                    <span class="text-4xl font-bold text-gray-900 dark:text-white">₹{{ challenge.price }}</span>
+                    <span class="text-gray-500 dark:text-gray-300">/ one-time</span>
+                </div>
+                <p class="text-gray-600 dark:text-gray-300">≈ ${{ (challenge.price * 0.012)|round(1) }} USD</p>
+            </div>
+
+            <!-- Challenge Features -->
+            <div class="space-y-4 mb-8">
+                <div class="flex items-center">
+                    <div
+                        class="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-900/40 flex items-center justify-center mr-3">
+                        <i class="fas fa-wallet text-blue-600 dark:text-blue-400"></i>
+                    </div>
+                    <div class="flex-1">
+                        <span class="text-gray-600 dark:text-gray-300">Account Size:</span>
+                        <span class="font-bold text-gray-900 dark:text-white ml-2">${{
+                            "{:,}".format(challenge.account_size) }}</span>
+                    </div>
+                </div>
+
+                <div class="flex items-center">
+                    <div
+                        class="w-8 h-8 rounded-lg bg-green-50 dark:bg-green-900/40 flex items-center justify-center mr-3">
+                        <i class="fas fa-bullseye text-green-600 dark:text-green-400"></i>
+                    </div>
+                    <div class="flex-1">
+                        <span class="text-gray-600 dark:text-gray-300">Profit Target:</span>
+                        <span class="font-bold text-green-600 dark:text-green-400 ml-2">{{ challenge.profit_target
+                            }}%</span>
+                    </div>
+                </div>
+
+                <div class="flex items-center">
+                    <div class="w-8 h-8 rounded-lg bg-red-50 dark:bg-red-900/40 flex items-center justify-center mr-3">
+                        <i class="fas fa-shield-alt text-red-600 dark:text-red-400"></i>
+                    </div>
+                    <div class="flex-1">
+                        <span class="text-gray-600 dark:text-gray-300">Max Daily Loss:</span>
+                        <span class="font-bold text-red-600 dark:text-red-400 ml-2">{{ challenge.max_daily_loss
+                            }}%</span>
+                    </div>
+                </div>
+
+                <div class="flex items-center">
+                    <div
+                        class="w-8 h-8 rounded-lg bg-yellow-50 dark:bg-yellow-900/40 flex items-center justify-center mr-3">
+                        <i class="fas fa-calendar text-yellow-600 dark:text-yellow-400"></i>
+                    </div>
+                    <div class="flex-1">
+                        <span class="text-gray-600 dark:text-gray-300">Duration:</span>
+                        <span class="font-bold text-gray-900 dark:text-white ml-2">{{ challenge.duration_days }}
+                            Days</span>
+                    </div>
+                </div>
+
+                <div class="flex items-center">
+                    <div
+                        class="w-8 h-8 rounded-lg bg-purple-50 dark:bg-purple-900/40 flex items-center justify-center mr-3">
+                        <i class="fas fa-percentage text-purple-600 dark:text-purple-400"></i>
+                    </div>
+                    <div class="flex-1">
+                        <span class="text-gray-600 dark:text-gray-300">Profit Share:</span>
+                        <span class="font-bold text-purple-600 dark:text-purple-400 ml-2">{{ challenge.user_profit_share
+                            }}%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Button -->
+            {% if user and user.kyc_status == 'approved' %}
+            {% if challenge.price == 149 %}
+            {% set button_class = 'bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600
+            hover:to-orange-600 pulse-button' %}
+            {% elif challenge.price == 99 %}
+            {% set button_class = 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700' %}
+            {% else %}
+            {% set button_class = 'bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600
+            hover:to-indigo-700' %}
+            {% endif %}
+
+            <a href="{{ url_for('user.buy_challenge', challenge_id=challenge.id) }}"
+                class="block w-full {{ button_class }} text-white py-4 rounded-xl font-bold text-lg transition-all duration-300 transform hover:scale-[1.02] text-center no-underline">
+                {% if challenge.price == 149 %}
+                <i class="fas fa-bolt mr-2"></i> SELECT CHALLENGE
+                {% else %}
+                SELECT CHALLENGE
+                {% endif %}
+            </a>
+            {% else %}
+            <div
+                class="bg-gradient-to-r from-gray-400 to-gray-500 dark:from-gray-700 dark:to-gray-800 text-white py-4 rounded-xl font-bold text-lg text-center cursor-not-allowed">
+                {% if user %}
+                COMPLETE KYC TO PURCHASE
+                {% else %}
+                LOGIN TO PURCHASE
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="glass-card p-8 text-center mb-12">
+    <i class="fas fa-exclamation-triangle text-yellow-500 text-4xl mb-4"></i>
+    <h3 class="text-xl font-bold text-gray-700 dark:text-gray-200">No challenges available</h3>
+    <p class="text-gray-600 dark:text-gray-400">Please check back later or contact support.</p>
+</div>
+{% endif %}
+
+<!-- Mobile Floating Back Button -->
+<div class="mobile-back-btn">
+    <a href="/user/dashboard"
+        class="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-4 rounded-full shadow-lg flex items-center justify-center">
+        <i class="fas fa-arrow-left text-xl"></i>
+    </a>
+</div>
+
+<!-- FAQ Section -->
+<div class="glass-card rounded-3xl p-6 lg:p-8" data-aos="fade-up">
+    <h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-6 text-center">Frequently Asked Questions</h3>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="space-y-4">
+            <div class="bg-gray-50 dark:bg-gray-800 rounded-xl p-5 border border-transparent dark:border-gray-700">
+                <h4 class="font-bold text-gray-900 dark:text-white mb-2 flex items-center">
+                    <i class="fas fa-question-circle text-blue-600 dark:text-blue-400 mr-2"></i>
+                    What happens if I reach the profit target?
+                </h4>
+                <p class="text-gray-600 dark:text-gray-400">Once you reach 12% profit target with minimum 5 trading
+                    days, you automatically
+                    qualify for the funded account.</p>
+            </div>
+
+            <div class="bg-gray-50 dark:bg-gray-800 rounded-xl p-5 border border-transparent dark:border-gray-700">
+                <h4 class="font-bold text-gray-900 dark:text-white mb-2 flex items-center">
+                    <i class="fas fa-exclamation-triangle text-red-600 dark:text-red-400 mr-2"></i>
+                    What if I exceed the daily loss limit?
+                </h4>
+                <p class="text-gray-600 dark:text-gray-400">If you lose 5% of your account in a single day, the
+                    challenge ends immediately
+                    and you'll need to purchase a new one.</p>
+            </div>
+
+            <div class="bg-gray-50 dark:bg-gray-800 rounded-xl p-5 border border-transparent dark:border-gray-700">
+                <h4 class="font-bold text-gray-900 dark:text-white mb-2 flex items-center">
+                    <i class="fas fa-clock text-yellow-600 dark:text-yellow-400 mr-2"></i>
+                    How long do I have to complete the challenge?
+                </h4>
+                <p class="text-gray-600 dark:text-gray-400">You have 30 calendar days to reach the profit target. If
+                    time expires, the
+                    challenge ends.</p>
+            </div>
+        </div>
+
+        <div class="space-y-4">
+            <div class="bg-gray-50 dark:bg-gray-800 rounded-xl p-5 border border-transparent dark:border-gray-700">
+                <h4 class="font-bold text-gray-900 dark:text-white mb-2 flex items-center">
+                    <i class="fas fa-money-bill-wave text-green-600 dark:text-green-400 mr-2"></i>
+                    When do I get paid?
+                </h4>
+                <p class="text-gray-600 dark:text-gray-400">After passing the challenge, you'll receive your profit
+                    share biweekly from
+                    your trading profits.</p>
+            </div>
+
+            <div class="bg-gray-50 dark:bg-gray-800 rounded-xl p-5 border border-transparent dark:border-gray-700">
+                <h4 class="font-bold text-gray-900 dark:text-white mb-2 flex items-center">
+                    <i class="fas fa-redo text-purple-600 dark:text-purple-400 mr-2"></i>
+                    Can I retry if I fail?
+                </h4>
+                <p class="text-gray-600 dark:text-gray-400">Yes! You can purchase the same or different challenge again
+                    if you don't pass
+                    on your first attempt.</p>
+            </div>
+
+            <div class="bg-gray-50 dark:bg-gray-800 rounded-xl p-5 border border-transparent dark:border-gray-700">
+                <h4 class="font-bold text-gray-900 dark:text-white mb-2 flex items-center">
+                    <i class="fas fa-headset text-indigo-600 dark:text-indigo-400 mr-2"></i>
+                    Need more help?
+                </h4>
+                <p class="text-gray-600 dark:text-gray-400">Contact our support team at support@tragene.com or use the
+                    live chat on the
+                    dashboard.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Desktop Back Button -->
+<div class="text-center mt-8 hidden lg:block">
+    <a href="/user/dashboard"
+        class="inline-flex items-center text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium">
+        <i class="fas fa-arrow-left mr-2"></i>Back to Dashboard
+    </a>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Hover effect for cards
+    document.addEventListener('DOMContentLoaded', function () {
+        const challengeCards = document.querySelectorAll('.rounded-3xl.overflow-hidden');
+
+        challengeCards.forEach(card => {
+            card.addEventListener('mouseenter', function () {
+                this.style.transform = 'translateY(-5px)';
+                this.style.transition = 'transform 0.3s ease';
+            });
+
+            card.addEventListener('mouseleave', function () {
+                this.style.transform = 'translateY(0)';
+            });
+        });
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Join the Waitlist - Tragene Funded</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .bg-starry-night {
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #2d2d2d 100%);
+        }
+
+        .liquid-glass {
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 16px;
+        }
+
+        /* Popup Overlay */
+        .popup-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        .popup-card {
+            background: rgba(20, 20, 30, 0.95);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            border-radius: 20px;
+            padding: 32px;
+            max-width: 480px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 0 60px rgba(34, 197, 94, 0.15), 0 20px 50px rgba(0, 0, 0, 0.6);
+            animation: slideUp 0.4s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(30px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .popup-icon {
+            width: 70px;
+            height: 70px;
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            font-size: 32px;
+            box-shadow: 0 0 30px rgba(34, 197, 94, 0.4);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                box-shadow: 0 0 20px rgba(34, 197, 94, 0.3);
+            }
+
+            50% {
+                box-shadow: 0 0 40px rgba(34, 197, 94, 0.6);
+            }
+        }
+
+        .countdown-timer {
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+            margin: 20px 0;
+        }
+
+        .countdown-box {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 12px 16px;
+            min-width: 70px;
+        }
+
+        .countdown-number {
+            font-size: 28px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #22c55e, #06b6d4);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .countdown-label {
+            font-size: 11px;
+            color: #9ca3af;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .benefit-list {
+            text-align: left;
+            margin: 16px 0;
+            padding: 0;
+            list-style: none;
+        }
+
+        .benefit-list li {
+            padding: 6px 0;
+            color: #d1d5db;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .benefit-list li i {
+            color: #22c55e;
+            font-size: 12px;
+        }
+
+        .btn-popup {
+            display: inline-block;
+            width: 100%;
+            padding: 14px;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: none;
+            margin-top: 8px;
+        }
+
+        .btn-continue {
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            color: white;
+        }
+
+        .btn-continue:hover {
+            transform: scale(1.02);
+            box-shadow: 0 10px 30px rgba(34, 197, 94, 0.3);
+        }
+
+        .btn-close {
+            background: transparent;
+            color: #9ca3af;
+            font-size: 14px;
+            margin-top: 8px;
+        }
+
+        .btn-close:hover {
+            color: white;
+        }
+    </style>
+</head>
+
+<body class="bg-starry-night text-white min-h-screen flex items-center justify-center p-4">
+
+    <!-- ==================== POPUP ==================== -->
+    <div class="popup-overlay" id="launchPopup">
+        <div class="popup-card">
+            <div class="popup-icon">🚀</div>
+            <h2 class="text-2xl font-bold text-white mb-2">We're Launching Soon!</h2>
+            <p class="text-gray-400 mb-4">Our platform goes live on <strong class="text-green-400">05 June
+                    2026</strong>. Join the early waitlist now to get notified and unlock exclusive benefits.</p>
+
+            <!-- Countdown Timer -->
+            <div class="countdown-timer" id="countdown">
+                <div class="countdown-box">
+                    <div class="countdown-number" id="days">00</div>
+                    <div class="countdown-label">Days</div>
+                </div>
+                <div class="countdown-box">
+                    <div class="countdown-number" id="hours">00</div>
+                    <div class="countdown-label">Hours</div>
+                </div>
+                <div class="countdown-box">
+                    <div class="countdown-number" id="minutes">00</div>
+                    <div class="countdown-label">Minutes</div>
+                </div>
+                <div class="countdown-box">
+                    <div class="countdown-number" id="seconds">00</div>
+                    <div class="countdown-label">Seconds</div>
+                </div>
+            </div>
+
+            <!-- Early Benefits -->
+            <p class="text-white font-semibold mt-4 mb-2 text-left">🎁 Early Waitlist Benefits:</p>
+            <ul class="benefit-list">
+                <li><i class="fas fa-check-circle"></i> Priority access on launch day</li>
+                <li><i class="fas fa-check-circle"></i> Special discounted challenge fee</li>
+                <li><i class="fas fa-check-circle"></i> Free retry on your first challenge</li>
+                <li><i class="fas fa-check-circle"></i> Exclusive entry to our trading community</li>
+            </ul>
+
+            <button class="btn-popup btn-continue" onclick="closePopup()">
+                <i class="fas fa-rocket mr-2"></i> Fill the Waitlist Now
+            </button>
+            <button class="btn-popup btn-close" onclick="closePopup()">
+                Maybe Later
+            </button>
+        </div>
+    </div>
+    <!-- ==================== END POPUP ==================== -->
+
+    <div class="liquid-glass max-w-2xl w-full p-8 shadow-2xl">
+        <div class="text-center mb-8">
+            <h1
+                class="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-blue-400 mb-2">
+                Early Access Waitlist</h1>
+            <p class="text-gray-300">Join now to secure your spot before our official launch.</p>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        {% for category, message in messages %}
+        <div
+            class="mb-4 p-4 rounded {% if category == 'error' %}bg-red-500/20 text-red-300 border border-red-500/50{% else %}bg-green-500/20 text-green-300 border border-green-500/50{% endif %}">
+            {{ message }}
+        </div>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        <form action="{{ url_for('submit_waitlist') }}" method="POST" class="space-y-6">
+            <!-- Basic Info -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-1">Full Name *</label>
+                    <input type="text" name="name" required
+                        class="w-full bg-black/50 border border-gray-600 rounded px-4 py-2 text-white focus:outline-none focus:border-cyan-400">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-1">Email Address *</label>
+                    <input type="email" name="email" required
+                        class="w-full bg-black/50 border border-gray-600 rounded px-4 py-2 text-white focus:outline-none focus:border-cyan-400">
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-medium text-gray-300 mb-1">Phone Number *</label>
+                    <input type="tel" name="phone" required
+                        class="w-full bg-black/50 border border-gray-600 rounded px-4 py-2 text-white focus:outline-none focus:border-cyan-400">
+                </div>
+            </div>
+
+            <!-- Trading Info -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-1">Experience Level</label>
+                    <select name="experience"
+                        class="w-full bg-black/50 border border-gray-600 rounded px-4 py-2 text-white focus:outline-none focus:border-cyan-400">
+                        <option value="Beginner">Beginner</option>
+                        <option value="Intermediate">Intermediate</option>
+                        <option value="Advanced">Advanced</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-1">Preferred Platform</label>
+                    <select name="platform"
+                        class="w-full bg-black/50 border border-gray-600 rounded px-4 py-2 text-white focus:outline-none focus:border-cyan-400">
+                        <option value="MT4">MT4</option>
+                        <option value="MT5">MT5</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Business Insight -->
+            <div>
+                <label class="block text-sm font-medium text-gray-300 mb-1">Plan Interest</label>
+                <select name="plan_interest"
+                    class="w-full bg-black/50 border border-gray-600 rounded px-4 py-2 text-white focus:outline-none focus:border-cyan-400">
+                    <option value="199rs for 200$">199rs -> 200$ account</option>
+                    <option value="399rs for 400$">399rs -> 400$ account</option>
+                    <option value="499rs for 500$">499rs -> 500$ account</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-300 mb-1">What is your biggest problem with current
+                    prop firms?</label>
+                <textarea name="problem" rows="3"
+                    class="w-full bg-black/50 border border-gray-600 rounded px-4 py-2 text-white focus:outline-none focus:border-cyan-400"></textarea>
+            </div>
+
+            <!-- Feedback -->
+            <div>
+                <label class="block text-sm font-medium text-gray-300 mb-1">Website Feedback / Suggestions
+                    (Optional)</label>
+                <textarea name="feedback" rows="2"
+                    class="w-full bg-black/50 border border-gray-600 rounded px-4 py-2 text-white focus:outline-none focus:border-cyan-400"></textarea>
+            </div>
+
+            <!-- Conversion -->
+            <div>
+                <label class="flex items-center space-x-3 cursor-pointer">
+                    <input type="checkbox" name="early_access" value="yes" checked
+                        class="w-5 h-5 bg-black/50 border-gray-600 rounded text-cyan-400 focus:ring-cyan-400">
+                    <span class="text-gray-300">I want early access before the public launch</span>
+                </label>
+            </div>
+
+            <button type="submit"
+                class="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-bold py-3 px-4 rounded transition duration-300 shadow-lg transform hover:scale-[1.02]">
+                Join Waitlist
+            </button>
+            <div class="text-center mt-4">
+                <a href="/" class="text-sm text-gray-400 hover:text-white">← Back to Home</a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+    <script>
+        // Countdown Timer to 05 June 2026
+        const launchDate = new Date("2026-06-05T00:00:00").getTime();
+
+        function updateCountdown() {
+            const now = new Date().getTime();
+            const distance = launchDate - now;
+
+            if (distance < 0) {
+                document.getElementById("days").textContent = "00";
+                document.getElementById("hours").textContent = "00";
+                document.getElementById("minutes").textContent = "00";
+                document.getElementById("seconds").textContent = "00";
+                return;
+            }
+
+            const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+            document.getElementById("days").textContent = String(days).padStart(2, '0');
+            document.getElementById("hours").textContent = String(hours).padStart(2, '0');
+            document.getElementById("minutes").textContent = String(minutes).padStart(2, '0');
+            document.getElementById("seconds").textContent = String(seconds).padStart(2, '0');
+        }
+
+        // Run immediately and then every second
+        updateCountdown();
+        setInterval(updateCountdown, 1000);
+
+        // Close popup function
+        function closePopup() {
+            const popup = document.getElementById("launchPopup");
+            popup.style.opacity = "0";
+            popup.style.transition = "opacity 0.3s ease";
+            setTimeout(() => {
+                popup.style.display = "none";
+            }, 300);
+        }
+    </script>
+</body>
+
+</html>

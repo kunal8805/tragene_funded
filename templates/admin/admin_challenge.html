@@ -1,0 +1,870 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Challenges Intelligence - Admin Panel{% endblock %}
+
+{% block header_title %}Challenges Intelligence{% endblock %}
+{% block header_subtitle %}Complete business intelligence & revenue tracking{% endblock %}
+
+{% block header_actions %}
+<div class="flex gap-3">
+    <button onclick="openAddChallengeModal()"
+        class="bg-green-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-700 transition flex items-center justify-center text-sm shadow-sm">
+        <i class="fas fa-plus mr-2"></i>Add Challenge
+    </button>
+    <button onclick="refreshData()"
+        class="bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700 transition flex items-center justify-center text-sm shadow-sm">
+        <i class="fas fa-sync-alt mr-2"></i>Refresh
+    </button>
+</div>
+{% endblock %}
+
+{% block content %}
+<!-- REVENUE INTELLIGENCE -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8" data-aos="fade-up">
+    <div
+        class="bg-gradient-to-r from-green-500 to-emerald-600 rounded-2xl shadow-lg p-6 text-white transform hover:scale-105 transition-transform duration-300">
+        <div class="text-3xl font-bold mb-1">₹{{ total_revenue }}</div>
+        <div class="text-sm opacity-90 font-medium">Total Revenue</div>
+        <div class="text-xs mt-2 bg-white/20 inline-block px-2 py-1 rounded-full">+15% this week</div>
+    </div>
+    <div
+        class="bg-gradient-to-r from-blue-500 to-cyan-600 rounded-2xl shadow-lg p-6 text-white transform hover:scale-105 transition-transform duration-300">
+        <div class="text-3xl font-bold mb-1">{{ total_purchases }}</div>
+        <div class="text-sm opacity-90 font-medium">Challenge Purchases</div>
+        <div class="text-xs mt-2 bg-white/20 inline-block px-2 py-1 rounded-full">{{ daily_purchases }} today</div>
+    </div>
+    <div
+        class="bg-gradient-to-r from-purple-500 to-indigo-600 rounded-2xl shadow-lg p-6 text-white transform hover:scale-105 transition-transform duration-300">
+        <div class="text-3xl font-bold mb-1">₹{{ pending_payouts }}</div>
+        <div class="text-sm opacity-90 font-medium">Pending Payouts</div>
+        <div class="text-xs mt-2 bg-white/20 inline-block px-2 py-1 rounded-full">{{ payout_eligible }} traders eligible
+        </div>
+    </div>
+    <div
+        class="bg-gradient-to-r from-orange-500 to-red-600 rounded-2xl shadow-lg p-6 text-white transform hover:scale-105 transition-transform duration-300">
+        <div class="text-3xl font-bold mb-1">{{ active_challenges }}</div>
+        <div class="text-sm opacity-90 font-medium">Active Challenges</div>
+        <div class="text-xs mt-2 bg-white/20 inline-block px-2 py-1 rounded-full">{{ expiring_soon }} expiring soon
+        </div>
+    </div>
+</div>
+
+<!-- MAIN DASHBOARD GRID -->
+<div class="grid grid-cols-1 xl:grid-cols-3 gap-8 mb-8" data-aos="fade-up" data-aos-delay="100">
+    <!-- LEFT COLUMN -->
+    <div class="xl:col-span-2 space-y-8">
+        <!-- USER JOURNEY FUNNEL -->
+        <div class="glass-card p-6">
+            <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center">
+                <i class="fas fa-funnel-dollar mr-3 text-purple-600 dark:text-purple-400"></i>
+                User Journey Funnel
+            </h2>
+            <div class="space-y-4">
+                {% for stage in user_funnel %}
+                <div
+                    class="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+                    <div class="flex items-center">
+                        <div
+                            class="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mr-3">
+                            <span class="text-blue-600 dark:text-blue-400 font-bold">{{ loop.index }}</span>
+                        </div>
+                        <div>
+                            <div class="font-semibold text-gray-900 dark:text-white">{{ stage.name }}</div>
+                            <div class="text-sm text-gray-600 dark:text-gray-400">{{ stage.description }}</div>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <div class="font-bold text-gray-900 dark:text-white">{{ stage.count }}</div>
+                        <div class="text-sm text-gray-600 dark:text-gray-400">{{ stage.percentage }}%</div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- ENHANCED ACTIVE CHALLENGES MONITORING -->
+        <div class="glass-card p-6">
+            <div class="flex flex-col lg:flex-row lg:justify-between lg:items-center mb-6 gap-4">
+                <h2 class="text-xl font-bold text-gray-900 dark:text-white flex items-center">
+                    <i class="fas fa-rocket mr-3 text-green-600 dark:text-green-400"></i>
+                    Live Challenges Monitor
+                </h2>
+                <div class="flex flex-wrap gap-2">
+                    <div
+                        class="badge-status bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400 px-3 py-1 rounded-full text-xs font-semibold">
+                        Active: {{ active_challenges }}
+                    </div>
+                    <div
+                        class="badge-status bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400 px-3 py-1 rounded-full text-xs font-semibold">
+                        Phase 1: {{ phase1_count }}
+                    </div>
+                    <div
+                        class="badge-status bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-400 px-3 py-1 rounded-full text-xs font-semibold">
+                        Phase 2: {{ phase2_count }}
+                    </div>
+                    <div
+                        class="badge-status bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400 px-3 py-1 rounded-full text-xs font-semibold">
+                        Real Money: {{ realmoney_count }}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Enhanced Filters and Controls -->
+            <div class="mb-6 space-y-4">
+                <!-- Search and Filter Row -->
+                <div class="flex flex-col md:flex-row gap-4">
+                    <!-- Real-time Search -->
+                    <div class="flex-1">
+                        <div class="relative">
+                            <input type="text" id="challengeSearch"
+                                placeholder="Search by email, account ID, or challenge ID..."
+                                class="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 transition-colors">
+                            <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                        </div>
+                    </div>
+
+                    <!-- Challenge Type Filter -->
+                    <div class="flex flex-wrap gap-2">
+                        <select id="challengeTypeFilter"
+                            class="border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
+                            <option value="all">All Challenges</option>
+                            <option value="phase1">Phase 1 Only</option>
+                            <option value="phase2">Phase 2 Only</option>
+                            <option value="realmoney">Real Money Only</option>
+                            <option value="passed">Passed Users</option>
+                        </select>
+
+                        <!-- Bulk Actions Dropdown -->
+                        <div class="relative">
+                            <button id="bulkActionsBtn"
+                                class="bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 px-4 py-2 rounded-lg font-medium flex items-center transition-colors">
+                                <i class="fas fa-cog mr-2"></i> Bulk Actions
+                                <i class="fas fa-chevron-down ml-2"></i>
+                            </button>
+                            <div id="bulkActionsMenu"
+                                class="absolute right-0 mt-1 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-10 hidden">
+                                <div class="py-1">
+                                    <button
+                                        class="w-full text-left px-4 py-3 text-sm text-green-700 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30 flex items-center transition-colors"
+                                        onclick="bulkAction('pass')">
+                                        <i class="fas fa-check-circle mr-3"></i> Force Pass Selected
+                                    </button>
+                                    <button
+                                        class="w-full text-left px-4 py-3 text-sm text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 flex items-center transition-colors"
+                                        onclick="bulkAction('fail')">
+                                        <i class="fas fa-times-circle mr-3"></i> Force Fail Selected
+                                    </button>
+                                    <button
+                                        class="w-full text-left px-4 py-3 text-sm text-orange-700 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/30 flex items-center transition-colors"
+                                        onclick="bulkAction('ban')">
+                                        <i class="fas fa-ban mr-3"></i> Ban Selected
+                                    </button>
+                                    <div class="border-t border-gray-100 dark:border-gray-700 my-1"></div>
+                                    <button
+                                        class="w-full text-left px-4 py-3 text-sm text-blue-700 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 flex items-center transition-colors"
+                                        onclick="selectAllChallenges()">
+                                        <i class="fas fa-check-square mr-3"></i> Select All
+                                    </button>
+                                    <button
+                                        class="w-full text-left px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center transition-colors"
+                                        onclick="deselectAllChallenges()">
+                                        <i class="fas fa-square mr-3"></i> Deselect All
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Action Buttons -->
+                <div class="flex flex-wrap gap-2">
+                    <button
+                        class="bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-green-100 dark:hover:bg-green-900/40 border border-green-200 dark:border-green-800 transition-colors flex items-center"
+                        onclick="forcePassAll()">
+                        <i class="fas fa-check-circle mr-2"></i> Force Pass All
+                    </button>
+                    <button
+                        class="bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-red-100 dark:hover:bg-red-900/40 border border-red-200 dark:border-red-800 transition-colors flex items-center"
+                        onclick="forceFailAll()">
+                        <i class="fas fa-times-circle mr-2"></i> Force Fail All
+                    </button>
+                    <button
+                        class="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors flex items-center"
+                        onclick="resetFilters()">
+                        <i class="fas fa-undo mr-2"></i> Reset Filters
+                    </button>
+                </div>
+            </div>
+
+            <!-- Challenges Table -->
+            <div class="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
+                <table class="w-full text-sm text-left">
+                    <thead
+                        class="bg-gray-50 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300 uppercase font-semibold text-xs border-b border-gray-200 dark:border-gray-700">
+                        <tr>
+                            <th class="py-3 pl-4 w-10">
+                                <input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll(this)"
+                                    class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                            </th>
+                            <th class="py-3 px-4">User</th>
+                            <th class="py-3 px-4">Challenge</th>
+                            <th class="py-3 px-4">Type</th>
+                            <th class="py-3 px-4">Progress</th>
+                            <th class="py-3 px-4">P&L</th>
+                            <th class="py-3 px-4">Days Left</th>
+                            <th class="py-3 px-4">Status</th>
+                            <th class="py-3 px-4">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="challengesTableBody" class="divide-y divide-gray-200 dark:divide-gray-700">
+                        {% for challenge in live_challenges %}
+                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50 challenge-row transition-colors"
+                            data-type="{{ challenge.type }}" data-email="{{ challenge.user_email }}"
+                            data-account="{{ challenge.account_id }}" data-challenge="{{ challenge.challenge_id }}">
+                            <td class="py-3 pl-4">
+                                <input type="checkbox"
+                                    class="challenge-checkbox rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                    value="{{ challenge.id }}">
+                            </td>
+                            <td class="py-3 px-4">
+                                <div class="font-medium text-gray-900 dark:text-white">{{ challenge.user_name }}</div>
+                                <div class="text-xs text-gray-500 dark:text-gray-400">{{ challenge.user_email }}</div>
+                                <div class="text-xs text-gray-400 font-mono mt-0.5">ID: {{ challenge.account_id }}</div>
+                            </td>
+                            <td class="py-3 px-4">
+                                <span class="font-bold text-gray-900 dark:text-white">₹{{ challenge.challenge_price
+                                    }}</span>
+                                <div class="text-xs text-gray-500 dark:text-gray-400">{{ challenge.challenge_name }}
+                                </div>
+                                <div class="text-xs text-gray-400 font-mono mt-0.5">CID: {{ challenge.challenge_id }}
+                                </div>
+                            </td>
+                            <td class="py-3 px-4">
+                                <span
+                                    class="px-2 py-1 text-xs rounded-full font-medium whitespace-nowrap
+                                    {% if challenge.type == 'phase1' %}bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400
+                                    {% elif challenge.type == 'phase2' %}bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-400
+                                    {% else %}bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400{% endif %}">
+                                    {{ challenge.type|replace('phase', 'Phase ')|replace('realmoney', 'Real Money') }}
+                                </span>
+                            </td>
+                            <td class="py-3 px-4">
+                                <div class="flex items-center gap-2">
+                                    <div class="flex-grow bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 w-20">
+                                        <div class="bg-blue-600 dark:bg-blue-500 h-1.5 rounded-full"
+                                            style="width: {{ challenge.progress }}%"></div>
+                                    </div>
+                                    <span class="text-xs text-gray-600 dark:text-gray-400">{{ challenge.progress
+                                        }}%</span>
+                                </div>
+                            </td>
+                            <td class="py-3 px-4">
+                                <span
+                                    class="font-bold {% if challenge.profit_loss >= 0 %}text-green-600 dark:text-green-400{% else %}text-red-600 dark:text-red-400{% endif %}">
+                                    {{ challenge.profit_loss }}%
+                                </span>
+                            </td>
+                            <td class="py-3 px-4">
+                                <span
+                                    class="font-medium {% if challenge.days_left <= 3 %}text-red-600 dark:text-red-400{% else %}text-gray-900 dark:text-white{% endif %}">
+                                    {{ challenge.days_left }} days
+                                </span>
+                            </td>
+                            <td class="py-3 px-4">
+                                <span class="px-2 py-1 text-xs rounded-full font-medium whitespace-nowrap
+                                    {% if challenge.status == 'on_track' %}bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400
+                                    {% elif challenge.status == 'near_limit' %}bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400
+                                    {% else %}bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400{% endif %}">
+                                    {{ challenge.status|replace('_', ' ')|title }}
+                                </span>
+                            </td>
+                            <td class="py-3 px-4">
+                                <div class="flex flex-col gap-1.5">
+                                    <button onclick="forcePassChallenge({{ challenge.id }})"
+                                        class="text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-300 text-xs font-medium flex items-center transition-colors">
+                                        <i class="fas fa-check-circle mr-1.5"></i> Pass
+                                    </button>
+                                    <button onclick="forceFailChallenge({{ challenge.id }})"
+                                        class="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 text-xs font-medium flex items-center transition-colors">
+                                        <i class="fas fa-times-circle mr-1.5"></i> Fail
+                                    </button>
+                                    <button onclick="viewChallengeDetails({{ challenge.id }})"
+                                        class="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 text-xs font-medium flex items-center transition-colors">
+                                        <i class="fas fa-eye mr-1.5"></i> Details
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            <div class="mt-4 flex flex-col sm:flex-row justify-between items-center gap-4">
+                <div class="text-sm text-gray-600 dark:text-gray-400">
+                    Showing <span id="showingCount" class="font-medium text-gray-900 dark:text-white">10</span> of <span
+                        id="totalCount" class="font-medium text-gray-900 dark:text-white">{{ active_challenges }}</span>
+                    challenges
+                </div>
+                <div class="flex gap-2">
+                    <button
+                        class="px-3 py-1 bg-gray-100 dark:bg-gray-700 rounded-lg text-sm text-gray-600 dark:text-gray-400 font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition disabled:opacity-50">
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                    <button class="px-3 py-1 bg-blue-600 text-white rounded-lg text-sm font-medium">1</button>
+                    <button
+                        class="px-3 py-1 bg-gray-100 dark:bg-gray-700 rounded-lg text-sm text-gray-600 dark:text-gray-400 font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition">2</button>
+                    <button
+                        class="px-3 py-1 bg-gray-100 dark:bg-gray-700 rounded-lg text-sm text-gray-600 dark:text-gray-400 font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition">3</button>
+                    <button
+                        class="px-3 py-1 bg-gray-100 dark:bg-gray-700 rounded-lg text-sm text-gray-600 dark:text-gray-400 font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition">
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- RIGHT COLUMN -->
+    <div class="space-y-8">
+        <!-- CHALLENGE PERFORMANCE -->
+        <div class="glass-card p-6">
+            <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center">
+                <i class="fas fa-chart-bar mr-3 text-blue-600 dark:text-blue-400"></i>
+                Challenge Performance
+            </h2>
+            <div class="space-y-4">
+                {% for challenge in challenge_performance %}
+                <div
+                    class="p-4 border rounded-xl transition-colors {% if challenge.is_popular %}border-yellow-200 bg-yellow-50 dark:bg-yellow-900/10 dark:border-yellow-900/30{% else %}border-gray-200 bg-gray-50 dark:bg-gray-700/30 dark:border-gray-600{% endif %}">
+                    <div class="flex justify-between items-start mb-2">
+                        <div>
+                            <h3 class="font-bold text-gray-900 dark:text-white">₹{{ challenge.price }}</h3>
+                            <p class="text-sm text-gray-600 dark:text-gray-400">{{ challenge.purchases }} purchases</p>
+                        </div>
+                        {% if challenge.is_popular %}
+                        <span
+                            class="bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400 px-2 py-0.5 rounded-full text-xs font-semibold border border-yellow-200 dark:border-yellow-800">
+                            Most Popular
+                        </span>
+                        {% endif %}
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 text-xs">
+                        <div class="text-gray-500 dark:text-gray-400">Revenue:</div>
+                        <div class="font-semibold text-gray-900 dark:text-white">₹{{ challenge.revenue }}</div>
+
+                        <div class="text-gray-500 dark:text-gray-400">Pass Rate:</div>
+                        <div class="font-semibold text-gray-900 dark:text-white">{{ challenge.pass_rate }}%</div>
+
+                        <div class="text-gray-500 dark:text-gray-400">Avg. Days:</div>
+                        <div class="font-semibold text-gray-900 dark:text-white">{{ challenge.avg_days }}</div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- PAYOUT MANAGEMENT -->
+        <div class="glass-card p-6">
+            <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center">
+                <i class="fas fa-money-bill-wave mr-3 text-green-600 dark:text-green-400"></i>
+                Payout Management
+            </h2>
+            <div class="space-y-3">
+                {% for payout in pending_payouts_list %}
+                <div
+                    class="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900/10 rounded-lg border border-green-200 dark:border-green-900/30">
+                    <div>
+                        <div class="font-semibold text-green-800 dark:text-green-300">{{ payout.user_name }}</div>
+                        <div class="text-sm text-green-600 dark:text-green-400">₹{{ payout.amount }} • {{
+                            payout.challenge }}</div>
+                    </div>
+                    <button onclick="processPayout({{ payout.id }})"
+                        class="bg-green-600 text-white px-3 py-1 rounded text-sm font-medium hover:bg-green-700 transition shadow-sm">
+                        Pay
+                    </button>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="mt-4 text-center">
+                <a href="/admin/payments"
+                    class="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-semibold text-sm transition-colors">
+                    View All Payouts
+                </a>
+            </div>
+        </div>
+
+        <!-- QUICK ACTIONS -->
+        <div class="glass-card p-6">
+            <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center">
+                <i class="fas fa-bolt mr-3 text-yellow-500"></i>
+                Quick Actions
+            </h2>
+            <div class="grid grid-cols-2 gap-3">
+                <button onclick="exportChallengeData()"
+                    class="bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 p-3 rounded-xl font-medium hover:bg-blue-100 dark:hover:bg-blue-900/40 border border-blue-100 dark:border-blue-800 transition-colors flex flex-col items-center justify-center gap-2">
+                    <i class="fas fa-download text-lg"></i>
+                    <span class="text-xs">Export Data</span>
+                </button>
+                <button onclick="viewReports()"
+                    class="bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 p-3 rounded-xl font-medium hover:bg-purple-100 dark:hover:bg-purple-900/40 border border-purple-100 dark:border-purple-800 transition-colors flex flex-col items-center justify-center gap-2">
+                    <i class="fas fa-chart-line text-lg"></i>
+                    <span class="text-xs">Reports</span>
+                </button>
+                <button onclick="manageRules()"
+                    class="bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 p-3 rounded-xl font-medium hover:bg-green-100 dark:hover:bg-green-900/40 border border-green-100 dark:border-green-800 transition-colors flex flex-col items-center justify-center gap-2">
+                    <i class="fas fa-cog text-lg"></i>
+                    <span class="text-xs">Rules</span>
+                </button>
+                <button onclick="viewAnalytics()"
+                    class="bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300 p-3 rounded-xl font-medium hover:bg-orange-100 dark:hover:bg-orange-900/40 border border-orange-100 dark:border-orange-800 transition-colors flex flex-col items-center justify-center gap-2">
+                    <i class="fas fa-chart-pie text-lg"></i>
+                    <span class="text-xs">Analytics</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- RISK & COMPLIANCE -->
+<div class="glass-card p-6 mb-8" data-aos="fade-up" data-aos-delay="200">
+    <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center">
+        <i class="fas fa-shield-alt mr-3 text-red-600 dark:text-red-400"></i>
+        Risk & Compliance Alerts
+    </h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {% for alert in risk_alerts %}
+        <div class="p-4 border rounded-xl transition-colors
+            {% if alert.priority == 'high' %}border-red-200 bg-red-50 dark:bg-red-900/10 dark:border-red-900/30
+            {% elif alert.priority == 'medium' %}border-yellow-200 bg-yellow-50 dark:bg-yellow-900/10 dark:border-yellow-900/30
+            {% else %}border-blue-200 bg-blue-50 dark:bg-blue-900/10 dark:border-blue-900/30{% endif %}">
+            <div class="flex items-center justify-between mb-2">
+                <div class="font-semibold 
+                    {% if alert.priority == 'high' %}text-red-800 dark:text-red-300
+                    {% elif alert.priority == 'medium' %}text-yellow-800 dark:text-yellow-300
+                    {% else %}text-blue-800 dark:text-blue-300{% endif %}">
+                    {{ alert.title }}
+                </div>
+                <span class="text-xs font-bold px-2 py-0.5 rounded-full bg-white/50
+                    {% if alert.priority == 'high' %}text-red-600 dark:text-red-400
+                    {% elif alert.priority == 'medium' %}text-yellow-600 dark:text-yellow-400
+                    {% else %}text-blue-600 dark:text-blue-400{% endif %}">
+                    {{ alert.count }}
+                </span>
+            </div>
+            <div class="text-sm 
+                {% if alert.priority == 'high' %}text-red-600 dark:text-red-400
+                {% elif alert.priority == 'medium' %}text-yellow-600 dark:text-yellow-400
+                {% else %}text-blue-600 dark:text-blue-400{% endif %}">
+                {{ alert.description }}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- JavaScript for all interactive features -->
+<script>
+    // Global variables
+    let currentChallenges = [];
+    let currentFilters = {
+        search: '',
+        type: 'all'
+    };
+
+    // Initialize dashboard with real data
+    document.addEventListener('DOMContentLoaded', function () {
+        // Only load data if we aren't using server-side rendering for data (optional hybrid approach)
+        // For now, we reuse the existing data loading logic to support dynamic updates without reload
+        // But the initial render is server-side
+
+        setupEventListeners();
+        // initializeCharts(); // Re-enable if you have Chart.js included and chart containers
+    });
+
+    // Load real data from backend
+    async function loadDashboardData() {
+        try {
+            // showLoadingState(true); // Need to implement this function
+
+            // Load main dashboard data
+            const [dashboardResponse, challengesResponse] = await Promise.all([
+                fetch('/admin/challenges_data'),
+                fetch('/admin/get_challenges?type=all')
+            ]);
+
+            if (dashboardResponse.ok && challengesResponse.ok) {
+                const dashboardData = await dashboardResponse.json();
+                const challengesData = await challengesResponse.json();
+
+                currentChallenges = challengesData;
+                updateDashboardUI(dashboardData);
+                updateChallengesTable(challengesData);
+            } else {
+                throw new Error('Failed to load data from server');
+            }
+        } catch (error) {
+            console.error('Error loading dashboard data:', error);
+            // showError('Failed to load data. Please refresh the page.'); // Need to implement
+        } finally {
+            // showLoadingState(false); // Need to implement
+        }
+    }
+
+    // Refresh button handler
+    function refreshData() {
+        const btn = document.querySelector('button[onclick="refreshData()"] i');
+        if (btn) btn.classList.add('fa-spin');
+        loadDashboardData().then(() => {
+            if (btn) btn.classList.remove('fa-spin');
+        });
+    }
+
+    // Load only challenges data (for filters/search)
+    async function loadChallengesData(filters = {}) {
+        try {
+            let url = '/admin/get_challenges?';
+            const params = new URLSearchParams();
+
+            if (filters.type && filters.type !== 'all') {
+                params.append('type', filters.type);
+            }
+            if (filters.search) {
+                params.append('search', filters.search);
+            }
+
+            const response = await fetch(url + params.toString());
+
+            if (response.ok) {
+                const challengesData = await response.json();
+                currentChallenges = challengesData;
+                updateChallengesTable(challengesData);
+                return challengesData;
+            } else {
+                throw new Error('Failed to load challenges');
+            }
+        } catch (error) {
+            console.error('Error loading challenges:', error);
+        }
+    }
+
+    function updateDashboardUI(data) {
+        // Update revenue intelligence counters
+        if (data.total_revenue !== undefined) {
+            const el = document.querySelector('.bg-gradient-to-r.from-green-500 .text-3xl');
+            if (el) el.textContent = `₹${data.total_revenue}`;
+        }
+        if (data.total_purchases !== undefined) {
+            const el = document.querySelector('.bg-gradient-to-r.from-blue-500 .text-3xl');
+            if (el) el.textContent = data.total_purchases;
+        }
+        if (data.pending_payouts !== undefined) {
+            const el = document.querySelector('.bg-gradient-to-r.from-purple-500 .text-3xl');
+            if (el) el.textContent = `₹${data.pending_payouts}`;
+        }
+        if (data.active_challenges !== undefined) {
+            const el = document.querySelector('.bg-gradient-to-r.from-orange-500 .text-3xl');
+            if (el) el.textContent = data.active_challenges;
+        }
+
+        // Update badge counts
+        const badges = document.querySelectorAll('.badge-status');
+        if (badges.length >= 4 && data.phase1_count !== undefined) {
+            badges[0].textContent = `Active: ${data.active_challenges || 0}`;
+            badges[1].textContent = `Phase 1: ${data.phase1_count || 0}`;
+            badges[2].textContent = `Phase 2: ${data.phase2_count || 0}`;
+            badges[3].textContent = `Real Money: ${data.realmoney_count || 0}`;
+        }
+    }
+
+    function updateChallengesTable(challenges) {
+        const tbody = document.getElementById('challengesTableBody');
+        if (!tbody) return;
+
+        tbody.innerHTML = '';
+
+        if (!challenges || challenges.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="9" class="py-8 text-center text-gray-500 dark:text-gray-400">
+                        <i class="fas fa-inbox text-4xl mb-2 block text-gray-300 dark:text-gray-600"></i>
+                        No active challenges found
+                    </td>
+                </tr>
+            `;
+            const showingCount = document.getElementById('showingCount');
+            if (showingCount) showingCount.textContent = '0';
+            return;
+        }
+
+        challenges.forEach(challenge => {
+            const row = document.createElement('tr');
+            row.className = 'hover:bg-gray-50 dark:hover:bg-gray-800/50 challenge-row transition-colors';
+            row.dataset.type = challenge.type || 'phase1';
+
+            // Helper for badge classes
+            const getTypeBadge = (type) => {
+                const classes = {
+                    'phase1': 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400',
+                    'phase2': 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-400',
+                    'realmoney': 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400'
+                };
+                return classes[type] || 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200';
+            };
+
+            const getStatusBadge = (status) => {
+                const classes = {
+                    'on_track': 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400',
+                    'active': 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400',
+                    'near_limit': 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400',
+                    'failed': 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400'
+                };
+                return classes[status] || classes['active'];
+            };
+
+            row.innerHTML = `
+                <td class="py-3 pl-4">
+                    <input type="checkbox" class="challenge-checkbox rounded border-gray-300 text-blue-600 focus:ring-blue-500" value="${challenge.id}">
+                </td>
+                <td class="py-3 px-4">
+                    <div class="font-medium text-gray-900 dark:text-white">${challenge.user_name || 'User'}</div>
+                    <div class="text-xs text-gray-500 dark:text-gray-400">${challenge.user_email || ''}</div>
+                    <div class="text-xs text-gray-400 font-mono mt-0.5">ID: ${challenge.account_id || 'N/A'}</div>
+                </td>
+                <td class="py-3 px-4">
+                    <span class="font-bold text-gray-900 dark:text-white">₹${challenge.challenge_price || 0}</span>
+                    <div class="text-xs text-gray-500 dark:text-gray-400">${challenge.challenge_name || ''}</div>
+                    <div class="text-xs text-gray-400 font-mono mt-0.5">CID: ${challenge.challenge_id || ''}</div>
+                </td>
+                <td class="py-3 px-4">
+                    <span class="px-2 py-1 text-xs rounded-full font-medium whitespace-nowrap ${getTypeBadge(challenge.type)}">
+                        ${(challenge.type || '').replace('phase', 'Phase ').replace('realmoney', 'Real Money')}
+                    </span>
+                </td>
+                <td class="py-3 px-4">
+                    <div class="flex items-center gap-2">
+                        <div class="flex-grow bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 w-20">
+                            <div class="bg-blue-600 dark:bg-blue-500 h-1.5 rounded-full" style="width: ${challenge.progress || 0}%"></div>
+                        </div>
+                        <span class="text-xs text-gray-600 dark:text-gray-400">${challenge.progress || 0}%</span>
+                    </div>
+                </td>
+                <td class="py-3 px-4">
+                    <span class="font-bold ${(challenge.profit_loss || 0) >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}">
+                        ${challenge.profit_loss || 0}%
+                    </span>
+                </td>
+                <td class="py-3 px-4">
+                    <span class="font-medium ${(challenge.days_left || 0) <= 3 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-white'}">
+                        ${challenge.days_left || 0} days
+                    </span>
+                </td>
+                <td class="py-3 px-4">
+                    <span class="px-2 py-1 text-xs rounded-full font-medium whitespace-nowrap ${getStatusBadge(challenge.status)}">
+                        ${(challenge.status || '').replace('_', ' ')}
+                    </span>
+                </td>
+                <td class="py-3 px-4">
+                    <div class="flex flex-col gap-1.5">
+                        <button onclick="forcePassChallenge(${challenge.id})" class="text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-300 text-xs font-medium flex items-center transition-colors">
+                            <i class="fas fa-check-circle mr-1.5"></i> Pass
+                        </button>
+                        <button onclick="forceFailChallenge(${challenge.id})" class="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 text-xs font-medium flex items-center transition-colors">
+                            <i class="fas fa-times-circle mr-1.5"></i> Fail
+                        </button>
+                        <button onclick="viewChallengeDetails(${challenge.id})" class="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 text-xs font-medium flex items-center transition-colors">
+                            <i class="fas fa-eye mr-1.5"></i> Details
+                        </button>
+                    </div>
+                </td>
+            `;
+
+            tbody.appendChild(row);
+        });
+
+        const showingCount = document.getElementById('showingCount');
+        const totalCount = document.getElementById('totalCount');
+        if (showingCount) showingCount.textContent = challenges.length;
+        if (totalCount) totalCount.textContent = challenges.length;
+    }
+
+    // Helper functions
+    function setupEventListeners() {
+        // Real-time search with debouncing
+        const searchInput = document.getElementById('challengeSearch');
+        if (searchInput) {
+            let searchTimeout;
+            searchInput.addEventListener('input', function () {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(() => {
+                    currentFilters.search = this.value;
+                    loadChallengesData(currentFilters);
+                }, 300);
+            });
+        }
+
+        // Filter functionality
+        const typeFilter = document.getElementById('challengeTypeFilter');
+        if (typeFilter) {
+            typeFilter.addEventListener('change', function () {
+                currentFilters.type = this.value;
+                loadChallengesData(currentFilters);
+            });
+        }
+
+        // Bulk actions dropdown
+        const bulkActionsBtn = document.getElementById('bulkActionsBtn');
+        const bulkActionsMenu = document.getElementById('bulkActionsMenu');
+
+        if (bulkActionsBtn && bulkActionsMenu) {
+            bulkActionsBtn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                bulkActionsMenu.classList.toggle('hidden');
+            });
+
+            // Close dropdown when clicking elsewhere
+            document.addEventListener('click', function () {
+                bulkActionsMenu.classList.add('hidden');
+            });
+        }
+    }
+
+    function toggleSelectAll(checkbox) {
+        const checkboxes = document.querySelectorAll('.challenge-checkbox');
+        checkboxes.forEach(cb => {
+            cb.checked = checkbox.checked;
+        });
+    }
+
+    function selectAllChallenges() {
+        const cb = document.getElementById('selectAllCheckbox');
+        if (cb) {
+            cb.checked = true;
+            toggleSelectAll(cb);
+        }
+    }
+
+    function deselectAllChallenges() {
+        const cb = document.getElementById('selectAllCheckbox');
+        if (cb) {
+            cb.checked = false;
+            toggleSelectAll(cb);
+        }
+    }
+
+    function getSelectedChallengeIds() {
+        const checkboxes = document.querySelectorAll('.challenge-checkbox:checked');
+        return Array.from(checkboxes).map(cb => parseInt(cb.value));
+    }
+
+    // Add missing openAddChallengeModal function
+    function openAddChallengeModal() {
+        window.location.href = '/admin/manage-challenges'; // Redirects to Manage Challenges page where modal naturally exists or separate page
+        // Or if you want a modal here, you need to include the modal HTML in this template. 
+        // Based on analysis, add_challenge.html is the Manage Challenges page.
+        // So I'll redirect there.
+    }
+
+    // API Functions
+    async function forcePassChallenge(challengeId) {
+        if (!confirm(`Force pass challenge #${challengeId}? This will update the user's dashboard immediately.`)) {
+            return;
+        }
+
+        try {
+            const response = await fetch('/admin/force_pass_challenge', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    // 'X-CSRFToken': getCSRFToken() // removed for now if not using CSRF token in header directly or handled by backend
+                },
+                body: JSON.stringify({ challenge_id: challengeId })
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                alert(result.message || 'Challenge passed successfully!');
+                refreshData();
+            } else {
+                alert(result.error || 'Failed to pass challenge');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Failed to pass challenge. Please try again.');
+        }
+    }
+
+    async function forceFailChallenge(challengeId) {
+        if (!confirm(`Force fail challenge #${challengeId}? This will update the user's dashboard immediately.`)) {
+            return;
+        }
+
+        try {
+            const response = await fetch('/admin/force_fail_challenge', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ challenge_id: challengeId })
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                alert(result.message || 'Challenge failed successfully!');
+                refreshData();
+            } else {
+                alert(result.error || 'Failed to fail challenge');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Failed to fail challenge. Please try again.');
+        }
+    }
+
+    // Placeholder functions for buttons
+    function bulkAction(action) {
+        const ids = getSelectedChallengeIds();
+        if (ids.length === 0) {
+            alert('Please select at least one challenge.');
+            return;
+        }
+        alert(`Bulk action '${action}' for IDs: ${ids.join(', ')} not implemented yet in demo.`);
+    }
+
+    function forcePassAll() {
+        if (confirm('Are you sure you want to pass ALL active challenges? This is dangerous!')) {
+            alert('Not implemented in demo to prevent accidents.');
+        }
+    }
+
+    function forceFailAll() {
+        if (confirm('Are you sure you want to fail ALL active challenges? This is dangerous!')) {
+            alert('Not implemented in demo to prevent accidents.');
+        }
+    }
+
+    function resetFilters() {
+        document.getElementById('challengeSearch').value = '';
+        document.getElementById('challengeTypeFilter').value = 'all';
+        currentFilters = { search: '', type: 'all' };
+        loadChallengesData(currentFilters);
+    }
+
+    function viewChallengeDetails(id) {
+        alert(`View details for challenge ${id}`);
+    }
+
+    function processPayout(id) {
+        window.location.href = '/admin/payments';
+    }
+
+    function exportChallengeData() { alert('Exporting data...'); }
+    function viewReports() { alert('Viewing reports...'); }
+    function manageRules() { window.location.href = '/admin/manage-challenges'; }
+    function viewAnalytics() { alert('Viewing analytics...'); }
+
+</script>
+{% endblock %}

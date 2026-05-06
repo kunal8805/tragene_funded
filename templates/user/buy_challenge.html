@@ -1,0 +1,814 @@
+{% extends "user/base.html" %}
+
+{% block title %}Purchase Challenge - Tragene Funded{% endblock %}
+
+{% block header_title %}Purchase Challenge{% endblock %}
+{% block header_subtitle %}Complete your purchase to start trading{% endblock %}
+
+{% block head %}
+<!-- Razorpay Checkout -->
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+
+<style>
+    /* Payment Method Selection */
+    .payment-option {
+        border: 2px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 16px;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+
+    .dark .payment-option {
+        border-color: #374151;
+        background-color: #1f2937;
+    }
+
+    .payment-option:hover {
+        border-color: #3b82f6;
+        background-color: #f0f9ff;
+    }
+
+    .dark .payment-option:hover {
+        border-color: #3b82f6;
+        background-color: #1e3a8a;
+    }
+
+    .payment-option.selected {
+        border-color: #3b82f6;
+        background-color: #dbeafe;
+    }
+
+    .dark .payment-option.selected {
+        border-color: #3b82f6;
+        background-color: #1e3a8a;
+    }
+
+    /* Loader */
+    .loader {
+        border: 3px solid #f3f3f3;
+        border-top: 3px solid #3b82f6;
+        border-radius: 50%;
+        width: 30px;
+        height: 30px;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        0% {
+            transform: rotate(0deg);
+        }
+
+        100% {
+            transform: rotate(360deg);
+        }
+    }
+
+    /* Alert Messages */
+    .alert-success {
+        background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+        border: 1px solid #10b981;
+        color: #065f46;
+    }
+
+    .dark .alert-success {
+        background: linear-gradient(135deg, #064e3b 0%, #065f46 100%);
+        border: 1px solid #10b981;
+        color: #d1fae5;
+    }
+
+    .alert-error {
+        background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+        border: 1px solid #ef4444;
+        color: #7f1d1d;
+    }
+
+    .dark .alert-error {
+        background: linear-gradient(135deg, #7f1d1d 0%, #991b1b 100%);
+        border: 1px solid #ef4444;
+        color: #fee2e2;
+    }
+
+    .alert-warning {
+        background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+        border: 1px solid #f59e0b;
+        color: #92400e;
+    }
+
+    .dark .alert-warning {
+        background: linear-gradient(135deg, #78350f 0%, #92400e 100%);
+        border: 1px solid #f59e0b;
+        color: #fef3c7;
+    }
+
+    .floating {
+        animation: floating 3s ease-in-out infinite;
+    }
+
+    @keyframes floating {
+
+        0%,
+        100% {
+            transform: translateY(0px);
+        }
+
+        50% {
+            transform: translateY(-5px);
+        }
+    }
+
+    /* Ripple effect for payment button */
+    .ripple {
+        position: relative;
+        overflow: hidden;
+    }
+
+    .ripple:after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 5px;
+        height: 5px;
+        background: rgba(255, 255, 255, 0.5);
+        opacity: 0;
+        border-radius: 100%;
+        transform: scale(1, 1) translate(-50%);
+        transform-origin: 50% 50%;
+    }
+
+    .ripple:focus:not(:active)::after {
+        animation: ripple 1s ease-out;
+    }
+
+    @keyframes ripple {
+        0% {
+            transform: scale(0, 0);
+            opacity: 0.5;
+        }
+
+        20% {
+            transform: scale(25, 25);
+            opacity: 0.3;
+        }
+
+        100% {
+            opacity: 0;
+            transform: scale(40, 40);
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- KYC Warning -->
+{% if user.kyc_status != 'approved' %}
+<div class="glass-card p-4 mb-6 border-l-4 border-orange-500" data-aos="fade-up">
+    <div class="flex flex-col sm:flex-row items-center justify-between space-y-3 sm:space-y-0">
+        <div class="flex items-center space-x-4">
+            <div class="w-12 h-12 bg-orange-100 dark:bg-orange-900/30 rounded-xl flex items-center justify-center">
+                <i class="fas fa-id-card text-orange-600 dark:text-orange-400 text-xl"></i>
+            </div>
+            <div>
+                <h3 class="font-semibold text-lg text-gray-900 dark:text-white">KYC Verification Required</h3>
+                <p class="text-gray-600 dark:text-gray-400">Complete verification to purchase challenges</p>
+            </div>
+        </div>
+        <a href="/user/kyc"
+            class="bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-xl font-semibold transition whitespace-nowrap">
+            Start Verification
+        </a>
+    </div>
+</div>
+{% endif %}
+
+<!-- Main Content Grid -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
+    <!-- Left Column: Challenge Details (2/3 on desktop) -->
+    <div class="lg:col-span-2 space-y-6">
+        <!-- Challenge Header -->
+        <div class="glass-card p-6 border dark:border-dark-border" data-aos="fade-up">
+            <div class="flex items-center justify-between mb-6">
+                <div>
+                    <a href="/user/challenges"
+                        class="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium inline-flex items-center mb-2">
+                        <i class="fas fa-arrow-left mr-2"></i> Back to Challenges
+                    </a>
+                    <h2 class="text-2xl font-bold text-gray-900 dark:text-white">{{ challenge.name }}</h2>
+                    <div class="flex items-center mt-2 space-x-4">
+                        <div class="flex items-center">
+                            <i class="fas fa-wallet text-blue-600 dark:text-blue-400 mr-2"></i>
+                            <span class="text-gray-700 dark:text-gray-300">${{ "{:,}".format(challenge.account_size) }}
+                                Account</span>
+                        </div>
+                        <div class="flex items-center">
+                            <i class="fas fa-trophy text-yellow-600 dark:text-yellow-400 mr-2"></i>
+                            <span class="text-gray-700 dark:text-gray-300">
+                                {% if challenge.price == 99 %}Beginner
+                                {% elif challenge.price == 149 %}Advanced
+                                {% else %}Pro
+                                {% endif %} Level
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <div class="hidden lg:block">
+                    <div class="text-4xl font-bold text-gray-900 dark:text-white">₹{{ challenge.price }}</div>
+                    <div class="text-gray-600 dark:text-gray-400 text-sm">≈ ${{ (challenge.price * 0.012)|round(2) }}
+                        USD</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Challenge Rules & Requirements -->
+        <div class="glass-card p-6 border dark:border-dark-border" data-aos="fade-up" data-aos-delay="100">
+            <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+                <i class="fas fa-gavel text-orange-600 dark:text-orange-400 mr-2"></i>
+                Challenge Rules & Requirements
+            </h3>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="space-y-4">
+                    <div class="flex items-start">
+                        <div
+                            class="w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center mr-3 mt-1">
+                            <i class="fas fa-bullseye text-green-600 dark:text-green-400"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-medium text-gray-900 dark:text-white">Profit Target</h4>
+                            <p class="text-gray-600 dark:text-gray-400">{{ challenge.profit_target }}% (${{
+                                (challenge.account_size *
+                                challenge.profit_target/100)|int }})</p>
+                            <p class="text-sm text-gray-500 dark:text-gray-500">Must reach to pass the challenge</p>
+                        </div>
+                    </div>
+
+                    <div class="flex items-start">
+                        <div
+                            class="w-8 h-8 bg-red-100 dark:bg-red-900/30 rounded-lg flex items-center justify-center mr-3 mt-1">
+                            <i class="fas fa-shield-alt text-red-600 dark:text-red-400"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-medium text-gray-900 dark:text-white">Maximum Daily Loss</h4>
+                            <p class="text-gray-600 dark:text-gray-400">{{ challenge.max_daily_loss }}% (${{
+                                (challenge.account_size *
+                                challenge.max_daily_loss/100)|int }})</p>
+                            <p class="text-sm text-gray-500 dark:text-gray-500">Daily loss limit - challenge fails if
+                                exceeded</p>
+                        </div>
+                    </div>
+
+                    <div class="flex items-start">
+                        <div
+                            class="w-8 h-8 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg flex items-center justify-center mr-3 mt-1">
+                            <i class="fas fa-calendar text-yellow-600 dark:text-yellow-400"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-medium text-gray-900 dark:text-white">Minimum Trading Days</h4>
+                            <p class="text-gray-600 dark:text-gray-400">{{ challenge.min_trading_days }} days</p>
+                            <p class="text-sm text-gray-500 dark:text-gray-500">Minimum days required before passing</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="space-y-4">
+                    <div class="flex items-start">
+                        <div
+                            class="w-8 h-8 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center mr-3 mt-1">
+                            <i class="fas fa-chart-line text-purple-600 dark:text-purple-400"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-medium text-gray-900 dark:text-white">Maximum Overall Loss</h4>
+                            <p class="text-gray-600 dark:text-gray-400">{{ challenge.max_overall_loss }}% (${{
+                                (challenge.account_size *
+                                challenge.max_overall_loss/100)|int }})</p>
+                            <p class="text-sm text-gray-500 dark:text-gray-500">Total loss limit</p>
+                        </div>
+                    </div>
+
+                    <div class="flex items-start">
+                        <div
+                            class="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center mr-3 mt-1">
+                            <i class="fas fa-clock text-blue-600 dark:text-blue-400"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-medium text-gray-900 dark:text-white">Time Limit</h4>
+                            <p class="text-gray-600 dark:text-gray-400">{{ challenge.duration_days }} days</p>
+                            <p class="text-sm text-gray-500 dark:text-gray-500">Complete within this timeframe</p>
+                        </div>
+                    </div>
+
+                    <div class="flex items-start">
+                        <div
+                            class="w-8 h-8 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg flex items-center justify-center mr-3 mt-1">
+                            <i class="fas fa-percentage text-indigo-600 dark:text-indigo-400"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-medium text-gray-900 dark:text-white">Profit Share</h4>
+                            <p class="text-gray-600 dark:text-gray-400">{{ challenge.user_profit_share }}% for you, {{
+                                100 -
+                                challenge.user_profit_share }}% for firm</p>
+                            <p class="text-sm text-gray-500 dark:text-gray-500">Your profit split after passing</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Stats -->
+        <div class="glass-card p-6 border dark:border-dark-border" data-aos="fade-up" data-aos-delay="200">
+            <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Quick Stats</h3>
+
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="text-center p-4 bg-blue-50 dark:bg-blue-900/30 rounded-xl">
+                    <div class="text-2xl font-bold text-blue-600 dark:text-blue-400 mb-1">35%</div>
+                    <div class="text-sm text-gray-600 dark:text-gray-400">Success Rate</div>
+                </div>
+                <div class="text-center p-4 bg-green-50 dark:bg-green-900/30 rounded-xl">
+                    <div class="text-2xl font-bold text-green-600 dark:text-green-400 mb-1">18 days</div>
+                    <div class="text-sm text-gray-600 dark:text-gray-400">Avg. Completion</div>
+                </div>
+                <div class="text-center p-4 bg-yellow-50 dark:bg-yellow-900/30 rounded-xl">
+                    <div class="text-2xl font-bold text-yellow-600 dark:text-yellow-400 mb-1">92%</div>
+                    <div class="text-sm text-gray-600 dark:text-gray-400">Satisfaction</div>
+                </div>
+                <div class="text-center p-4 bg-purple-50 dark:bg-purple-900/30 rounded-xl">
+                    <div class="text-2xl font-bold text-purple-600 dark:text-purple-400 mb-1">24h</div>
+                    <div class="text-sm text-gray-600 dark:text-gray-400">Support Response</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column: Purchase Box (1/3 on desktop) - STICKY -->
+    <div class="lg:sticky lg:top-24 h-fit">
+        <div class="glass-card p-6 floating border dark:border-dark-border" data-aos="fade-left">
+            <!-- Price on mobile -->
+            <div class="lg:hidden mb-6 text-center">
+                <div class="text-4xl font-bold text-gray-900 dark:text-white">₹{{ challenge.price }}</div>
+                <div class="text-gray-600 dark:text-gray-400">≈ ${{ (challenge.price * 0.012)|round(2) }} USD</div>
+            </div>
+
+            <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Purchase Summary</h3>
+
+            <div class="space-y-3 mb-6">
+                <div class="flex justify-between">
+                    <span class="text-gray-600 dark:text-gray-400">Challenge:</span>
+                    <span class="font-medium text-gray-900 dark:text-white">{{ challenge.name }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-600 dark:text-gray-400">Account Size:</span>
+                    <span class="font-medium text-gray-900 dark:text-white">${{ "{:,}".format(challenge.account_size)
+                        }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-600 dark:text-gray-400">Duration:</span>
+                    <span class="font-medium text-gray-900 dark:text-white">{{ challenge.duration_days }} days</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-600 dark:text-gray-400">Your Profit Share:</span>
+                    <span class="font-medium text-green-600 dark:text-green-400">{{ challenge.user_profit_share
+                        }}%</span>
+                </div>
+                <div class="border-t dark:border-gray-700 pt-3 mt-3">
+                    <div class="flex justify-between text-lg">
+                        <span class="font-semibold text-gray-900 dark:text-white">Total:</span>
+                        <span class="font-bold text-gray-900 dark:text-white">₹{{ challenge.price }}</span>
+                    </div>
+                    <div class="text-right text-sm text-gray-600 dark:text-gray-400">
+                        ≈ ${{ (challenge.price * 0.012)|round(2) }} USD
+                    </div>
+                </div>
+            </div>
+
+            <!-- KYC Status Check -->
+            <div class="mb-6">
+                {% if user.kyc_status == 'approved' %}
+                <div
+                    class="flex items-center p-3 bg-green-50 dark:bg-green-900/30 rounded-lg border border-green-200 dark:border-green-800">
+                    <i class="fas fa-check-circle text-green-600 dark:text-green-400 mr-3"></i>
+                    <div>
+                        <p class="font-medium text-green-800 dark:text-green-300">KYC Verified</p>
+                        <p class="text-sm text-green-700 dark:text-green-400">Ready to purchase</p>
+                    </div>
+                </div>
+                {% else %}
+                <div
+                    class="flex items-center p-3 bg-red-50 dark:bg-red-900/30 rounded-lg border border-red-200 dark:border-red-800">
+                    <i class="fas fa-exclamation-circle text-red-600 dark:text-red-400 mr-3"></i>
+                    <div>
+                        <p class="font-medium text-red-800 dark:text-red-300">KYC Not Verified</p>
+                        <p class="text-sm text-red-700 dark:text-red-400">Complete KYC to purchase</p>
+                    </div>
+                </div>
+                <a href="/user/kyc"
+                    class="mt-3 block text-center bg-orange-500 hover:bg-orange-600 text-white py-2 rounded-lg font-medium transition">
+                    Complete KYC
+                </a>
+                {% endif %}
+            </div>
+
+            <!-- Payment Method Selection -->
+            {% if user.kyc_status == 'approved' %}
+            <div class="mb-6">
+                <h4 class="font-medium text-gray-900 dark:text-white mb-3">Select Payment Method</h4>
+
+                <form id="paymentForm" onsubmit="handlePayment(event)">
+                    <input type="hidden" name="challenge_id" id="challenge_id" value="{{ challenge.id }}">
+                    <input type="hidden" name="account_size" value="{{ challenge.account_size }}">
+
+                    <div class="space-y-3 mb-6">
+                        <label class="payment-option flex items-center justify-between cursor-pointer"
+                            onclick="selectPaymentMethod(event, 'card')">
+                            <div class="flex items-center">
+                                <div
+                                    class="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center mr-3">
+                                    <i class="fas fa-credit-card text-blue-600 dark:text-blue-400"></i>
+                                </div>
+                                <div>
+                                    <p class="font-medium text-gray-900 dark:text-white">Credit/Debit Card</p>
+                                    <p class="text-sm text-gray-600 dark:text-gray-400">Visa, Mastercard, Rupay</p>
+                                </div>
+                            </div>
+                            <input type="radio" name="payment_method" value="card" class="hidden" required>
+                            <div
+                                class="payment-radio w-5 h-5 rounded-full border-2 border-gray-300 dark:border-gray-500">
+                            </div>
+                        </label>
+
+                        <label class="payment-option flex items-center justify-between cursor-pointer"
+                            onclick="selectPaymentMethod(event, 'upi')">
+                            <div class="flex items-center">
+                                <div
+                                    class="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center mr-3">
+                                    <i class="fas fa-mobile-alt text-green-600 dark:text-green-400"></i>
+                                </div>
+                                <div>
+                                    <p class="font-medium text-gray-900 dark:text-white">UPI</p>
+                                    <p class="text-sm text-gray-600 dark:text-gray-400">Google Pay, PhonePe, Paytm</p>
+                                </div>
+                            </div>
+                            <input type="radio" name="payment_method" value="upi" class="hidden" required>
+                            <div
+                                class="payment-radio w-5 h-5 rounded-full border-2 border-gray-300 dark:border-gray-500">
+                            </div>
+                        </label>
+
+                        <label class="payment-option flex items-center justify-between cursor-pointer"
+                            onclick="selectPaymentMethod(event, 'bank')">
+                            <div class="flex items-center">
+                                <div
+                                    class="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center mr-3">
+                                    <i class="fas fa-university text-purple-600 dark:text-purple-400"></i>
+                                </div>
+                                <div>
+                                    <p class="font-medium text-gray-900 dark:text-white">Bank Transfer</p>
+                                    <p class="text-sm text-gray-600 dark:text-gray-400">NEFT, RTGS, IMPS</p>
+                                </div>
+                            </div>
+                            <input type="radio" name="payment_method" value="bank" class="hidden" required>
+                            <div
+                                class="payment-radio w-5 h-5 rounded-full border-2 border-gray-300 dark:border-gray-500">
+                            </div>
+                        </label>
+                    </div>
+
+                    <!-- Terms & Conditions -->
+                    <div class="mb-6">
+                        <label class="flex items-start">
+                            <input type="checkbox" id="termsCheckbox"
+                                class="mt-1 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700 text-blue-600 focus:ring-blue-500"
+                                required>
+                            <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">
+                                I agree to the <a href="/legal#terms" target="_blank"
+                                    class="text-blue-600 dark:text-blue-400 hover:text-blue-700"> </a>Challenge
+                                    Rules and <a href="/legal#privacy" target="_blank"
+                                    class="text-blue-600 dark:text-blue-400 hover:text-blue-700">Terms of
+                                    Service</a>
+                            </span>
+                        </label>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <button type="button" onclick="initiateRazorpayPayment()" id="purchaseBtn"
+                        class="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white py-3 rounded-xl font-bold text-lg transition-all duration-300 ripple disabled:opacity-50 disabled:cursor-not-allowed"
+                        {% if user.kyc_status !='approved' %}disabled{% endif %}>
+                        <span id="btnText">Proceed to Payment</span>
+                        <div id="btnLoader" class="hidden mx-auto loader"></div>
+                    </button>
+
+                </form>
+
+
+            </div>
+            {% endif %}
+
+            <!-- Security Badges -->
+            <div class="border-t dark:border-gray-700 pt-4 mt-4">
+                <div class="flex justify-center space-x-4">
+                    <div class="text-center">
+                        <i class="fas fa-lock text-gray-400 dark:text-gray-500 mb-1 block"></i>
+                        <p class="text-xs text-gray-600 dark:text-gray-400">SSL Secure</p>
+                    </div>
+                    <div class="text-center">
+                        <i class="fas fa-shield-alt text-gray-400 dark:text-gray-500 mb-1 block"></i>
+                        <p class="text-xs text-gray-600 dark:text-gray-400">PCI DSS</p>
+                    </div>
+                    <div class="text-center">
+                        <i class="fas fa-money-bill-wave text-gray-400 dark:text-gray-500 mb-1 block"></i>
+                        <p class="text-xs text-gray-600 dark:text-gray-400">Refund Policy</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        
+    </div>
+</div>
+
+<!-- Loading Modal -->
+<div id="loadingModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+    <div class="bg-white dark:bg-gray-800 rounded-2xl p-8 text-center max-w-sm w-full mx-4 border dark:border-gray-700">
+        <div class="loader mx-auto mb-4"></div>
+        <p class="text-gray-700 dark:text-gray-200 font-medium">Creating Payment Order...</p>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">Please wait while we prepare your payment</p>
+    </div>
+</div>
+
+<!-- Payment Processing Modal -->
+<div id="paymentModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+    <div class="bg-white dark:bg-gray-800 rounded-2xl p-8 text-center max-w-sm w-full mx-4 border dark:border-gray-700">
+        <div
+            class="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+            <i class="fas fa-credit-card text-green-600 dark:text-green-400 text-2xl"></i>
+        </div>
+        <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2">Complete Payment</h3>
+        <p class="text-gray-600 dark:text-gray-400 mb-6">You will be redirected to Razorpay's secure payment page</p>
+        <div class="space-y-3">
+            <button onclick="closePaymentModal()"
+                class="w-full py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg font-medium hover:bg-gray-300 dark:hover:bg-gray-600 transition">
+                Cancel
+            </button>
+            <button onclick="openRazorpayCheckout()"
+                class="w-full py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg font-medium hover:from-blue-600 hover:to-blue-700 transition">
+                <i class="fas fa-lock mr-2"></i> Proceed Securely
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Payment method selection
+    function selectPaymentMethod(event, method) {
+        // Remove selected class from all options
+        document.querySelectorAll('.payment-option').forEach(option => {
+            option.classList.remove('selected');
+            option.querySelector('.payment-radio').style.backgroundColor = '';
+            option.querySelector('.payment-radio').style.borderColor = '';
+        });
+
+        // Add selected class to clicked option
+        const selectedOption = event.currentTarget;
+        selectedOption.classList.add('selected');
+        const radio = selectedOption.querySelector('.payment-radio');
+        radio.style.backgroundColor = '#3b82f6';
+        radio.style.borderColor = '#3b82f6';
+
+        // Check the radio input
+        selectedOption.querySelector('input[type="radio"]').checked = true;
+    }
+
+    // Prevent form submission (we'll handle with Razorpay)
+    function handlePayment(event) {
+        event.preventDefault();
+        return false;
+    }
+
+    // Global variables for Razorpay
+    let razorpayOrderId = null;
+    let razorpayOptions = null;
+
+    // Razorpay Payment Handler
+    async function initiateRazorpayPayment() {
+        console.log('Starting payment process...');
+
+        // Get form data
+        const challengeId = document.getElementById('challenge_id').value;
+        const paymentMethod = document.querySelector('input[name="payment_method"]:checked');
+        const terms = document.getElementById('termsCheckbox').checked;
+
+        // Validation
+        if (!paymentMethod) {
+            alert('Please select a payment method');
+            return;
+        }
+
+        if (!terms) {
+            alert('Please accept the terms and conditions');
+            return;
+        }
+
+        // Show loading modal
+        const loadingModal = document.getElementById('loadingModal');
+        loadingModal.classList.remove('hidden');
+
+        try {
+            // Create Razorpay order via backend
+            const response = await fetch('/create-razorpay-order', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams({
+                    'challenge_id': challengeId
+                })
+            });
+
+            const data = await response.json();
+
+            if (!data.success) {
+                throw new Error(data.error || 'Failed to create payment order');
+            }
+
+            console.log('Order created:', data.order_id);
+            razorpayOrderId = data.order_id;
+
+            // Create Razorpay options
+            razorpayOptions = {
+                "key": data.key,
+                "amount": data.amount_in_paise || (data.amount * 100),
+                "currency": data.currency,
+                "name": data.name,
+                "description": data.description,
+                "order_id": data.order_id,
+                "handler": function (response) {
+                    console.log('Payment successful:', response);
+                    // Submit payment verification
+                    submitPaymentVerification(response);
+                },
+                "prefill": {
+                    "name": data.prefill.name,
+                    "email": data.prefill.email,
+                    "contact": data.prefill.contact
+                },
+                "notes": data.notes,
+                "theme": {
+                    "color": "#3B82F6"
+                },
+                "modal": {
+                    "ondismiss": function () {
+                        console.log('Payment modal closed');
+                        showPaymentStatus('Payment cancelled. Please try again.', 'warning');
+                    }
+                }
+            };
+
+            // Hide loading, show payment modal
+            loadingModal.classList.add('hidden');
+            showPaymentModal();
+
+        } catch (error) {
+            console.error('Payment initiation error:', error);
+            loadingModal.classList.add('hidden');
+            showPaymentStatus(error.message, 'error');
+        }
+    }
+
+    // Show payment modal
+    function showPaymentModal() {
+        const paymentModal = document.getElementById('paymentModal');
+        paymentModal.classList.remove('hidden');
+    }
+
+    // Close payment modal
+    function closePaymentModal() {
+        const paymentModal = document.getElementById('paymentModal');
+        paymentModal.classList.add('hidden');
+    }
+
+    // Open Razorpay checkout
+    function openRazorpayCheckout() {
+        closePaymentModal();
+
+        // Update button state
+        const btn = document.getElementById('purchaseBtn');
+        const btnText = document.getElementById('btnText');
+        const btnLoader = document.getElementById('btnLoader');
+
+        btn.disabled = true;
+        btnText.classList.add('hidden');
+        btnLoader.classList.remove('hidden');
+
+        // Open Razorpay checkout
+        const rzp = new Razorpay(razorpayOptions);
+        rzp.open();
+
+        // Re-enable button after 5 seconds
+        setTimeout(() => {
+            btn.disabled = false;
+            btnText.classList.remove('hidden');
+            btnLoader.classList.add('hidden');
+        }, 5000);
+    }
+
+    // Submit payment verification to backend
+    async function submitPaymentVerification(paymentResponse) {
+        console.log('Verifying payment:', paymentResponse);
+
+        try {
+            // Create form for submission
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '/verify-payment';
+
+            // Add hidden inputs
+            const inputs = {
+                'razorpay_order_id': paymentResponse.razorpay_order_id,
+                'razorpay_payment_id': paymentResponse.razorpay_payment_id,
+                'razorpay_signature': paymentResponse.razorpay_signature,
+                'challenge_id': document.getElementById('challenge_id').value
+            };
+
+            for (const [key, value] of Object.entries(inputs)) {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = key;
+                input.value = value;
+                form.appendChild(input);
+            }
+
+            // Submit form
+            document.body.appendChild(form);
+            form.submit();
+
+        } catch (error) {
+            console.error('Verification submission error:', error);
+            showPaymentStatus('Error verifying payment. Please contact support.', 'error');
+        }
+    }
+
+    // Show payment status message
+    function showPaymentStatus(message, type = 'info') {
+        // Create alert element
+        const alert = document.createElement('div');
+        alert.className = `rounded-xl p-4 mb-6 ${type === 'error' ? 'alert-error' : type === 'success' ? 'alert-success' : 'alert-warning'}`;
+        alert.setAttribute('data-aos', 'fade-up');
+        alert.innerHTML = `
+                <div class="flex items-center">
+                    <i class="fas fa-${type === 'error' ? 'exclamation-circle' : type === 'success' ? 'check-circle' : 'info-circle'} mr-3 ${type === 'error' ? 'text-red-600' : type === 'success' ? 'text-green-600' : 'text-yellow-600'}"></i>
+                    <span>${message}</span>
+                </div>
+            `;
+
+        // Insert at top of main content
+        const main = document.querySelector('main');
+        const firstChild = main.firstChild;
+        main.insertBefore(alert, firstChild);
+
+        // Scroll to top
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+
+        // Remove after 5 seconds if not error
+        if (type !== 'error') {
+            setTimeout(() => {
+                alert.remove();
+            }, 5000);
+        }
+    }
+
+    // Auto-select first payment method on page load
+    document.addEventListener('DOMContentLoaded', function () {
+        const firstPaymentOption = document.querySelector('.payment-option');
+        if (firstPaymentOption) {
+            firstPaymentOption.click();
+        }
+    });
+
+    // Show/hide loading modal based on network status
+    window.addEventListener('online', function () {
+        document.getElementById('loadingModal')?.classList.add('hidden');
+    });
+
+    window.addEventListener('offline', function () {
+        document.getElementById('loadingModal')?.classList.remove('hidden');
+        showPaymentStatus('You are offline. Please check your internet connection.', 'error');
+    });
+
+    // Prevent accidental page leave during purchase
+    let isProcessingPayment = false;
+
+    window.addEventListener('beforeunload', function (e) {
+        const loadingModal = document.getElementById('loadingModal');
+        if (!loadingModal.classList.contains('hidden') || isProcessingPayment) {
+            e.preventDefault();
+            e.returnValue = 'Your payment is being processed. Are you sure you want to leave?';
+        }
+    });
+
+
+
+
+</script>
+{% endblock %}

@@ -1,0 +1,243 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Challenge #{{ challenge.serial_no }} - Admin Panel{% endblock %}
+
+{% block header_title %}Challenge Details{% endblock %}
+{% block header_subtitle %}Serial No. #{{ challenge.serial_no }}{% endblock %}
+
+{% block content %}
+<!-- Back Button -->
+<div class="mb-6">
+    <a href="{{ url_for('admin.admin_challenges') }}"
+        class="inline-flex items-center text-gray-600 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 transition font-medium">
+        <i class="fas fa-arrow-left mr-2"></i>Back to Challenge List
+    </a>
+</div>
+
+<!-- Challenge Information -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+    <!-- User Information -->
+    <div class="glass-card p-6">
+        <h3
+            class="text-xl font-semibold text-gray-900 dark:text-white mb-4 border-b border-gray-100 dark:border-gray-700 pb-2">
+            User Information
+        </h3>
+        <div class="space-y-3">
+            <div>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Name</p>
+                <p class="font-semibold text-gray-900 dark:text-white">
+                    {{ challenge.user.first_name }} {{ challenge.user.last_name }}
+                </p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Email</p>
+                <p class="font-semibold text-gray-900 dark:text-white">{{ challenge.user.email }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Phone</p>
+                <p class="font-semibold text-gray-900 dark:text-white">{{ challenge.user.phone or 'N/A' }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Challenge Information -->
+    <div class="glass-card p-6">
+        <h3
+            class="text-xl font-semibold text-gray-900 dark:text-white mb-4 border-b border-gray-100 dark:border-gray-700 pb-2">
+            Challenge Information
+        </h3>
+        <div class="space-y-3">
+            <div>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Serial Number</p>
+                <p class="font-mono font-bold text-2xl text-blue-600 dark:text-blue-400">
+                    #{{ challenge.serial_no or 'N/A' }}
+                </p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Challenge Name</p>
+                <p class="font-semibold text-gray-900 dark:text-white">
+                    {{ challenge.challenge_template.name }}
+                </p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Price</p>
+                <p class="font-semibold text-gray-900 dark:text-white">${{ "%.2f"|format(challenge.amount) }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Status</p>
+                {% set status_colors = {
+                'pending_credentials': 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400',
+                'active': 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400',
+                'passed': 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400',
+                'failed': 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400'
+                } %}
+                <span
+                    class="px-3 py-1 inline-flex text-sm font-semibold rounded-full {{ status_colors.get(challenge.status, 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300') }}">
+                    {{ challenge.status|replace('_', ' ')|title }}
+                </span>
+            </div>
+            <div>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Phase</p>
+                <p class="font-semibold text-gray-900 dark:text-white">Phase {{ challenge.phase }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Purchase Date</p>
+                <p class="font-semibold text-gray-900 dark:text-white">
+                    {{ challenge.purchase_date.strftime('%Y-%m-%d %H:%M') if challenge.purchase_date else 'N/A' }}
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- CONFIDENTIAL: EA Authentication Credentials -->
+<div class="glass-card p-6 mb-6 border-2 border-red-500 dark:border-red-600">
+    <div class="flex items-center mb-4">
+        <i class="fas fa-shield-alt text-red-600 dark:text-red-500 text-2xl mr-3"></i>
+        <div>
+            <h3 class="text-xl font-semibold text-red-600 dark:text-red-500">
+                CONFIDENTIAL - EA Authentication
+            </h3>
+            <p class="text-sm text-red-500 dark:text-red-400">
+                These credentials are for EA configuration only. Never share with users.
+            </p>
+        </div>
+    </div>
+
+    <div class="space-y-4">
+        <!-- Challenge Code -->
+        <div class="bg-red-50 dark:bg-red-900/20 p-4 rounded-lg">
+            <label class="block text-sm font-medium text-red-700 dark:text-red-400 mb-2">
+                Challenge Code (CHALLENGE_ID)
+            </label>
+            <div class="flex items-center gap-2">
+                <input type="text" value="{{ challenge.challenge_code or 'Not Generated' }}" id="challenge_code"
+                    readonly
+                    class="flex-1 font-mono text-lg font-bold bg-white dark:bg-gray-800 border-2 border-red-300 dark:border-red-700 rounded px-3 py-2 text-gray-900 dark:text-white">
+                <button onclick="copyToClipboard('challenge_code')"
+                    class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded font-medium transition">
+                    <i class="fas fa-copy mr-1"></i>Copy
+                </button>
+            </div>
+            <p class="text-xs text-red-600 dark:text-red-400 mt-2">
+                <i class="fas fa-info-circle mr-1"></i>
+                6-digit numeric identifier for EA
+            </p>
+        </div>
+
+        <!-- Challenge Token -->
+        <div class="bg-red-50 dark:bg-red-900/20 p-4 rounded-lg">
+            <label class="block text-sm font-medium text-red-700 dark:text-red-400 mb-2">
+                Challenge Token (CHALLENGE_TOKEN)
+            </label>
+            <div class="flex items-center gap-2">
+                <input type="text" value="{{ challenge.challenge_token or 'Not Generated' }}" id="challenge_token"
+                    readonly
+                    class="flex-1 font-mono text-sm bg-white dark:bg-gray-800 border-2 border-red-300 dark:border-red-700 rounded px-3 py-2 text-gray-900 dark:text-white">
+                <button onclick="copyToClipboard('challenge_token')"
+                    class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded font-medium transition">
+                    <i class="fas fa-copy mr-1"></i>Copy
+                </button>
+            </div>
+            <p class="text-xs text-red-600 dark:text-red-400 mt-2">
+                <i class="fas fa-info-circle mr-1"></i>
+                Cryptographically secure authentication token
+            </p>
+        </div>
+    </div>
+
+    <div class="mt-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-300 dark:border-yellow-700 rounded-lg p-3">
+        <p class="text-sm text-yellow-800 dark:text-yellow-400">
+            <i class="fas fa-exclamation-triangle mr-2"></i>
+            <strong>Security Warning:</strong> These credentials authenticate the EA with this specific challenge.
+            Keep them confidential and only share with authorized EA installations.
+        </p>
+    </div>
+</div>
+
+<!-- MT5 Credentials (if assigned) -->
+{% if challenge.mt5_login %}
+<div class="glass-card p-6 mb-6">
+    <h3
+        class="text-xl font-semibold text-gray-900 dark:text-white mb-4 border-b border-gray-100 dark:border-gray-700 pb-2">
+        MT5 Credentials
+    </h3>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div>
+            <p class="text-sm text-gray-500 dark:text-gray-400">Server</p>
+            <p class="font-mono text-gray-900 dark:text-white">{{ challenge.mt5_server or 'N/A' }}</p>
+        </div>
+        <div>
+            <p class="text-sm text-gray-500 dark:text-gray-400">Login</p>
+            <p class="font-mono text-gray-900 dark:text-white">{{ challenge.mt5_login }}</p>
+        </div>
+        <div>
+            <p class="text-sm text-gray-500 dark:text-gray-400">Password</p>
+            <p class="font-mono text-gray-900 dark:text-white">{{ challenge.mt5_password or 'N/A' }}</p>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Trading Stats -->
+<div class="glass-card p-6">
+    <h3
+        class="text-xl font-semibold text-gray-900 dark:text-white mb-4 border-b border-gray-100 dark:border-gray-700 pb-2">
+        Trading Statistics
+    </h3>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div>
+            <p class="text-sm text-gray-500 dark:text-gray-400">Current Profit</p>
+            <p
+                class="text-lg font-bold {% if challenge.current_profit >= 0 %}text-green-600 dark:text-green-400{% else %}text-red-600 dark:text-red-400{% endif %}">
+                ${{ "%.2f"|format(challenge.current_profit or 0) }}
+            </p>
+        </div>
+        <div>
+            <p class="text-sm text-gray-500 dark:text-gray-400">Current Loss</p>
+            <p class="text-lg font-bold text-red-600 dark:text-red-400">
+                ${{ "%.2f"|format(challenge.current_loss or 0) }}
+            </p>
+        </div>
+        <div>
+            <p class="text-sm text-gray-500 dark:text-gray-400">Days Remaining</p>
+            <p class="text-lg font-bold text-gray-900 dark:text-white">
+                {{ challenge.days_remaining or 'N/A' }}
+            </p>
+        </div>
+        <div>
+            <p class="text-sm text-gray-500 dark:text-gray-400">Progress</p>
+            <p class="text-lg font-bold text-blue-600 dark:text-blue-400">
+                {{ "%.1f"|format(challenge.progress_percentage or 0) }}%
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function copyToClipboard(elementId) {
+        const input = document.getElementById(elementId);
+        input.select();
+        input.setSelectionRange(0, 99999); // For mobile devices
+
+        navigator.clipboard.writeText(input.value).then(() => {
+            // Show success feedback
+            const button = event.target.closest('button');
+            const originalHTML = button.innerHTML;
+            button.innerHTML = '<i class="fas fa-check mr-1"></i>Copied!';
+            button.classList.add('bg-green-600');
+            button.classList.remove('bg-red-600');
+
+            setTimeout(() => {
+                button.innerHTML = originalHTML;
+                button.classList.remove('bg-green-600');
+                button.classList.add('bg-red-600');
+            }, 2000);
+        }).catch(err => {
+            alert('Failed to copy: ' + err);
+        });
+    }
+</script>
+{% endblock %}

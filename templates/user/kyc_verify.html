@@ -1,0 +1,278 @@
+{% extends "user/base.html" %}
+
+{% block title %}KYC Verification - Tragene Funded{% endblock %}
+
+{% block header_title %}KYC Verification{% endblock %}
+{% block header_subtitle %}Complete verification to start trading{% endblock %}
+
+{% block content %}
+<!-- Verification Progress -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+    <!-- Email Verification -->
+    <div
+        class="text-center p-4 border rounded-lg {% if user.email_verified %}border-green-500 bg-green-50 dark:bg-green-900/30{% else %}border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800{% endif %}">
+        <i
+            class="fas {% if user.email_verified %}fa-check-circle text-green-500{% else %}fa-envelope text-gray-400{% endif %} text-2xl mb-2"></i>
+        <p
+            class="font-medium {% if user.email_verified %}text-green-700 dark:text-green-400{% else %}text-gray-700 dark:text-gray-300{% endif %}">
+            Email
+            Verification</p>
+        {% if not user.email_verified %}
+        <a href="{{ url_for('auth.send_verification_email') }}"
+            class="text-blue-600 dark:text-blue-400 text-sm hover:text-blue-700 dark:hover:text-blue-300 mt-2 inline-block"
+            id="sendEmailBtn">
+            <i class="fas fa-paper-plane mr-1"></i>Send Verification Email
+        </a>
+        <br>
+        <a href="{{ url_for('auth.auto_verify_email') }}"
+            class="text-green-600 dark:text-green-400 text-sm hover:text-green-700 dark:hover:text-green-300 mt-1 inline-block">
+            <i class="fas fa-bolt mr-1"></i>Auto-Verify Instantly
+        </a>
+        {% else %}
+        <p class="text-green-600 dark:text-green-400 text-sm mt-2">
+            <i class="fas fa-check mr-1"></i>Verified
+        </p>
+        {% endif %}
+    </div>
+
+    <!-- Phone Verification -->
+    <div
+        class="text-center p-4 border rounded-lg {% if user.phone_verified %}border-green-500 bg-green-50 dark:bg-green-900/30{% else %}border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800{% endif %}">
+        <i
+            class="fas {% if user.phone_verified %}fa-check-circle text-green-500{% else %}fa-phone text-gray-400{% endif %} text-2xl mb-2"></i>
+        <p
+            class="font-medium {% if user.phone_verified %}text-green-700 dark:text-green-400{% else %}text-gray-700 dark:text-gray-300{% endif %}">
+            Phone
+            Verification</p>
+        {% if not user.phone_verified %}
+        <a href="{{ url_for('auth.verify_phone_otp') }}"
+            class="text-blue-600 dark:text-blue-400 text-sm hover:text-blue-700 dark:hover:text-blue-300 mt-2 inline-block">
+            <i class="fas fa-shield-alt mr-1"></i>Verify with OTP
+        </a>
+        {% else %}
+        <p class="text-green-600 dark:text-green-400 text-sm mt-2">
+            <i class="fas fa-check mr-1"></i>Verified
+        </p>
+        {% endif %}
+    </div>
+
+    <!-- ID Verification -->
+    <div
+        class="text-center p-4 border rounded-lg {% if user.kyc_status == 'approved' %}border-green-500 bg-green-50 dark:bg-green-900/30{% elif user.kyc_status == 'submitted' %}border-blue-500 bg-blue-50 dark:bg-blue-900/30{% else %}border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800{% endif %}">
+        <i
+            class="fas {% if user.kyc_status == 'approved' %}fa-check-circle text-green-500{% elif user.kyc_status == 'submitted' %}fa-clock text-blue-500{% else %}fa-id-card text-gray-400{% endif %} text-2xl mb-2"></i>
+        <p
+            class="font-medium {% if user.kyc_status == 'approved' %}text-green-700 dark:text-green-400{% elif user.kyc_status == 'submitted' %}text-blue-700 dark:text-blue-400{% else %}text-gray-700 dark:text-gray-300{% endif %}">
+            ID Verification</p>
+        <p
+            class="text-sm {% if user.kyc_status == 'approved' %}text-green-600 dark:text-green-400{% elif user.kyc_status == 'submitted' %}text-blue-600 dark:text-blue-400{% else %}text-gray-600 dark:text-gray-400{% endif %}">
+            {{ user.get_kyc_status_display() }}
+        </p>
+    </div>
+</div>
+
+<!-- Rejection Details -->
+{% if user.kyc_status == 'rejected' and user.kyc_notes %}
+<div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-6 mb-6">
+    <div class="flex items-start">
+        <i class="fas fa-exclamation-triangle text-red-500 text-xl mr-3 mt-1"></i>
+        <div class="flex-1">
+            <h4 class="font-semibold text-red-800 dark:text-red-300 mb-2">KYC Rejected</h4>
+            <p class="text-red-700 dark:text-red-400"><strong>Reason:</strong> {{ user.kyc_notes }}</p>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- KYC Form -->
+{% if user.kyc_status in ['pending', 'rejected'] %}
+<div class="glass-card p-6 shadow-sm border dark:border-dark-border">
+    <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-6">
+        {% if user.kyc_status == 'rejected' %}Resubmit KYC Documents{% else %}Upload ID Documents{% endif %}
+    </h3>
+
+    <!-- Verification Reminder -->
+    {% if not user.email_verified or not user.phone_verified %}
+    <div class="bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mb-6">
+        <div class="flex items-start">
+            <i class="fas fa-info-circle text-yellow-500 text-xl mr-3 mt-1"></i>
+            <div>
+                <h4 class="font-medium text-yellow-800 dark:text-yellow-300 mb-2">Complete Verification First</h4>
+                <p class="text-yellow-700 dark:text-yellow-400 text-sm mb-3">Verify email and phone before submitting ID
+                    documents.</p>
+                <div class="flex flex-wrap gap-4">
+                    {% if not user.email_verified %}
+                    <a href="{{ url_for('auth.auto_verify_email') }}"
+                        class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition inline-flex items-center">
+                        <i class="fas fa-bolt mr-2"></i>Auto-Verify Email
+                    </a>
+                    {% endif %}
+                    {% if not user.phone_verified %}
+                    <a href="{{ url_for('auth.verify_phone_otp') }}"
+                        class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition inline-flex items-center">
+                        <i class="fas fa-phone mr-2"></i>Verify Phone
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- WORKING FORM - NO DISABLED ATTRIBUTES -->
+    <form method="POST" action="{{ url_for('user.kyc_verification') }}" enctype="multipart/form-data" id="kycForm">
+        <div class="mb-6">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Select Document Type
+                *</label>
+            <select name="document_type"
+                class="w-full p-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                required>
+                <option value="">Choose document type</option>
+                <option value="aadhaar">Aadhaar Card</option>
+                <option value="pan">PAN Card</option>
+                <option value="driving_license">Driving License</option>
+            </select>
+        </div>
+
+        <!-- Document Number Field -->
+        <div class="mb-6">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Document Number
+                *</label>
+            <input type="text" name="document_number"
+                class="w-full p-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Enter your Aadhaar/PAN/DL number" required maxlength="50">
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                <i class="fas fa-info-circle mr-1"></i>
+                Enter the number exactly as shown on your document
+            </p>
+        </div>
+
+        <!-- File Uploads -->
+        <div class="space-y-4 mb-6">
+            <!-- Front Side -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Front Side of Document
+                    *</label>
+                <div
+                    class="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center hover:border-gray-400 dark:hover:border-gray-500 transition">
+                    <input type="file" name="front_file" id="front_file" accept=".png,.jpg,.jpeg,.pdf" class="hidden"
+                        required>
+                    <label for="front_file" class="cursor-pointer">
+                        <i class="fas fa-upload text-gray-400 text-2xl mb-2"></i>
+                        <p class="text-gray-600 dark:text-gray-400">Click to upload front side</p>
+                        <p class="text-gray-400 dark:text-gray-500 text-sm mt-1">PNG, JPG, JPEG, PDF (Max 16MB)</p>
+                    </label>
+                </div>
+                <p id="front_file_name" class="text-sm text-gray-500 dark:text-gray-400 mt-2"></p>
+            </div>
+
+            <!-- Back Side -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Back Side of Document
+                    *</label>
+                <div
+                    class="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center hover:border-gray-400 dark:hover:border-gray-500 transition">
+                    <input type="file" name="back_file" id="back_file" accept=".png,.jpg,.jpeg,.pdf" class="hidden"
+                        required>
+                    <label for="back_file" class="cursor-pointer">
+                        <i class="fas fa-upload text-gray-400 text-2xl mb-2"></i>
+                        <p class="text-gray-600 dark:text-gray-400">Click to upload back side</p>
+                        <p class="text-gray-400 dark:text-gray-500 text-sm mt-1">PNG, JPG, JPEG, PDF (Max 16MB)</p>
+                    </label>
+                </div>
+                <p id="back_file_name" class="text-sm text-gray-500 dark:text-gray-400 mt-2"></p>
+            </div>
+        </div>
+
+        <!-- Requirements -->
+        <div class="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6">
+            <h4 class="font-medium text-blue-800 dark:text-blue-300 mb-2 flex items-center">
+                <i class="fas fa-info-circle mr-2"></i>
+                Document Requirements
+            </h4>
+            <ul class="text-blue-700 dark:text-blue-400 text-sm space-y-1">
+                <li>• Clear, readable images of your document</li>
+                <li>• All four corners should be visible</li>
+                <li>• File size should be less than 16MB</li>
+                <li>• Accepted formats: PNG, JPG, JPEG, PDF</li>
+            </ul>
+        </div>
+
+        <!-- Submit Button -->
+        <div class="text-center">
+            <button type="submit"
+                class="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-lg font-semibold transition flex items-center mx-auto">
+                <i class="fas fa-paper-plane mr-2"></i>
+                {% if user.kyc_status == 'rejected' %}Resubmit for Verification{% else %}Submit for Verification{% endif
+                %}
+            </button>
+        </div>
+    </form>
+</div>
+{% elif user.kyc_status == 'submitted' %}
+<div class="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-xl p-8 text-center">
+    <i class="fas fa-clock text-blue-500 text-4xl mb-4"></i>
+    <h3 class="text-xl font-semibold text-blue-800 dark:text-blue-300 mb-2">KYC Under Review</h3>
+    <p class="text-blue-700 dark:text-blue-400 mb-4">Your documents are being verified. This process usually takes 24-48
+        hours.</p>
+    {% if user.kyc_submitted_at %}
+    <div class="bg-white dark:bg-gray-800 rounded-lg p-4 inline-block shadow-sm">
+        <p class="text-sm text-gray-600 dark:text-gray-400">
+            Submitted on: <strong>{{ user.kyc_submitted_at.strftime('%B %d, %Y at %I:%M %p') }}</strong>
+        </p>
+    </div>
+    {% endif %}
+</div>
+{% elif user.kyc_status == 'approved' %}
+<div class="bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-xl p-8 text-center">
+    <i class="fas fa-check-circle text-green-500 text-4xl mb-4"></i>
+    <h3 class="text-xl font-semibold text-green-800 dark:text-green-300 mb-2">KYC Approved!</h3>
+    <p class="text-green-700 dark:text-green-400 mb-4">Your KYC verification has been completed successfully.</p>
+    <a href="{{ url_for('user.challenges') }}"
+        class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold transition inline-flex items-center">
+        <i class="fas fa-rocket mr-2"></i>
+        Start Trading Now
+    </a>
+</div>
+{% endif %}
+
+<div class="text-center mt-8">
+    <a href="{{ url_for('user.dashboard') }}"
+        class="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium inline-flex items-center">
+        <i class="fas fa-arrow-left mr-2"></i>Back to Dashboard
+    </a>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // File upload display
+    document.getElementById('front_file')?.addEventListener('change', function (e) {
+        const fileName = e.target.files[0]?.name || 'No file chosen';
+        document.getElementById('front_file_name').textContent = 'Selected: ' + fileName;
+    });
+
+    document.getElementById('back_file')?.addEventListener('change', function (e) {
+        const fileName = e.target.files[0]?.name || 'No file chosen';
+        document.getElementById('back_file_name').textContent = 'Selected: ' + fileName;
+    });
+
+    // Form validation (backend will check verification)
+    document.getElementById('kycForm')?.addEventListener('submit', function (e) {
+        console.log("Form submitting to:", this.action);
+        // Let it submit - backend will handle verification check
+    });
+
+    // Email sending feedback
+    document.getElementById('sendEmailBtn')?.addEventListener('click', function (e) {
+        const originalText = this.innerHTML;
+        this.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Sending...';
+        this.classList.add('opacity-50', 'cursor-not-allowed');
+
+        setTimeout(() => {
+            this.innerHTML = originalText;
+            this.classList.remove('opacity-50', 'cursor-not-allowed');
+        }, 3000);
+    });
+</script>
+{% endblock %}

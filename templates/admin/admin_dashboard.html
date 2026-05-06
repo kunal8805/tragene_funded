@@ -1,0 +1,237 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Admin Dashboard - Tragene Funded{% endblock %}
+
+{% block header_title %}Admin Dashboard{% endblock %}
+{% block header_subtitle %}Complete control over your grading platform{% endblock %}
+
+{% block content %}
+<!-- Admin Header Card -->
+<div class="glass-card p-6 mb-8" data-aos="fade-up">
+    <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+        <div class="text-center sm:text-left">
+            <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Super Admin Dashboard</h1>
+            <p class="text-gray-600 dark:text-gray-400 mt-2">Overview of platform performance</p>
+        </div>
+        <div class="flex flex-col sm:flex-row items-center gap-3">
+            <span
+                class="bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400 px-3 py-1 rounded-full text-sm font-semibold text-center border border-red-200 dark:border-red-800">
+                Super Admin Mode
+            </span>
+            <button onclick="location.reload()"
+                class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold transition flex items-center justify-center">
+                <i class="fas fa-sync-alt mr-2"></i>Refresh
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Platform Stats -->
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    <div class="glass-card p-6 text-center" data-aos="fade-up" data-aos-delay="0">
+        <div class="text-3xl font-bold text-blue-600 dark:text-blue-400 mb-2">{{ total_users }}</div>
+        <div class="text-base text-gray-600 dark:text-gray-400">Total Users</div>
+        <div class="text-sm text-green-600 dark:text-green-400 mt-1">+{{ recent_users|length }} new</div>
+    </div>
+    <div class="glass-card p-6 text-center" data-aos="fade-up" data-aos-delay="100">
+        <div class="text-3xl font-bold text-green-600 dark:text-green-400 mb-2">₹84,250</div>
+        <div class="text-base text-gray-600 dark:text-gray-400">Total Revenue</div>
+        <div class="text-sm text-green-600 dark:text-green-400 mt-1">+15% this month</div>
+    </div>
+    <div class="glass-card p-6 text-center" data-aos="fade-up" data-aos-delay="200">
+        <div class="text-3xl font-bold text-purple-600 dark:text-purple-400 mb-2">{{ pending_kyc }}</div>
+        <div class="text-base text-gray-600 dark:text-gray-400">Pending KYC</div>
+        <div class="text-sm text-red-600 dark:text-red-400 mt-1">Needs review</div>
+    </div>
+    <div class="glass-card p-6 text-center" data-aos="fade-up" data-aos-delay="300">
+        <div class="text-3xl font-bold text-orange-600 dark:text-orange-400 mb-2">{{ approved_kyc }}</div>
+        <div class="text-base text-gray-600 dark:text-gray-400">Approved KYC</div>
+        <div class="text-sm text-green-600 dark:text-green-400 mt-1">Verified users</div>
+    </div>
+</div>
+
+<!-- Quick Actions & Recent Activity -->
+<div class="grid lg:grid-cols-2 gap-8">
+    <!-- Quick Actions -->
+    <div class="glass-card p-6" data-aos="fade-right">
+        <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center">
+            <i class="fas fa-bolt mr-3 text-yellow-600"></i>
+            Quick Actions
+        </h2>
+
+        <div class="grid grid-cols-2 gap-4 mb-6">
+            <a href="/admin/users"
+                class="bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-200 dark:border-blue-800 p-4 rounded-xl hover:bg-blue-100 dark:hover:bg-blue-900/40 transition text-center flex flex-col items-center justify-center min-h-[100px]">
+                <i class="fas fa-users text-blue-600 dark:text-blue-400 text-2xl mb-2"></i>
+                <div class="font-semibold text-blue-700 dark:text-blue-300">Manage Users</div>
+            </a>
+
+            <a href="/admin/kyc"
+                class="relative bg-indigo-50 dark:bg-indigo-900/20 border-2 border-indigo-200 dark:border-indigo-800 p-4 rounded-xl hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition text-center flex flex-col items-center justify-center min-h-[100px]">
+                <i class="fas fa-id-card text-indigo-600 dark:text-indigo-400 text-2xl mb-2"></i>
+                <div class="font-semibold text-indigo-700 dark:text-indigo-300">KYC Review</div>
+                {% if pending_kyc > 0 %}
+                <span
+                    class="absolute top-2 right-2 bg-red-500 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center shadow-sm">
+                    {{ pending_kyc }}
+                </span>
+                {% endif %}
+            </a>
+            <a href="/admin/challenges"
+                class="bg-green-50 dark:bg-green-900/20 border-2 border-green-200 dark:border-green-800 p-4 rounded-xl hover:bg-green-100 dark:hover:bg-green-900/40 transition text-center flex flex-col items-center justify-center min-h-[100px]">
+                <i class="fas fa-flag text-green-600 dark:text-green-400 text-2xl mb-2"></i>
+                <div class="font-semibold text-green-700 dark:text-green-300">Challenges</div>
+            </a>
+            <a href="/admin/payments"
+                class="bg-purple-50 dark:bg-purple-900/20 border-2 border-purple-200 dark:border-purple-800 p-4 rounded-xl hover:bg-purple-100 dark:hover:bg-purple-900/40 transition text-center flex flex-col items-center justify-center min-h-[100px]">
+                <i class="fas fa-money-bill-wave text-purple-600 dark:text-purple-400 text-2xl mb-2"></i>
+                <div class="font-semibold text-purple-700 dark:text-purple-300">Payments</div>
+            </a>
+        </div>
+
+        <!-- Admin Controls -->
+        <div class="p-4 bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700">
+            <h3 class="font-semibold text-gray-900 dark:text-white mb-3">Admin Controls</h3>
+            <div class="flex gap-2">
+                <button
+                    class="flex-1 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 py-2 px-4 rounded-lg font-semibold hover:bg-red-200 dark:hover:bg-red-900/50 transition flex items-center justify-center">
+                    <i class="fas fa-ban mr-2"></i>Maintenance
+                </button>
+                <button
+                    class="flex-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 py-2 px-4 rounded-lg font-semibold hover:bg-blue-200 dark:hover:bg-blue-900/50 transition flex items-center justify-center">
+                    <i class="fas fa-user-shield mr-2"></i>Moderators
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activity & Alerts -->
+    <div class="glass-card p-6" data-aos="fade-left">
+        <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center">
+            <i class="fas fa-bell mr-3 text-red-600"></i>
+            Activity & Alerts
+        </h2>
+
+        <!-- Alerts -->
+        <div class="space-y-3 mb-6">
+            <!-- KYC ALERT -->
+            {% if pending_kyc > 0 %}
+            <div
+                class="flex items-start p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
+                <i class="fas fa-id-card text-purple-600 dark:text-purple-400 mr-3 mt-1"></i>
+                <div class="flex-1">
+                    <div class="font-semibold text-purple-800 dark:text-purple-300">KYC Applications Pending</div>
+                    <div class="text-sm text-purple-600 dark:text-purple-400">{{ pending_kyc }} users waiting for
+                        verification</div>
+                </div>
+                <a href="/admin/kyc"
+                    class="text-xs text-purple-600 dark:text-purple-400 ml-2 hover:text-purple-800 font-medium">Review</a>
+            </div>
+            {% endif %}
+
+            <div
+                class="flex items-start p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+                <i class="fas fa-exclamation-triangle text-red-600 dark:text-red-400 mr-3 mt-1"></i>
+                <div class="flex-1">
+                    <div class="font-semibold text-red-800 dark:text-red-300">Risk Limit Exceeded</div>
+                    <div class="text-sm text-red-600 dark:text-red-400">User #4587 reached daily loss limit</div>
+                </div>
+                <span class="text-xs text-red-600 dark:text-red-400 ml-2">10 min</span>
+            </div>
+        </div>
+
+        <!-- Recent Users -->
+        <div>
+            <h3 class="font-semibold text-gray-900 dark:text-white mb-4">Recent Users</h3>
+            <div class="space-y-3">
+                {% for user in recent_users %}
+                <div
+                    class="flex items-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700">
+                    <div
+                        class="w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mr-3 shrink-0">
+                        <span class="text-blue-600 dark:text-blue-400 text-sm font-bold">{{ user.first_name[0] }}{{
+                            user.last_name[0] }}</span>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="text-sm text-gray-900 dark:text-white font-semibold truncate">{{ user.first_name }}
+                            {{ user.last_name }}</div>
+                        <div class="text-xs text-gray-500 dark:text-gray-400 truncate">{{ user.email }}</div>
+                        <!-- KYC STATUS BADGE -->
+                        <div class="text-xs mt-1">
+                            <span class="px-2 py-0.5 rounded-full text-[10px]
+                                {% if user.kyc_status == 'approved' %}bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400
+                                {% elif user.kyc_status == 'submitted' %}bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400
+                                {% elif user.kyc_status == 'rejected' %}bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400
+                                {% else %}bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300{% endif %}">
+                                {{ user.get_kyc_status_display() }}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap ml-2">{{
+                        user.created_at.strftime('%H:%M') }}</div>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="text-center mt-4">
+                <a href="/admin/users"
+                    class="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-semibold text-sm inline-flex items-center">
+                    <i class="fas fa-history mr-1"></i>View All Users
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- KYC Quick Section -->
+{% if pending_kyc > 0 %}
+<div class="mt-8 bg-gradient-to-r from-purple-600 to-indigo-700 rounded-2xl shadow-lg p-6 text-white"
+    data-aos="fade-up">
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+            <h2 class="text-2xl font-bold mb-2">KYC Verification Required</h2>
+            <p class="text-purple-100">You have {{ pending_kyc }} user(s) waiting for KYC approval</p>
+            <p class="text-purple-200 text-sm mt-1">Verify their identity documents to allow trading</p>
+        </div>
+        <div class="flex flex-wrap gap-3">
+            <a href="/admin/kyc"
+                class="bg-white text-purple-600 hover:bg-purple-50 px-6 py-3 rounded-lg font-semibold transition flex items-center">
+                <i class="fas fa-id-card mr-2"></i>
+                Review
+            </a>
+            <a href="/admin/kyc?status=submitted"
+                class="bg-purple-500 hover:bg-purple-400 text-white px-6 py-3 rounded-lg font-semibold transition flex items-center">
+                <i class="fas fa-list mr-2"></i>
+                Pending List
+            </a>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- System Health -->
+<div class="mt-8 glass-card p-6" data-aos="fade-up" data-aos-delay="100">
+    <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">System Health</h2>
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-6">
+        <div class="text-center p-4 bg-green-50 dark:bg-green-900/20 rounded-xl">
+            <i class="fas fa-server text-green-600 dark:text-green-400 text-2xl mb-2"></i>
+            <div class="font-semibold text-green-700 dark:text-green-300">Trading API</div>
+            <div class="text-sm text-green-600 dark:text-green-400">Online</div>
+        </div>
+        <div class="text-center p-4 bg-green-50 dark:bg-green-900/20 rounded-xl">
+            <i class="fas fa-database text-green-600 dark:text-green-400 text-2xl mb-2"></i>
+            <div class="font-semibold text-green-700 dark:text-green-300">Database</div>
+            <div class="text-sm text-green-600 dark:text-green-400">Healthy</div>
+        </div>
+        <div class="text-center p-4 bg-green-50 dark:bg-green-900/20 rounded-xl">
+            <i class="fas fa-shield-alt text-green-600 dark:text-green-400 text-2xl mb-2"></i>
+            <div class="font-semibold text-green-700 dark:text-green-300">Security</div>
+            <div class="text-sm text-green-600 dark:text-green-400">Protected</div>
+        </div>
+        <div class="text-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
+            <i class="fas fa-chart-line text-blue-600 dark:text-blue-400 text-2xl mb-2"></i>
+            <div class="font-semibold text-blue-700 dark:text-blue-300">Performance</div>
+            <div class="text-sm text-blue-600 dark:text-blue-400">Optimal</div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,214 @@
+{% extends "user/base.html" %}
+
+{% block title %}Trading - Tragene Funded{% endblock %}
+
+{% block header_title %}Trading{% endblock %}
+{% block header_subtitle %}Access your MT5 trading accounts{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="mb-8">
+    <h2 class="text-xl font-bold text-gray-900 dark:text-white">Your Trading Challenges</h2>
+    <p class="text-gray-600 dark:text-gray-400">Click "View Credentials" to get MT5 login details</p>
+</div>
+
+<!-- Challenges Grid -->
+{% if active_challenges %}
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    {% for challenge in active_challenges %}
+    <div
+        class="glass-card p-6 hover:border-blue-500 dark:hover:border-blue-500 hover:shadow-lg transition-all duration-300 group">
+        <!-- Challenge Header -->
+        <div class="flex justify-between items-start mb-4">
+            <div>
+                <h3 class="font-bold text-gray-900 dark:text-white text-lg">{{ challenge.challenge_template.name }}</h3>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                    Challenge #{{ challenge.serial_no or 'N/A' }}
+                </p>
+                <div class="flex items-center space-x-2 mt-2">
+                    {% set status_colors = {
+                    'pending': 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-400',
+                    'active': 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-400',
+                    'passed': 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400',
+                    'failed': 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400'
+                    } %}
+                    <span
+                        class="text-xs px-3 py-1 rounded-full font-semibold {{ status_colors[challenge.status] if challenge.status in status_colors else 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300' }}">
+                        {{ challenge.status|replace('_', ' ')|title }}
+                    </span>
+                    <span class="text-gray-500 dark:text-gray-400 text-sm">Phase {{ challenge.phase }}</span>
+                </div>
+            </div>
+            <div class="text-right">
+                <div class="text-2xl font-bold text-gray-900 dark:text-white">${{
+                    challenge.challenge_template.account_size }}</div>
+                <div class="text-gray-500 dark:text-gray-400 text-sm">Account Size</div>
+            </div>
+        </div>
+
+        <!-- Challenge Info -->
+        <div class="space-y-4 mb-6">
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <div class="text-sm text-gray-600 dark:text-gray-400">Current Profit</div>
+                    <div
+                        class="text-xl font-bold {% if challenge.current_profit and challenge.current_profit >= 0 %}text-green-600 dark:text-green-400{% else %}text-red-600 dark:text-red-400{% endif %}">
+                        ${{ "%.2f"|format(challenge.current_profit) if challenge.current_profit else '0.00' }}
+                    </div>
+                </div>
+                <div>
+                    <div class="text-sm text-gray-600 dark:text-gray-400">Days Remaining</div>
+                    <div class="text-xl font-bold text-gray-900 dark:text-white">{{ challenge.days_remaining if
+                        challenge.days_remaining
+                        else 'N/A' }}</div>
+                </div>
+            </div>
+
+            <!-- Progress Bar -->
+            {% set target_amount = (challenge.challenge_template.account_size *
+            challenge.challenge_template.profit_target / 100) %}
+            {% set progress = (challenge.current_profit / target_amount * 100) if challenge.current_profit and
+            target_amount > 0 else 0 %}
+            {% if progress > 100 %}{% set progress = 100 %}{% endif %}
+
+            <div>
+                <div class="flex justify-between text-sm text-gray-600 dark:text-gray-400 mb-1">
+                    <span>Profit Target: {{ challenge.challenge_template.profit_target }}%</span>
+                    <span>{{ "%.1f"|format(progress) }}%</span>
+                </div>
+                <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                    <div class="h-2 rounded-full {% if progress >= 70 %}bg-green-500{% elif progress >= 30 %}bg-yellow-500{% else %}bg-blue-500{% endif %}"
+                        style="width: {{ progress }}%"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="space-y-3">
+            {% if challenge.status == 'active' and challenge.mt5_login %}
+            <!-- Has Credentials -->
+            <button onclick="window.open('/user/credentials/{{ challenge.id }}', '_blank')"
+                class="w-full bg-gradient-to-br from-blue-500 to-blue-700 hover:-translate-y-0.5 hover:shadow-lg transition-all duration-300 text-white font-medium py-3 px-4 rounded-lg">
+                <i class="fas fa-key mr-2"></i> View MT5 Credentials
+            </button>
+
+            {% if challenge.phase == 1 and challenge.current_profit and challenge.current_profit >= target_amount %}
+            <button onclick="startPhase2({{ challenge.id }})"
+                class="w-full bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white font-medium py-3 px-4 rounded-lg transition">
+                <i class="fas fa-play mr-2"></i> Start Phase 2
+            </button>
+            {% endif %}
+
+            {% elif challenge.status == 'pending_credentials' %}
+            <!-- Waiting for Admin -->
+            <div
+                class="bg-gradient-to-br from-amber-100 to-amber-200 dark:from-amber-900/30 dark:to-amber-800/30 rounded-lg p-4 text-center border border-amber-200 dark:border-amber-800">
+                <div class="flex items-center justify-center mb-2">
+                    <i class="fas fa-clock text-yellow-600 dark:text-yellow-400 text-xl mr-2"></i>
+                    <span class="font-medium text-yellow-800 dark:text-yellow-300">Awaiting Admin Approval</span>
+                </div>
+                <p class="text-yellow-700 dark:text-yellow-400 text-sm">
+                    Your MT5 account is being prepared.<br>
+                    Usually takes <strong>under 24 hours</strong>.
+                </p>
+            </div>
+
+            {% elif challenge.status == 'passed' and challenge.phase == 1 %}
+            <!-- Passed Phase 1 -->
+            <div
+                class="bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 text-center">
+                <div class="flex items-center justify-center mb-2">
+                    <i class="fas fa-check-circle text-blue-600 dark:text-blue-400 text-xl mr-2"></i>
+                    <span class="font-medium text-blue-800 dark:text-blue-300">Phase 1 Passed!</span>
+                </div>
+                <button onclick="startPhase2({{ challenge.id }})"
+                    class="w-full bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white font-medium py-2 px-4 rounded-lg transition mt-2">
+                    Start Phase 2
+                </button>
+            </div>
+
+            {% elif challenge.status in ['failed', 'expired'] %}
+            <!-- Challenge Ended -->
+            <div class="bg-gray-100 dark:bg-gray-800 rounded-lg p-4 text-center">
+                <div class="flex items-center justify-center mb-2">
+                    <i class="fas fa-ban text-gray-500 dark:text-gray-400 text-xl mr-2"></i>
+                    <span class="font-medium text-gray-700 dark:text-gray-300">Challenge Ended</span>
+                </div>
+                <p class="text-gray-600 dark:text-gray-400 text-sm">
+                    MT5 access has been revoked.<br>
+                    Purchase a new challenge to continue.
+                </p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Phase 2 Promotion -->
+{% for challenge in active_challenges %}
+{% if challenge.phase == 1 and challenge.status == 'passed' %}
+<div class="mt-8 bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl p-6 text-white">
+    <div class="flex flex-col md:flex-row items-center justify-between">
+        <div>
+            <h3 class="text-xl font-bold mb-2">Ready for Phase 2?</h3>
+            <p class="text-purple-100">Start your funded account journey now</p>
+        </div>
+        <button onclick="startPhase2({{ challenge.id }})"
+            class="mt-4 md:mt-0 bg-white text-purple-600 hover:bg-gray-100 font-bold px-6 py-3 rounded-lg transition">
+            <i class="fas fa-play mr-2"></i> START PHASE 2
+        </button>
+    </div>
+</div>
+{% endif %}
+{% endfor %}
+
+{% else %}
+<!-- No Challenges -->
+<div class="glass-card p-12 text-center text-center">
+    <div class="w-20 h-20 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-6">
+        <i class="fas fa-trophy text-gray-400 dark:text-gray-500 text-3xl"></i>
+    </div>
+    <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-3">No Trading Challenges</h3>
+    <p class="text-gray-600 dark:text-gray-400 mb-8">You don't have any active trading challenges yet.</p>
+    <a href="/user/challenges"
+        class="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-bold rounded-lg">
+        <i class="fas fa-shopping-cart mr-2"></i> Buy Your First Challenge
+    </a>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Start Phase 2
+    function startPhase2(challengeId) {
+        if (confirm('Start Phase 2? This begins a new 30-day trading period.')) {
+            fetch(`/user/start-phase2/${challengeId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Phase 2 started!');
+                        window.location.reload();
+                    } else {
+                        alert('Error: ' + data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Network error. Try again.');
+                });
+        }
+    }
+
+    // Auto-refresh page every 5 minutes
+    setTimeout(() => {
+        window.location.reload();
+    }, 300000);
+</script>
+{% endblock %}

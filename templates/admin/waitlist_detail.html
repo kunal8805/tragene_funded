@@ -1,0 +1,111 @@
+{% extends 'admin/base.html' %}
+
+{% block title %}Waitlist Lead Detail - Tragene Admin{% endblock %}
+
+{% block content %}
+<div class="mb-6 flex justify-between items-center">
+    <a href="/admin/waitlist" class="text-indigo-600 hover:text-indigo-800 font-medium">
+        &larr; Back to Waitlist
+    </a>
+</div>
+
+<div class="bg-white rounded-lg shadow overflow-hidden">
+    <!-- Header -->
+    <div class="bg-gray-50 border-b border-gray-200 px-6 py-4 flex justify-between items-center">
+        <div>
+            <h2 class="text-xl font-bold text-gray-800">Lead #{{ lead.id }}: {{ lead.name }}</h2>
+            <p class="text-sm text-gray-500">Submitted on: {{ lead.created_at.strftime('%B %d, %Y at %I:%M %p') }}</p>
+        </div>
+        
+        <!-- Status Form -->
+        <form action="/admin/waitlist/{{ lead.id }}/update-status" method="POST" class="flex items-center space-x-3">
+            <label class="text-sm font-medium text-gray-700">Status:</label>
+            <select name="status" class="border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                <option value="new" {% if lead.status == 'new' %}selected{% endif %}>New</option>
+                <option value="contacted" {% if lead.status == 'contacted' %}selected{% endif %}>Contacted</option>
+                <option value="interested" {% if lead.status == 'interested' %}selected{% endif %}>Interested</option>
+                <option value="converted" {% if lead.status == 'converted' %}selected{% endif %}>Converted</option>
+            </select>
+            <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded text-sm font-medium">
+                Update
+            </button>
+        </form>
+    </div>
+
+    <!-- Content -->
+    <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-8">
+        
+        <!-- Column 1 -->
+        <div>
+            <h3 class="text-lg font-bold text-gray-800 border-b pb-2 mb-4">Contact Information</h3>
+            <div class="space-y-3 text-sm">
+                <div class="grid grid-cols-3 gap-2">
+                    <span class="text-gray-500 font-medium">Name:</span>
+                    <span class="col-span-2 text-gray-900">{{ lead.name }}</span>
+                </div>
+                <div class="grid grid-cols-3 gap-2">
+                    <span class="text-gray-500 font-medium">Email:</span>
+                    <span class="col-span-2 text-gray-900"><a href="mailto:{{ lead.email }}" class="text-blue-600 hover:underline">{{ lead.email }}</a></span>
+                </div>
+                <div class="grid grid-cols-3 gap-2">
+                    <span class="text-gray-500 font-medium">Phone:</span>
+                    <span class="col-span-2 text-gray-900">{{ lead.phone }}</span>
+                </div>
+                <div class="grid grid-cols-3 gap-2">
+                    <span class="text-gray-500 font-medium">Early Access:</span>
+                    <span class="col-span-2">
+                        {% if lead.early_access %}
+                            <span class="px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">Yes, Requested</span>
+                        {% else %}
+                            <span class="text-gray-500">No</span>
+                        {% endif %}
+                    </span>
+                </div>
+            </div>
+
+            <h3 class="text-lg font-bold text-gray-800 border-b pb-2 mb-4 mt-8">Trading Profile</h3>
+            <div class="space-y-3 text-sm">
+                <div class="grid grid-cols-3 gap-2">
+                    <span class="text-gray-500 font-medium">Experience:</span>
+                    <span class="col-span-2 text-gray-900">{{ lead.experience or 'Not specified' }}</span>
+                </div>
+                <div class="grid grid-cols-3 gap-2">
+                    <span class="text-gray-500 font-medium">Platform:</span>
+                    <span class="col-span-2 text-gray-900">{{ lead.platform or 'Not specified' }}</span>
+                </div>
+                <div class="grid grid-cols-3 gap-2">
+                    <span class="text-gray-500 font-medium">Plan Interest:</span>
+                    <span class="col-span-2 font-semibold text-indigo-600">{{ lead.plan_interest or 'Not specified' }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Column 2 -->
+        <div>
+            <h3 class="text-lg font-bold text-gray-800 border-b pb-2 mb-4">Detailed Responses</h3>
+            
+            <div class="mb-6">
+                <h4 class="text-sm font-medium text-gray-500 mb-2">Biggest problem with current prop firms:</h4>
+                <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 text-sm text-gray-800 whitespace-pre-wrap">
+                    {% if lead.problem %}
+                        {{ lead.problem }}
+                    {% else %}
+                        <span class="text-gray-400 italic">No response provided.</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div>
+                <h4 class="text-sm font-medium text-gray-500 mb-2">Website Feedback / Suggestions:</h4>
+                <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 text-sm text-gray-800 whitespace-pre-wrap">
+                    {% if lead.feedback %}
+                        {{ lead.feedback }}
+                    {% else %}
+                        <span class="text-gray-400 italic">No feedback provided.</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

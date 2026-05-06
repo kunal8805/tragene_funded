@@ -1,0 +1,369 @@
+{% extends "admin/admin_base.html" %}
+
+{% block title %}Users Management - Admin Panel{% endblock %}
+
+{% block content %}
+<!-- Notification Container -->
+<div id="notificationContainer" class="fixed top-4 right-4 z-50 space-y-2 max-w-sm"></div>
+
+<div class="mb-6">
+    <h1 class="text-2xl font-bold text-gray-800">User Management</h1>
+    <p class="text-gray-600">Manage all user accounts and permissions</p>
+</div>
+
+<!-- Search and Stats -->
+<div class="bg-white rounded-xl p-6 shadow-sm border mb-6">
+    <div class="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4 mb-4">
+        <!-- Real-time Search -->
+        <div class="flex flex-col sm:flex-row gap-2 w-full lg:w-auto">
+            <div class="relative">
+                <input type="text" id="searchInput" placeholder="Search by name or email..." 
+                       class="bg-gray-50 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 w-full lg:w-64 pl-10">
+                <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+            </div>
+            {% if request.args.get('search') %}
+            <a href="{{ url_for('admin_users') }}" class="bg-gray-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-gray-600 transition">
+                <i class="fas fa-times mr-2"></i>Clear
+            </a>
+            {% endif %}
+        </div>
+        
+        <!-- Quick Stats -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="text-center p-3 bg-blue-50 rounded-lg">
+                <div class="text-lg font-bold text-blue-600">{{ users|length }}</div>
+                <div class="text-sm text-gray-600">Total Users</div>
+            </div>
+            <div class="text-center p-3 bg-green-50 rounded-lg">
+                <div class="text-lg font-bold text-green-600">{{ users|selectattr('is_admin')|list|length }}</div>
+                <div class="text-sm text-gray-600">Admins</div>
+            </div>
+            <div class="text-center p-3 bg-purple-50 rounded-lg">
+                <div class="text-lg font-bold text-purple-600">{{ users|rejectattr('is_admin')|list|length }}</div>
+                <div class="text-sm text-gray-600">Traders</div>
+            </div>
+            <div class="text-center p-3 bg-orange-50 rounded-lg">
+                <div class="text-lg font-bold text-orange-600">{{ users|selectattr('is_banned')|list|length }}</div>
+                <div class="text-sm text-gray-600">Banned</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bulk Actions Form -->
+<form id="bulkActionForm" method="POST" action="{{ url_for('admin_bulk_action') }}">
+    <!-- Bulk Actions Toolbar -->
+    <div class="mb-4 bg-white rounded-xl p-4 shadow-sm border" id="bulkActionsToolbar" style="display: none;">
+        <div class="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
+            <div class="text-center lg:text-left">
+                <span id="selectedCount" class="font-semibold text-blue-600 text-lg">0 users selected</span>
+            </div>
+            
+            <div class="flex flex-col sm:flex-row gap-2 w-full lg:w-auto">
+                <select name="action" id="bulkActionSelect" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="">Choose Action...</option>
+                    <option value="ban">Ban Selected Users</option>
+                    <option value="unban">Unban Selected Users</option>
+                    <option value="delete">Delete Selected Users</option>
+                </select>
+                
+                <div class="flex gap-2">
+                    <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700 transition flex-1">
+                        Apply Action
+                    </button>
+                    <button type="button" onclick="clearSelection()" class="bg-gray-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-gray-600 transition flex-1">
+                        Clear
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Users Table -->
+    <div class="bg-white rounded-xl shadow-sm border overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead>
+                    <tr class="bg-gray-50 border-b">
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase w-12">
+                            <input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)">
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">User</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Contact</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Location</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Joined</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Status</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200" id="usersTableBody">
+                    {% for user in users %}
+                    <tr class="hover:bg-gray-50 {% if user.is_banned %}bg-red-50{% endif %} transition user-row" data-user-id="{{ user.id }}">
+                        <td class="px-6 py-4">
+                            {% if not user.is_admin %}
+                            <input type="checkbox" name="user_ids" value="{{ user.id }}" 
+                                   class="user-checkbox" onchange="updateBulkActions()">
+                            {% else %}
+                            <div class="w-5 h-5 bg-gray-200 rounded cursor-not-allowed"></div>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4">
+                            <div class="flex items-center">
+                                <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mr-3">
+                                    <span class="text-blue-600 font-bold text-sm">{{ user.first_name[0] }}{{ user.last_name[0] }}</span>
+                                </div>
+                                <div>
+                                    <div class="text-sm font-medium text-gray-900">{{ user.first_name }} {{ user.last_name }}</div>
+                                    <div class="text-xs text-gray-500">ID: {{ user.id }}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4">
+                            <div class="text-sm text-gray-900">{{ user.email }}</div>
+                            <div class="text-xs text-gray-500">{{ user.phone }}</div>
+                        </td>
+                        <td class="px-6 py-4">
+                            <div class="text-sm text-gray-900">{{ user.country }}</div>
+                            <div class="text-xs text-gray-500">{{ user.state if user.state else 'N/A' }}</div>
+                        </td>
+                        <td class="px-6 py-4">
+                            <div class="text-sm text-gray-900">{{ user.created_at.strftime('%b %d, %Y') }}</div>
+                            <div class="text-xs text-gray-500">{{ user.created_at.strftime('%H:%M') }}</div>
+                        </td>
+                        <td class="px-6 py-4">
+                            {% if user.is_admin %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                <i class="fas fa-crown mr-1"></i>Super Admin
+                            </span>
+                            {% elif user.is_banned %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                <i class="fas fa-ban mr-1"></i>Banned
+                            </span>
+                            {% else %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                <i class="fas fa-user mr-1"></i>Active
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4">
+                            <div class="flex space-x-2">
+                                <!-- View Details Button -->
+                                <a href="/admin/user/{{ user.id }}" 
+                                   class="text-blue-600 hover:text-blue-800 text-sm font-medium p-2 rounded-lg hover:bg-blue-50 transition" 
+                                   title="View Details">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                
+                                <!-- Ban/Unban Buttons -->
+                                {% if not user.is_admin %}
+                                    {% if user.is_banned %}
+                                    <a href="/admin/unban_user/{{ user.id }}" 
+                                       class="text-green-600 hover:text-green-800 text-sm font-medium p-2 rounded-lg hover:bg-green-50 transition" 
+                                       title="Unban User"
+                                       onclick="return confirm('Unban {{ user.email }}?')">
+                                        <i class="fas fa-unlock"></i>
+                                    </a>
+                                    {% else %}
+                                    <a href="/admin/ban_user/{{ user.id }}" 
+                                       class="text-red-600 hover:text-red-800 text-sm font-medium p-2 rounded-lg hover:bg-red-50 transition" 
+                                       title="Ban User"
+                                       onclick="return confirm('Ban {{ user.email }}?')">
+                                        <i class="fas fa-ban"></i>
+                                    </a>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-gray-400 text-sm p-2" title="Cannot modify Super Admin">
+                                        <i class="fas fa-shield-alt"></i>
+                                    </span>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</form>
+
+{% if not users %}
+<div class="text-center py-12 bg-white rounded-xl shadow-sm border">
+    <div class="text-6xl mb-4 text-gray-300">👥</div>
+    <h3 class="text-2xl font-bold text-gray-900 mb-2">No Users Found</h3>
+    <p class="text-gray-600 mb-6">No users match your search criteria.</p>
+    <a href="{{ url_for('admin_users') }}" class="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition">
+        Show All Users
+    </a>
+</div>
+{% endif %}
+
+<script>
+// Notification system with auto-disappear
+function showNotification(message, type = 'info', duration = 10000) {
+    const notificationContainer = document.getElementById('notificationContainer');
+    const notification = document.createElement('div');
+    const bgColor = type === 'success' ? 'bg-green-500' : 
+                   type === 'error' ? 'bg-red-500' : 
+                   type === 'warning' ? 'bg-yellow-500' : 'bg-blue-500';
+    
+    notification.className = `${bgColor} text-white p-4 rounded-lg shadow-lg transform transition-all duration-300 ease-in-out`;
+    notification.innerHTML = `
+        <div class="flex items-center justify-between">
+            <div class="flex items-center">
+                <i class="fas ${type === 'success' ? 'fa-check-circle' : 
+                              type === 'error' ? 'fa-exclamation-circle' : 
+                              type === 'warning' ? 'fa-exclamation-triangle' : 'fa-info-circle'} mr-2"></i>
+                <span>${message}</span>
+            </div>
+            <button onclick="this.parentElement.parentElement.remove()" class="ml-4 text-white hover:text-gray-200">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    `;
+    
+    notificationContainer.appendChild(notification);
+    
+    // Auto remove after duration
+    setTimeout(() => {
+        if (notification.parentElement) {
+            notification.style.opacity = '0';
+            notification.style.transform = 'translateX(100%)';
+            setTimeout(() => {
+                if (notification.parentElement) {
+                    notification.remove();
+                }
+            }, 300);
+        }
+    }, duration);
+}
+
+// Real-time search functionality
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+function filterUsers() {
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+    const rows = document.querySelectorAll('.user-row');
+    let visibleCount = 0;
+
+    rows.forEach(row => {
+        const userName = row.querySelector('.text-sm.font-medium').textContent.toLowerCase();
+        const userEmail = row.querySelector('.text-sm.text-gray-900').textContent.toLowerCase();
+        const userId = row.querySelector('.text-xs.text-gray-500').textContent.toLowerCase();
+        
+        const matches = userName.includes(searchTerm) || 
+                       userEmail.includes(searchTerm) || 
+                       userId.includes(searchTerm);
+        
+        if (matches || searchTerm === '') {
+            row.style.display = '';
+            visibleCount++;
+        } else {
+            row.style.display = 'none';
+        }
+    });
+
+    // Update stats to show filtered count
+    document.querySelector('.text-blue-600').textContent = visibleCount;
+}
+
+// Initialize real-time search
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('searchInput');
+    searchInput.addEventListener('input', debounce(filterUsers, 300));
+    
+    // Show welcome notification
+    setTimeout(() => {
+        showNotification('Welcome back, Tragene!', 'success', 10000);
+    }, 1000);
+
+    // Show KYC notification if needed
+    setTimeout(() => {
+        showNotification('KYC documents submitted successfully! We will review them within 24-48 hours.', 'info', 10000);
+    }, 2000);
+});
+
+// Bulk selection functionality (UNCHANGED)
+function toggleSelectAll(checkbox) {
+    const checkboxes = document.querySelectorAll('.user-checkbox');
+    checkboxes.forEach(cb => {
+        cb.checked = checkbox.checked;
+    });
+    updateBulkActions();
+}
+
+function updateBulkActions() {
+    const checkboxes = document.querySelectorAll('.user-checkbox');
+    const selectedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
+    const toolbar = document.getElementById('bulkActionsToolbar');
+    const selectedCountElement = document.getElementById('selectedCount');
+    
+    if (selectedCount > 0) {
+        toolbar.style.display = 'block';
+        selectedCountElement.textContent = `${selectedCount} user${selectedCount !== 1 ? 's' : ''} selected`;
+    } else {
+        toolbar.style.display = 'none';
+    }
+    
+    // Update select all checkbox
+    const selectAll = document.getElementById('selectAll');
+    selectAll.checked = selectedCount === checkboxes.length && checkboxes.length > 0;
+    selectAll.indeterminate = selectedCount > 0 && selectedCount < checkboxes.length;
+}
+
+function clearSelection() {
+    const checkboxes = document.querySelectorAll('.user-checkbox');
+    checkboxes.forEach(cb => {
+        cb.checked = false;
+    });
+    updateBulkActions();
+    showNotification('Selection cleared', 'info');
+}
+
+// Form submission confirmation (UNCHANGED)
+document.getElementById('bulkActionForm').addEventListener('submit', function(e) {
+    const actionSelect = document.getElementById('bulkActionSelect');
+    const action = actionSelect.value;
+    const selectedCount = document.querySelectorAll('.user-checkbox:checked').length;
+    
+    if (!action) {
+        e.preventDefault();
+        showNotification('Please select an action to perform.', 'warning');
+        return;
+    }
+    
+    let message = '';
+    switch(action) {
+        case 'ban':
+            message = `Are you sure you want to ban ${selectedCount} user${selectedCount !== 1 ? 's' : ''}?`;
+            break;
+        case 'unban':
+            message = `Are you sure you want to unban ${selectedCount} user${selectedCount !== 1 ? 's' : ''}?`;
+            break;
+        case 'delete':
+            message = `⚠️ WARNING: This will permanently delete ${selectedCount} user${selectedCount !== 1 ? 's' : ''} and ALL their data! This cannot be undone! Are you sure?`;
+            break;
+    }
+    
+    if (!confirm(message)) {
+        e.preventDefault();
+    } else {
+        showNotification(`Action "${action}" applied to ${selectedCount} user${selectedCount !== 1 ? 's' : ''}`, 'success');
+    }
+});
+
+// Initialize
+document.addEventListener('DOMContentLoaded', function() {
+    updateBulkActions();
+});
+</script>
+{% endblock %}

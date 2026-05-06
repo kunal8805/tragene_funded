@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Tragene Funded - User Dashboard{% endblock %}</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        dark: {
+                            bg: '#0f172a',
+                            card: '#1e293b',
+                            text: '#f1f5f9',
+                            muted: '#94a3b8',
+                            border: '#334155'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+    <!-- AOS Animation -->
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+
+    <!-- Custom Styles -->
+    <style>
+        html,
+        body {
+            overflow-x: hidden;
+            max-width: 100%;
+        }
+
+        * {
+            box-sizing: border-box;
+            transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+        }
+
+        /* Professional White Theme */
+        .bg-professional {
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 50%, #e2e8f0 100%);
+            min-height: 100vh;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        }
+
+        /* Dark Mode Styles */
+        .dark .bg-professional {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+        }
+
+        .dark .glass-card {
+            background: rgba(30, 41, 59, 0.95);
+            border: 1px solid #334155;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .dark .text-gray-900 {
+            color: #f1f5f9;
+        }
+
+        .dark .text-gray-800 {
+            color: #e2e8f0;
+        }
+
+        .dark .text-gray-700 {
+            color: #cbd5e1;
+        }
+
+        .dark .text-gray-600 {
+            color: #94a3b8;
+        }
+
+        .dark .text-gray-500 {
+            color: #64748b;
+        }
+
+        .dark .bg-white {
+            background-color: #1e293b;
+        }
+
+        .dark .bg-gray-50 {
+            background-color: #0f172a;
+        }
+
+        .dark .bg-gray-100 {
+            background-color: #334155;
+        }
+
+        .dark .border-gray-200 {
+            border-color: #334155;
+        }
+
+        .dark .border-gray-300 {
+            border-color: #475569;
+        }
+
+        .gradient-primary {
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+        }
+
+        /* Mobile Sidebar */
+        .sidebar-mobile {
+            transform: translateX(-100%);
+            transition: transform 0.3s ease-in-out;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 280px;
+            height: 100vh;
+            z-index: 50;
+            background: white;
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .dark .sidebar-mobile {
+            background: #1e293b;
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .sidebar-mobile.open {
+            transform: translateX(0);
+        }
+
+        .overlay {
+            display: none;
+            background: rgba(0, 0, 0, 0.5);
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 40;
+        }
+
+        .overlay.active {
+            display: block;
+        }
+
+        .progress-glow {
+            background: linear-gradient(90deg, #10b981, #34d399, #10b981);
+            background-size: 200% 100%;
+            animation: progressGlow 2s ease-in-out infinite;
+        }
+
+        @keyframes progressGlow {
+
+            0%,
+            100% {
+                background-position: 0% 50%;
+            }
+
+            50% {
+                background-position: 100% 50%;
+            }
+        }
+
+        .floating {
+            animation: floating 3s ease-in-out infinite;
+        }
+
+        @keyframes floating {
+
+            0%,
+            100% {
+                transform: translateY(0px);
+            }
+
+            50% {
+                transform: translateY(-5px);
+            }
+        }
+
+        /* Desktop Layout */
+        .desktop-sidebar {
+            width: 280px;
+            min-height: 100vh;
+            background: white;
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+            position: fixed;
+            left: 0;
+            top: 0;
+            z-index: 30;
+        }
+
+        .dark .desktop-sidebar {
+            background: #1e293b;
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .desktop-content {
+            margin-left: 280px;
+            min-height: 100vh;
+            width: calc(100% - 280px);
+        }
+
+        /* Mobile Layout */
+        @media (max-width: 1024px) {
+            .desktop-sidebar {
+                display: none;
+            }
+
+            .desktop-content {
+                margin-left: 0;
+                width: 100%;
+            }
+        }
+
+        /* Mobile First Design */
+        @media (max-width: 768px) {
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 480px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+    {% block head %}{% endblock %}
+</head>
+
+<body class="bg-professional text-gray-800 min-h-screen">
+    <!-- Dark Mode Init Script -->
+    <script>
+        if (localStorage.getItem('color-theme') === 'dark' || (!('color-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    </script>
+
+    <!-- Mobile Overlay -->
+    <div id="overlay" class="overlay" onclick="toggleSidebar()"></div>
+
+    <!-- Mobile Header -->
+    <header
+        class="bg-white dark:bg-dark-card shadow-sm border-b border-gray-200 dark:border-dark-border sticky top-0 z-30 lg:hidden">
+        <div class="flex items-center justify-between p-4">
+            <!-- Left: Menu + Logo -->
+            <div class="flex items-center gap-3">
+                <button onclick="toggleSidebar()"
+                    class="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition">
+                    <i class="fas fa-bars text-gray-700 dark:text-gray-300"></i>
+                </button>
+                <!-- Circular Logo -->
+                <div
+                    class="w-10 h-10 rounded-full overflow-hidden border border-gray-300 dark:border-gray-600 bg-white flex items-center justify-center shrink-0">
+                    <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Tragene Funded Logo"
+                        class="w-full h-full object-contain">
+                </div>
+            </div>
+
+            <div class="flex items-center space-x-3">
+                <button id="theme-toggle-mobile"
+                    class="p-2 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
+                    <i class="fas fa-moon hidden dark:block"></i>
+                    <i class="fas fa-sun block dark:hidden"></i>
+                </button>
+                <div class="text-right hidden sm:block">
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Welcome</p>
+                    <p class="font-semibold text-sm text-gray-900 dark:text-white">{{ user.first_name }}</p>
+                </div>
+                <a href="/logout"
+                    class="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg text-sm font-medium transition">
+                    <i class="fas fa-sign-out-alt"></i>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Desktop Sidebar -->
+    <div class="desktop-sidebar hidden lg:block">
+        <div class="p-6 border-b border-gray-200 dark:border-dark-border">
+            <a href="/" class="flex items-center gap-3">
+                <!-- Circular Logo -->
+                <div
+                    class="w-14 h-14 rounded-full overflow-hidden border-2 border-gray-300 dark:border-gray-600 bg-white flex items-center justify-center shrink-0">
+                    <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Tragene Funded Logo"
+                        class="w-full h-full object-contain">
+                </div>
+                <!-- Brand Text -->
+                <div class="leading-tight">
+                    <h1 class="font-bold text-gray-800 dark:text-white text-lg">TRAGENE</h1>
+                    <p class="text-gray-500 dark:text-gray-400 text-xs tracking-wide">FUNDED</p>
+                </div>
+            </a>
+        </div>
+
+        <nav class="p-4 space-y-2">
+            <a href="/user/dashboard"
+                class="flex items-center space-x-3 p-3 {% if request.endpoint == 'user.dashboard' %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
+                <i
+                    class="fas fa-tachometer-alt w-5 {% if request.endpoint == 'user.dashboard' %}text-blue-600 dark:text-blue-400{% endif %}"></i>
+                <span class="font-medium">Dashboard</span>
+            </a>
+            <a href="/user/challenges"
+                class="flex items-center space-x-3 p-3 {% if request.endpoint == 'user.challenges' or request.endpoint == 'user.user_challenges' %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
+                <i
+                    class="fas fa-trophy w-5 {% if request.endpoint == 'user.challenges' %}text-blue-600 dark:text-blue-400{% endif %}"></i>
+                <span>Challenges</span>
+            </a>
+            <a href="/user/trading"
+                class="flex items-center space-x-3 p-3 {% if request.endpoint == 'user.trading' %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
+                <i
+                    class="fas fa-chart-line w-5 {% if request.endpoint == 'user.trading' %}text-blue-600 dark:text-blue-400{% endif %}"></i>
+                <span>Trading</span>
+            </a>
+            <a href="{{ url_for('user.user_history') }}"
+                class="flex items-center space-x-3 p-3 {% if request.endpoint == 'user.user_history' %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
+                <i
+                    class="fas fa-history w-5 {% if request.endpoint == 'user.user_history' %}text-blue-600 dark:text-blue-400{% endif %}"></i>
+                <span>History</span>
+            </a>
+            <a href="/user/kyc"
+                class="flex items-center space-x-3 p-3 {% if request.endpoint == 'user.kyc' or request.endpoint == 'user.kyc_verification' %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
+                <i
+                    class="fas fa-id-card w-5 {% if request.endpoint == 'user.kyc' %}text-blue-600 dark:text-blue-400{% endif %}"></i>
+                <span>KYC Verification</span>
+            </a>
+            <a href="/user/payouts"
+                class="flex items-center space-x-3 p-3 {% if request.endpoint == 'user.payouts' %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
+                <i
+                    class="fas fa-wallet w-5 {% if request.endpoint == 'user.payouts' %}text-blue-600 dark:text-blue-400{% endif %}"></i>
+                <span>Payouts</span>
+            </a>
+            <a href="/user/settings"
+                class="flex items-center space-x-3 p-3 {% if request.endpoint == 'user.settings' %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
+                <i
+                    class="fas fa-cog w-5 {% if request.endpoint == 'user.settings' %}text-blue-600 dark:text-blue-400{% endif %}"></i>
+                <span>Settings</span>
+            </a>
+        </nav>
+
+        <!-- Dark Mode Toggle Desktop -->
+        <div class="absolute bottom-0 w-full p-4 border-t border-gray-200 dark:border-dark-border">
+            <button id="theme-toggle-desktop"
+                class="w-full flex items-center justify-center space-x-2 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition">
+                <i class="fas fa-moon hidden dark:block"></i>
+                <i class="fas fa-sun block dark:hidden"></i>
+                <span class="hidden dark:block">Switch to Light</span>
+                <span class="block dark:hidden">Switch to Dark</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Mobile Sidebar -->
+    <div id="mobileSidebar" class="sidebar-mobile lg:hidden">
+        <div class="p-6 border-b border-gray-200 dark:border-dark-border">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div
+                        class="w-16 h-16 rounded-full overflow-hidden border-2 border-gray-300 dark:border-gray-600 bg-white flex items-center justify-center shrink-0">
+                        <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Tragene Funded Logo"
+                            class="w-full h-full object-contain">
+                    </div>
+                    <div class="leading-tight">
+                        <h1 class="font-bold text-gray-800 dark:text-white">TRAGENE</h1>
+                        <p class="text-gray-500 dark:text-gray-400 text-xs tracking-wide">FUNDED</p>
+                    </div>
+                </div>
+                <button onclick="toggleSidebar()"
+                    class="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition">
+                    <i class="fas fa-times text-gray-700 dark:text-gray-300"></i>
+                </button>
+            </div>
+        </div>
+
+        <nav class="p-4 space-y-2">
+            <a href="/user/dashboard"
+                class="flex items-center space-x-3 p-3 {% if request.endpoint == 'user.dashboard' %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition"
+                onclick="toggleSidebar()">
+                <i
+                    class="fas fa-tachometer-alt w-5 {% if request.endpoint == 'user.dashboard' %}text-blue-600 dark:text-blue-400{% endif %}"></i>
+                <span class="font-medium">Dashboard</span>
+            </a>
+            <a href="/user/challenges"
+                class="flex items-center space-x-3 p-3 {% if request.endpoint == 'user.challenges' %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition"
+                onclick="toggleSidebar()">
+                <i
+                    class="fas fa-trophy w-5 {% if request.endpoint == 'user.challenges' %}text-blue-600 dark:text-blue-400{% endif %}"></i>
+                <span>Challenges</span>
+            </a>
+            <a href="/user/trading"
+                class="flex items-center space-x-3 p-3 {% if request.endpoint == 'user.trading' %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition"
+                onclick="toggleSidebar()">
+                <i
+                    class="fas fa-chart-line w-5 {% if request.endpoint == 'user.trading' %}text-blue-600 dark:text-blue-400{% endif %}"></i>
+                <span>Trading</span>
+            </a>
+            <a href="/user/history"
+                class="flex items-center space-x-3 p-3 {% if request.endpoint == 'user.trading_history' %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition"
+                onclick="toggleSidebar()">
+                <i
+                    class="fas fa-history w-5 {% if request.endpoint == 'user.trading_history' %}text-blue-600 dark:text-blue-400{% endif %}"></i>
+                <span>History</span>
+            </a>
+            <a href="/user/kyc"
+                class="flex items-center space-x-3 p-3 {% if request.endpoint == 'user.kyc' %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition"
+                onclick="toggleSidebar()">
+                <i
+                    class="fas fa-id-card w-5 {% if request.endpoint == 'user.kyc' %}text-blue-600 dark:text-blue-400{% endif %}"></i>
+                <span>KYC Verification</span>
+            </a>
+            <a href="/user/payouts"
+                class="flex items-center space-x-3 p-3 {% if request.endpoint == 'user.payouts' %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition"
+                onclick="toggleSidebar()">
+                <i
+                    class="fas fa-wallet w-5 {% if request.endpoint == 'user.payouts' %}text-blue-600 dark:text-blue-400{% endif %}"></i>
+                <span>Payouts</span>
+            </a>
+            <a href="/user/settings"
+                class="flex items-center space-x-3 p-3 {% if request.endpoint == 'user.settings' %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition"
+                onclick="toggleSidebar()">
+                <i
+                    class="fas fa-cog w-5 {% if request.endpoint == 'user.settings' %}text-blue-600 dark:text-blue-400{% endif %}"></i>
+                <span>Settings</span>
+            </a>
+        </nav>
+    </div>
+
+    <!-- Main Content -->
+    <div class="desktop-content">
+        <!-- Desktop Header -->
+        <header
+            class="hidden lg:flex bg-white dark:bg-dark-card shadow-sm border-b border-gray-200 dark:border-dark-border sticky top-0 z-20">
+            <div class="flex justify-between items-center p-6 w-full">
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{% block header_title %}Dashboard{%
+                        endblock %}</h1>
+                    <p class="text-gray-600 dark:text-gray-400">{% block header_subtitle %}Overview{% endblock %}</p>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div class="text-right">
+                        <p class="text-sm text-gray-600 dark:text-gray-400">Welcome back</p>
+                        <p class="font-semibold text-gray-900 dark:text-white">{{ user.first_name }} {{ user.last_name
+                            }}</p>
+                    </div>
+                    <a href="/logout"
+                        class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-medium transition">
+                        <i class="fas fa-sign-out-alt mr-2"></i>Logout
+                    </a>
+                </div>
+            </div>
+        </header>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="p-4 lg:p-6 pb-0">
+            {% for category, message in messages %}
+            <div
+                class="p-4 mb-4 rounded-lg {% if category == 'error' %}bg-red-100 text-red-700 border border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-900/30{% elif category == 'success' %}bg-green-100 text-green-700 border border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-900/30{% else %}bg-blue-100 text-blue-700 border border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-900/30{% endif %}">
+                {{ message }}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
+
+        <main class="p-4 lg:p-6">
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+
+    <script>
+        // Mobile sidebar toggle
+        function toggleSidebar() {
+            const sidebar = document.getElementById('mobileSidebar');
+            const overlay = document.getElementById('overlay');
+            sidebar.classList.toggle('open');
+            overlay.classList.toggle('active');
+        }
+
+        // Initialize animations
+        if (typeof AOS !== 'undefined') {
+            AOS.init({
+                duration: 800,
+                once: true,
+                offset: 50,
+                easing: 'ease-out-cubic'
+            });
+        }
+
+        // Close sidebar when clicking outside on mobile
+        document.addEventListener('click', function (event) {
+            const sidebar = document.getElementById('mobileSidebar');
+            if (sidebar.classList.contains('open') && !sidebar.contains(event.target) && !event.target.closest('button')) {
+                toggleSidebar();
+            }
+        });
+
+        // Dark Mode Logic
+        const themeToggleDesktop = document.getElementById('theme-toggle-desktop');
+        const themeToggleMobile = document.getElementById('theme-toggle-mobile');
+
+        function toggleTheme() {
+            if (document.documentElement.classList.contains('dark')) {
+                document.documentElement.classList.remove('dark');
+                localStorage.setItem('color-theme', 'light');
+            } else {
+                document.documentElement.classList.add('dark');
+                localStorage.setItem('color-theme', 'dark');
+            }
+        }
+
+        if (themeToggleDesktop) themeToggleDesktop.addEventListener('click', toggleTheme);
+        if (themeToggleMobile) themeToggleMobile.addEventListener('click', toggleTheme);
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+
+</html>

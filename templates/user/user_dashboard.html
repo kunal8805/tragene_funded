@@ -1,0 +1,392 @@
+{% extends "user/base.html" %}
+
+{% block title %}Tragene Funded - Trading Dashboard{% endblock %}
+
+{% block header_title %}Trading Dashboard{% endblock %}
+{% block header_subtitle %}Monitor your challenge progress and performance{% endblock %}
+
+{% block content %}
+<!-- KYC Status Banner -->
+{% if user.kyc_status != 'approved' %}
+<div class="glass-card p-4 mb-6 border-l-4 border-orange-500 dark:border-orange-500" data-aos="fade-up">
+    <div class="flex flex-col sm:flex-row items-center justify-between space-y-3 sm:space-y-0">
+        <div class="flex items-center space-x-4">
+            <div class="w-12 h-12 bg-orange-100 dark:bg-orange-900/30 rounded-xl flex items-center justify-center">
+                <i class="fas fa-id-card text-orange-600 dark:text-orange-400 text-xl"></i>
+            </div>
+            <div>
+                <h3 class="font-semibold text-lg text-gray-900 dark:text-white">KYC Verification Required</h3>
+                <p class="text-gray-600 dark:text-gray-400">Complete verification to purchase challenges</p>
+            </div>
+        </div>
+        <a href="/user/kyc"
+            class="bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-xl font-semibold transition whitespace-nowrap">
+            Start Verification
+        </a>
+    </div>
+</div>
+{% endif %}
+
+<!-- Quick Stats Grid -->
+<div class="stats-grid grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 lg:gap-6 mb-6 lg:mb-8">
+    <!-- Account Balance -->
+    <div class="glass-card p-4 lg:p-6 floating border dark:border-dark-border" data-aos="fade-up"
+        style="animation-delay: 0s;">
+        <div class="flex justify-between items-start">
+            <div>
+                <p class="text-gray-600 dark:text-gray-400 text-sm">Account Balance</p>
+                <p class="text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white">
+                    ${{ "{:,.0f}".format(display_challenge.account_balance if display_challenge else 1000) }}
+                </p>
+            </div>
+            <div class="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center">
+                <i class="fas fa-wallet text-blue-600 dark:text-blue-400 text-lg"></i>
+            </div>
+        </div>
+        <p class="text-green-600 dark:text-green-400 text-sm mt-2 font-medium">+0.00% Today</p>
+    </div>
+
+    <!-- Current Profit -->
+    <div class="glass-card p-4 lg:p-6 floating border dark:border-dark-border" data-aos="fade-up"
+        style="animation-delay: 0.1s;">
+        <div class="flex justify-between items-start">
+            <div>
+                <p class="text-gray-600 dark:text-gray-400 text-sm">Current Profit</p>
+                <p class="text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white">
+                    ${{ "{:,.2f}".format(display_challenge.current_profit if display_challenge else 0) }}
+                </p>
+            </div>
+            <div class="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-xl flex items-center justify-center">
+                <i class="fas fa-chart-line text-green-600 dark:text-green-400 text-lg"></i>
+            </div>
+        </div>
+        <p class="text-gray-600 dark:text-gray-400 text-sm mt-2">
+            {{ "%.1f"|format(display_challenge.progress_percentage if display_challenge else 0) }}% of target
+        </p>
+    </div>
+
+    <!-- Drawdown Used -->
+    <div class="glass-card p-4 lg:p-6 floating border dark:border-dark-border" data-aos="fade-up"
+        style="animation-delay: 0.2s;">
+        <div class="flex justify-between items-start">
+            <div>
+                <p class="text-gray-600 dark:text-gray-400 text-sm">Drawdown Used</p>
+                <p class="text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white">
+                    {{ "%.2f"|format(display_challenge.max_drawdown_used if display_challenge else 0) }}%
+                </p>
+            </div>
+            <div class="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-xl flex items-center justify-center">
+                <i class="fas fa-shield-alt text-red-600 dark:text-red-400 text-lg"></i>
+            </div>
+        </div>
+        <p class="text-green-600 dark:text-green-400 text-sm mt-2 font-medium">
+            {{ display_challenge.challenge_template.max_daily_loss if display_challenge else 5 }}% max allowed
+        </p>
+    </div>
+
+    <!-- Days Remaining -->
+    <div class="glass-card p-4 lg:p-6 floating border dark:border-dark-border" data-aos="fade-up"
+        style="animation-delay: 0.3s;">
+        <div class="flex justify-between items-start">
+            <div>
+                <p class="text-gray-600 dark:text-gray-400 text-sm">Days Remaining</p>
+                <p class="text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white">
+                    {{ display_challenge.days_remaining if display_challenge else 30 }}
+                </p>
+            </div>
+            <div class="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-xl flex items-center justify-center">
+                <i class="fas fa-calendar text-purple-600 dark:text-purple-400 text-lg"></i>
+            </div>
+        </div>
+        <p class="text-gray-600 dark:text-gray-400 text-sm mt-2">
+            {{ display_challenge.challenge_template.duration_days if display_challenge else 30 }} days total
+        </p>
+    </div>
+</div>
+
+<!-- Main Content Grid -->
+{% set display_challenge = challenge if challenge else (active_challenges[0] if active_challenges else None) %}
+
+<div class="grid grid-cols-1 xl:grid-cols-3 gap-6 lg:gap-8">
+    <!-- Left Column - 2/3 width on desktop -->
+    <div class="xl:col-span-2 space-y-6 lg:space-y-8">
+        <!-- Challenge Progress -->
+        <div class="glass-card p-4 lg:p-6 border dark:border-dark-border" data-aos="fade-up">
+            <div class="flex items-center justify-between mb-6">
+                <div>
+                    <h3 class="text-xl font-semibold text-gray-900 dark:text-white flex items-center">
+                        <i class="fas fa-trophy text-yellow-600 mr-3"></i>
+                        Challenge Progress
+                    </h3>
+                    {% if display_challenge %}
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                        {{ display_challenge.challenge_template.name }} - Challenge #{{ display_challenge.serial_no or
+                        'N/A' }}
+                    </p>
+                    {% endif %}
+                </div>
+                {% if display_challenge %}
+                <span
+                    class="bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400 px-3 py-1 rounded-full text-sm font-medium">{{
+                    display_challenge.status|replace('_', ' ')|title }}</span>
+                {% else %}
+                <span
+                    class="bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300 px-3 py-1 rounded-full text-sm font-medium">No
+                    Active Challenge</span>
+                {% endif %}
+            </div>
+
+            {% if display_challenge %}
+            <!-- Profit Target Progress -->
+            <div class="mb-6">
+                {% set target_amount = display_challenge.challenge_template.account_size *
+                (display_challenge.challenge_template.profit_target / 100) %}
+                <div class="flex justify-between text-sm mb-3">
+                    <span class="text-gray-600 dark:text-gray-400">Profit Target: {{
+                        display_challenge.challenge_template.profit_target }}% (${{ "{:,.0f}".format(target_amount)
+                        }})</span>
+                    <span class="text-green-600 dark:text-green-400 font-semibold">{{
+                        "%.1f"|format(display_challenge.progress_percentage or 0) }}% (${{
+                        "{:,.2f}".format(display_challenge.current_profit or 0) }})</span>
+                </div>
+                <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
+                    <div class="progress-glow h-3 rounded-full transition-all duration-500"
+                        style="width: {{ [100, display_challenge.progress_percentage or 0]|min }}%"></div>
+                </div>
+            </div>
+
+            <!-- Drawdown Progress -->
+            <div class="mb-6">
+                {% set max_loss_amount = display_challenge.challenge_template.account_size *
+                (display_challenge.challenge_template.max_daily_loss / 100) %}
+                <div class="flex justify-between text-sm mb-3">
+                    <span class="text-gray-600 dark:text-gray-400">Max Drawdown Limit: {{
+                        display_challenge.challenge_template.max_daily_loss }}% (${{ "{:,.0f}".format(max_loss_amount)
+                        }})</span>
+                    <span class="text-red-600 dark:text-red-400 font-semibold">{{
+                        "%.2f"|format(display_challenge.max_drawdown_used or 0) }}% (${{
+                        "{:,.2f}".format(display_challenge.current_loss or 0) }})</span>
+                </div>
+                <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
+                    <div class="bg-red-500 h-3 rounded-full transition-all duration-500"
+                        style="width: {{ [100, (display_challenge.current_loss / max_loss_amount * 100) if max_loss_amount > 0 else 0]|min }}%">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Time Progress -->
+            <div>
+                {% set days_total = display_challenge.challenge_template.duration_days %}
+                {% set days_left = display_challenge.days_remaining if display_challenge.days_remaining is not none else
+                days_total %}
+                <div class="flex justify-between text-sm mb-3">
+                    <span class="text-gray-600 dark:text-gray-400">Time Remaining: {{ days_left }} days</span>
+                    <span class="text-blue-600 dark:text-blue-400 font-semibold">{{ "%.1f"|format(days_left / days_total
+                        * 100 if days_total > 0 else 0) }}%</span>
+                </div>
+                <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
+                    <div class="bg-blue-500 h-3 rounded-full transition-all duration-500"
+                        style="width: {{ [100, (days_left / days_total * 100) if days_total > 0 else 0]|min }}%"></div>
+                </div>
+            </div>
+            {% else %}
+            <div class="text-center py-8">
+                <p class="text-gray-500 dark:text-gray-400 mb-4">You don't have an active challenge yet.</p>
+                <a href="/user/challenges"
+                    class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition">
+                    Browse Challenges
+                </a>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- MT5 Account Info -->
+        <div class="glass-card p-4 lg:p-6 border dark:border-dark-border" data-aos="fade-up" data-aos-delay="100">
+            <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+                <i class="fas fa-terminal text-blue-600 dark:text-blue-400 mr-2"></i>
+                MT5 Trading Account
+            </h3>
+
+            {% if display_challenge and display_challenge.mt5_login %}
+            <div class="bg-gray-50 dark:bg-gray-800 rounded-xl p-4 mb-4 border border-gray-200 dark:border-gray-700">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div>
+                        <span class="text-gray-600 dark:text-gray-400">Server:</span>
+                        <span class="font-mono text-gray-900 dark:text-white ml-2">{{ display_challenge.mt5_server or
+                            'Processing...' }}</span>
+                    </div>
+                    <div>
+                        <span class="text-gray-600 dark:text-gray-400">Login:</span>
+                        <span class="font-mono text-gray-900 dark:text-white ml-2">{{ display_challenge.mt5_login
+                            }}</span>
+                    </div>
+                    <div>
+                        <span class="text-gray-600 dark:text-gray-400">Password:</span>
+                        <span class="font-mono text-gray-900 dark:text-white ml-2">••••••••</span>
+                    </div>
+                    <div>
+                        <span class="text-gray-600 dark:text-gray-400">Account Type:</span>
+                        <span class="text-green-600 dark:text-green-400 ml-2 font-medium">Demo</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex flex-col sm:flex-row gap-3">
+                <a href="/user/mt5/download"
+                    class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-xl font-semibold transition flex items-center justify-center">
+                    <i class="fas fa-download mr-2"></i>Download MT5
+                </a>
+                <a href="{{ url_for('user.view_credentials', challenge_id=display_challenge.id) }}"
+                    class="flex-1 bg-gray-600 hover:bg-gray-700 text-white py-3 px-4 rounded-xl font-semibold transition flex items-center justify-center">
+                    <i class="fas fa-key mr-2"></i>View Credentials
+                </a>
+            </div>
+            {% else %}
+            <div
+                class="bg-gray-50 dark:bg-gray-800 rounded-xl p-8 text-center border border-gray-200 dark:border-gray-700">
+                <i class="fas fa-clock text-4xl text-gray-400 mb-3"></i>
+                <p class="text-gray-600 dark:text-gray-400">Account credentials will appear here once your payment is
+                    verified and processed.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Right Column - 1/3 width on desktop -->
+    <div class="space-y-6 lg:space-y-8">
+        <!-- Trading Rules -->
+        <div class="glass-card p-4 lg:p-6 border dark:border-dark-border" data-aos="fade-left">
+            <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+                <i class="fas fa-gavel text-orange-600 dark:text-orange-400 mr-2"></i>
+                Trading Rules
+            </h3>
+
+            <div class="space-y-3">
+                <div
+                    class="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-200 dark:border-green-900/30">
+                    <div class="flex items-center">
+                        <i class="fas fa-check-circle text-green-600 dark:text-green-400 mr-3"></i>
+                        <span class="text-sm text-gray-800 dark:text-gray-200">Profit Target: 8%</span>
+                    </div>
+                    <span class="text-green-600 dark:text-green-400 text-sm font-medium">Active</span>
+                </div>
+
+                <div
+                    class="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-200 dark:border-green-900/30">
+                    <div class="flex items-center">
+                        <i class="fas fa-check-circle text-green-600 dark:text-green-400 mr-3"></i>
+                        <span class="text-sm text-gray-800 dark:text-gray-200">Max Loss: 5%</span>
+                    </div>
+                    <span class="text-green-600 dark:text-green-400 text-sm font-medium">Active</span>
+                </div>
+
+                <div
+                    class="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-200 dark:border-green-900/30">
+                    <div class="flex items-center">
+                        <i class="fas fa-check-circle text-green-600 dark:text-green-400 mr-3"></i>
+                        <span class="text-sm text-gray-800 dark:text-gray-200">Daily Loss: 3%</span>
+                    </div>
+                    <span class="text-green-600 dark:text-green-400 text-sm font-medium">Active</span>
+                </div>
+
+                <div
+                    class="flex items-center justify-between p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-xl border border-yellow-200 dark:border-yellow-900/30">
+                    <div class="flex items-center">
+                        <i class="fas fa-clock text-yellow-600 dark:text-yellow-400 mr-3"></i>
+                        <span class="text-sm text-gray-800 dark:text-gray-200">Min Trading Days: 5</span>
+                    </div>
+                    <span class="text-yellow-600 dark:text-yellow-400 text-sm font-medium">0/5</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="glass-card p-4 lg:p-6 border dark:border-dark-border" data-aos="fade-left" data-aos-delay="100">
+            <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+                <i class="fas fa-bolt text-yellow-600 mr-2"></i>
+                Quick Actions
+            </h3>
+
+            <div class="grid grid-cols-2 gap-3">
+                <a href="/user/challenges"
+                    class="bg-blue-600 hover:bg-blue-700 p-4 rounded-xl text-center text-white transition flex flex-col items-center justify-center">
+                    <i class="fas fa-plus text-lg mb-2"></i>
+                    <p class="text-sm font-semibold">New Challenge</p>
+                </a>
+
+                <a href="#"
+                    class="bg-green-600 hover:bg-green-700 p-4 rounded-xl text-center text-white transition flex flex-col items-center justify-center">
+                    <i class="fas fa-question text-lg mb-2"></i>
+                    <p class="text-sm font-semibold">Support</p>
+                </a>
+
+                <a href="#"
+                    class="bg-purple-600 hover:bg-purple-700 p-4 rounded-xl text-center text-white transition flex flex-col items-center justify-center">
+                    <i class="fas fa-book text-lg mb-2"></i>
+                    <p class="text-sm font-semibold">Tutorials</p>
+                </a>
+
+                <a href="/user/history"
+                    class="bg-orange-600 hover:bg-orange-700 p-4 rounded-xl text-center text-white transition flex flex-col items-center justify-center">
+                    <i class="fas fa-history text-lg mb-2"></i>
+                    <p class="text-sm font-semibold">History</p>
+                </a>
+            </div>
+        </div>
+
+        <!-- Account Status -->
+        <div class="glass-card p-4 lg:p-6 border dark:border-dark-border" data-aos="fade-left" data-aos-delay="200">
+            <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Account Status</h3>
+
+            <div
+                class="text-center p-4 bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-200 dark:border-green-900/30">
+                <i class="fas fa-check-circle text-green-600 dark:text-green-400 text-3xl mb-2"></i>
+                <p class="text-green-800 dark:text-green-400 font-semibold">ACTIVE</p>
+                <p class="text-green-700 dark:text-green-300 text-sm mt-1">You're on track!</p>
+            </div>
+
+            <div class="mt-4 text-center space-y-1">
+                <p class="text-sm text-gray-600 dark:text-gray-400">Started: Today</p>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Ends: 30 days from now</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Activity -->
+<div class="glass-card p-4 lg:p-6 mt-6 lg:mt-8 border dark:border-dark-border" data-aos="fade-up">
+    <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Recent Activity</h3>
+
+    <div class="text-center py-8 text-gray-500 dark:text-gray-400">
+        <i class="fas fa-chart-bar text-4xl mb-3 text-gray-400 dark:text-gray-600"></i>
+        <p class="text-lg text-gray-600 dark:text-gray-400">No trading activity yet</p>
+        <p class="text-sm mt-1 text-gray-500 dark:text-gray-500">Start trading on MT5 to see your progress here</p>
+        <button class="mt-4 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-semibold transition">
+            Download MT5 & Start Trading
+        </button>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Copy account details
+    function copyAccountDetails() {
+        const details = `Server: Exness-Demo3\nLogin: 5523411\nPassword: demoPass123`;
+        navigator.clipboard.writeText(details);
+
+        // Show notification
+        const button = event.target.closest('button');
+        const originalText = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-check mr-2"></i>Copied!';
+        button.classList.remove('bg-gray-600', 'hover:bg-gray-700');
+        button.classList.add('bg-green-600');
+
+        setTimeout(() => {
+            button.innerHTML = originalText;
+            button.classList.remove('bg-green-600');
+            button.classList.add('bg-gray-600', 'hover:bg-gray-700');
+        }, 2000);
+    }
+</script>
+{% endblock %}

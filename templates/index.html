@@ -1,0 +1,1607 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tragene Funded - Forex Trading Challenges</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+    <!-- AOS Animation -->
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+
+    <!-- Custom Styles -->
+    <style>
+        html,
+        body {
+            overflow-x: hidden;
+            max-width: 100%;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        .text-gradient {
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .shadow-3xl {
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Starry Night Theme */
+        .bg-starry-night {
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #2d2d2d 100%);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stars {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .star {
+            position: absolute;
+            background-color: white;
+            border-radius: 50%;
+            animation: twinkle 5s infinite;
+        }
+
+        @keyframes twinkle {
+
+            0%,
+            100% {
+                opacity: 0.3;
+            }
+
+            50% {
+                opacity: 1;
+            }
+        }
+
+        /* Liquid Glass Theme */
+        .liquid-glass {
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .liquid-glass::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+            transition: 0.5s;
+        }
+
+        .liquid-glass:hover::before {
+            left: 100%;
+        }
+
+        .floating {
+            animation: floating 3s ease-in-out infinite;
+        }
+
+        @keyframes floating {
+
+            0%,
+            100% {
+                transform: translateY(0px);
+            }
+
+            50% {
+                transform: translateY(-10px);
+            }
+        }
+
+        .pulse-glow {
+            animation: pulse-glow 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes pulse-glow {
+            from {
+                box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+            }
+
+            to {
+                box-shadow: 0 0 30px rgba(59, 130, 246, 0.5);
+            }
+        }
+
+        .section-divider {
+            height: 2px;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+        }
+
+        .glow-text {
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+        }
+
+        .meteor {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: white;
+            border-radius: 50%;
+            box-shadow: 0 0 10px 2px white;
+            animation: meteorFall 3s linear infinite;
+        }
+
+        @keyframes meteorFall {
+            0% {
+                transform: translateX(0) translateY(0);
+                opacity: 1;
+            }
+
+            100% {
+                transform: translateX(300px) translateY(300px);
+                opacity: 0;
+            }
+        }
+
+        .shooting-star {
+            position: absolute;
+            width: 100px;
+            height: 1px;
+            background: linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 1) 50%, rgba(255, 255, 255, 0) 100%);
+            animation: shootingStar 5s linear infinite;
+        }
+
+        @keyframes shootingStar {
+            0% {
+                transform: translateX(-100px) translateY(0) rotate(45deg);
+                opacity: 0;
+            }
+
+            10% {
+                opacity: 1;
+            }
+
+            20% {
+                transform: translateX(200px) translateY(200px) rotate(45deg);
+                opacity: 0;
+            }
+
+            100% {
+                opacity: 0;
+            }
+        }
+
+        /* Testimonials Scrolling */
+        .testimonials-track {
+            animation: scroll 40s linear infinite;
+        }
+
+        .testimonials-track:hover {
+            animation-play-state: paused;
+        }
+
+        @keyframes scroll {
+            0% {
+                transform: translateX(0);
+            }
+
+            100% {
+                transform: translateX(-50%);
+            }
+        }
+
+        .testimonial-card {
+            min-width: 350px;
+            flex-shrink: 0;
+        }
+
+        @media (max-width: 768px) {
+            .testimonial-card {
+                min-width: 300px;
+            }
+        }
+
+        /* =============================================
+           DASHBOARD SHOWCASE SECTION - NEW STYLES
+           ============================================= */
+
+        /* Ambient glow behind the section */
+        .dashboard-section {
+            background: linear-gradient(135deg, #0a0a0a 0%, #0d1520 40%, #0a1a0a 70%, #0a0a0a 100%);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .dashboard-section::before {
+            content: '';
+            position: absolute;
+            top: -150px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 800px;
+            height: 400px;
+            background: radial-gradient(ellipse at center,
+                    rgba(34, 197, 94, 0.07) 0%,
+                    rgba(6, 182, 212, 0.04) 50%,
+                    transparent 70%);
+            pointer-events: none;
+        }
+
+        /* Screenshot frame - the "phone/browser window" wrapper */
+        .screenshot-frame {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 20px;
+            overflow: hidden;
+            position: relative;
+            transition: all 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            box-shadow:
+                0 0 0 1px rgba(255, 255, 255, 0.05),
+                0 20px 60px rgba(0, 0, 0, 0.6),
+                0 0 40px rgba(34, 197, 94, 0.06);
+        }
+
+        .screenshot-frame:hover {
+            transform: translateY(-8px) scale(1.02);
+            box-shadow:
+                0 0 0 1px rgba(34, 197, 94, 0.2),
+                0 30px 80px rgba(0, 0, 0, 0.7),
+                0 0 60px rgba(34, 197, 94, 0.12),
+                0 0 100px rgba(6, 182, 212, 0.06);
+            border-color: rgba(34, 197, 94, 0.25);
+        }
+
+        /* Fake browser chrome bar on top of screenshots */
+        .browser-bar {
+            background: rgba(20, 20, 20, 0.9);
+            padding: 10px 14px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .browser-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        .browser-dot.red {
+            background: #ff5f57;
+        }
+
+        .browser-dot.yellow {
+            background: #febc2e;
+        }
+
+        .browser-dot.green {
+            background: #28c840;
+        }
+
+        .browser-url {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.07);
+            border-radius: 6px;
+            padding: 3px 10px;
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.35);
+            margin-left: 8px;
+            font-family: monospace;
+        }
+
+        /* Fake mobile chrome */
+        .mobile-frame {
+            background: #111;
+            border-radius: 30px;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            padding: 14px 8px;
+            box-shadow:
+                0 0 0 1px rgba(255, 255, 255, 0.04),
+                0 25px 70px rgba(0, 0, 0, 0.7),
+                0 0 50px rgba(34, 197, 94, 0.08);
+            transition: all 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+
+        .mobile-frame:hover {
+            transform: translateY(-10px) rotate(-1deg);
+            box-shadow:
+                0 0 0 1px rgba(34, 197, 94, 0.2),
+                0 35px 90px rgba(0, 0, 0, 0.8),
+                0 0 70px rgba(34, 197, 94, 0.14);
+        }
+
+        .mobile-notch {
+            width: 70px;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 4px;
+            margin: 0 auto 10px;
+        }
+
+        .mobile-screen {
+            border-radius: 18px;
+            overflow: hidden;
+            background: #0d0d0d;
+        }
+
+        /* Screenshot placeholder (actual images go here) */
+        .screenshot-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+            transition: transform 0.6s ease;
+        }
+
+        .screenshot-frame:hover .screenshot-img,
+        .mobile-frame:hover .screenshot-img {
+            transform: scale(1.03);
+        }
+
+        /* Placeholder when image not yet added */
+        .screenshot-placeholder {
+            width: 100%;
+            aspect-ratio: 16/9;
+            background: linear-gradient(135deg, #111 0%, #1a1a2e 50%, #111 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: rgba(255, 255, 255, 0.2);
+            font-size: 13px;
+            gap: 10px;
+        }
+
+        .screenshot-placeholder-mobile {
+            width: 100%;
+            aspect-ratio: 9/16;
+            background: linear-gradient(135deg, #111 0%, #1a1a2e 50%, #111 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: rgba(255, 255, 255, 0.2);
+            font-size: 11px;
+            gap: 8px;
+        }
+
+        /* Feature pill badges on screenshots */
+        .feature-badge {
+            position: absolute;
+            background: rgba(10, 10, 10, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 50px;
+            padding: 8px 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            color: white;
+            white-space: nowrap;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            z-index: 10;
+            animation: badgeFloat 4s ease-in-out infinite;
+        }
+
+        @keyframes badgeFloat {
+
+            0%,
+            100% {
+                transform: translateY(0px);
+            }
+
+            50% {
+                transform: translateY(-5px);
+            }
+        }
+
+        .feature-badge .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            animation: dotPulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes dotPulse {
+
+            0%,
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+
+            50% {
+                opacity: 0.6;
+                transform: scale(0.8);
+            }
+        }
+
+        /* Feature list on the side */
+        .dashboard-feature-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+            padding: 16px 20px;
+            border-radius: 14px;
+            transition: all 0.3s ease;
+            cursor: default;
+            border: 1px solid transparent;
+        }
+
+        .dashboard-feature-item:hover {
+            background: rgba(34, 197, 94, 0.06);
+            border-color: rgba(34, 197, 94, 0.15);
+            transform: translateX(4px);
+        }
+
+        .feature-icon-wrap {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        /* Animated number counter */
+        .stat-number {
+            font-size: 28px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #22c55e, #06b6d4);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* Glow ring around main screenshot */
+        .glow-ring {
+            position: absolute;
+            inset: -2px;
+            border-radius: 22px;
+            background: linear-gradient(135deg, rgba(34, 197, 94, 0.3), rgba(6, 182, 212, 0.3), transparent, rgba(34, 197, 94, 0.1));
+            opacity: 0;
+            transition: opacity 0.4s ease;
+            z-index: -1;
+        }
+
+        .screenshot-frame:hover .glow-ring {
+            opacity: 1;
+        }
+
+        /* Scanning line animation on main screenshot */
+        .scan-line {
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, rgba(34, 197, 94, 0.6), transparent);
+            animation: scanDown 3s ease-in-out infinite;
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        @keyframes scanDown {
+            0% {
+                top: 0%;
+                opacity: 0;
+            }
+
+            10% {
+                opacity: 1;
+            }
+
+            90% {
+                opacity: 1;
+            }
+
+            100% {
+                top: 100%;
+                opacity: 0;
+            }
+        }
+
+        /* Small screenshot grid for bottom row */
+        .mini-screenshot-frame {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 14px;
+            overflow: hidden;
+            transition: all 0.4s ease;
+            position: relative;
+        }
+
+        .mini-screenshot-frame:hover {
+            transform: translateY(-6px);
+            border-color: rgba(34, 197, 94, 0.3);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.5), 0 0 30px rgba(34, 197, 94, 0.1);
+        }
+
+        .mini-label {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 12px;
+            background: linear-gradient(to top, rgba(0, 0, 0, 0.9) 0%, transparent 100%);
+            font-size: 12px;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        /* Responsive: stack on mobile */
+        @media (max-width: 768px) {
+            .feature-badge {
+                font-size: 10px;
+                padding: 6px 10px;
+            }
+
+            .dashboard-feature-item:hover {
+                transform: none;
+            }
+        }
+
+        /* Decorative grid lines in background */
+        .grid-bg {
+            position: absolute;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+            background-size: 60px 60px;
+            pointer-events: none;
+        }
+
+        /* Animated gradient orbs */
+        .orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            pointer-events: none;
+            animation: orbDrift 8s ease-in-out infinite alternate;
+        }
+
+        @keyframes orbDrift {
+            0% {
+                transform: translate(0, 0) scale(1);
+            }
+
+            100% {
+                transform: translate(30px, -20px) scale(1.1);
+            }
+        }
+    </style>
+</head>
+
+<body class="bg-starry-night text-white">
+    <!-- Starry Background -->
+    <div class="stars" id="stars"></div>
+
+    <!-- Fixed Navigation -->
+    <nav class="bg-black/80 backdrop-blur-md shadow-xl w-full z-50 py-1 sticky top-0 border-b border-gray-800">
+        <div class="max-w-7xl mx-auto px-4">
+            <div class="flex justify-between items-center">
+                <!-- Logo -->
+                <div class="flex items-center">
+                    <a href="#home" class="text-white font-bold flex items-center">
+                        <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Tragene Funded Logo"
+                            class="h-12 w-auto rounded-full">
+                    </a>
+                </div>
+
+                <!-- Buttons -->
+                <div class="flex items-center space-x-2">
+                    <a href="/login"
+                        class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm font-medium transition duration-300">
+                        Login
+                    </a>
+                    <a href="{{ '/waitlist' if PRELAUNCH_MODE else '/register' }}"
+                        class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm font-medium transition duration-300">
+                        Get Started
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="pt-0">
+        <!-- Hero Section -->
+        <section id="home" class="pt-20 pb-16 bg-starry-night relative overflow-hidden">
+            <div class="shooting-star" style="top: 20%; left: 10%; animation-delay: 2s;"></div>
+            <div class="shooting-star" style="top: 60%; left: 30%; animation-delay: 5s;"></div>
+            <div class="shooting-star" style="top: 40%; left: 70%; animation-delay: 8s;"></div>
+
+            <div class="relative z-10 max-w-7xl mx-auto px-4 text-center">
+                <div data-aos="fade-down" data-aos-delay="200">
+                    <span
+                        class="liquid-glass text-cyan-300 px-4 py-2 rounded-full text-sm font-medium mb-6 inline-block">
+                        🚀 Start Your Forex Journey Today
+                    </span>
+                </div>
+
+                <h1 class="text-4xl md:text-6xl font-bold text-white mb-6 leading-tight" data-aos="fade-up">
+                    <span
+                        class="text-gradient bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent glow-text">"Trading
+                        in Our Genes"</span>
+                </h1>
+
+                <p class="text-xl md:text-2xl text-gray-300 mb-8 max-w-3xl mx-auto leading-relaxed" data-aos="fade-up"
+                    data-aos-delay="100">
+                    Pass Our Challenge → Get Funded → Earn Up to <strong class="text-green-400">$500</strong> Trading
+                    Account
+                </p>
+
+                <div class="flex flex-col sm:flex-row gap-4 justify-center items-center" data-aos="fade-up"
+                    data-aos-delay="200">
+                    <a href="{{ '/waitlist' if PRELAUNCH_MODE else '/register' }}"
+                        class="group bg-gradient-to-r from-green-500 to-emerald-600 text-white px-8 py-4 rounded-xl text-lg font-semibold hover:from-green-600 hover:to-emerald-700 transition-all duration-300 transform hover:scale-105 shadow-2xl hover:shadow-3xl flex items-center pulse-glow">
+                        <span>Start Challenge </span>
+                        <i class="fas fa-arrow-right ml-2 group-hover:translate-x-1 transition-transform"></i>
+                    </a>
+                    <a href="#how-it-works"
+                        class="liquid-glass border border-gray-500 text-gray-300 px-8 py-4 rounded-xl text-lg font-semibold hover:bg-gray-700/30 hover:border-gray-400 hover:text-white transition-all duration-300">
+                        How It Works
+                    </a>
+                </div>
+
+                <!-- Stats -->
+                <div class="mt-16 grid grid-cols-2 md:grid-cols-4 gap-6 max-w-2xl mx-auto" data-aos="fade-up"
+                    data-aos-delay="300">
+                    <div class="text-center liquid-glass p-4 rounded-2xl">
+                        <div class="text-2xl font-bold text-white">500+</div>
+                        <div class="text-gray-400 text-sm">Active Traders</div>
+                    </div>
+                    <div class="text-center liquid-glass p-4 rounded-2xl">
+                        <div class="text-2xl font-bold text-white">₹199</div>
+                        <div class="text-gray-400 text-sm">Starting Price</div>
+                    </div>
+                    <div class="text-center liquid-glass p-4 rounded-2xl">
+                        <div class="text-2xl font-bold text-white">80%</div>
+                        <div class="text-gray-400 text-sm">Profit Share</div>
+                    </div>
+                    <div class="text-center liquid-glass p-4 rounded-2xl">
+                        <div class="text-2xl font-bold text-white">24/7</div>
+                        <div class="text-gray-400 text-sm">Support</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <div class="section-divider"></div>
+
+        <!-- How It Works Section -->
+        <section id="how-it-works" class="py-16 bg-starry-night relative">
+            <div class="stars"></div>
+            <div class="relative z-10 max-w-7xl mx-auto px-4">
+                <h2 class="text-3xl md:text-4xl font-bold text-center text-white mb-4 glow-text" data-aos="fade-up">
+                    Start Trading in 3 Simple Steps
+                </h2>
+                <p class="text-xl text-gray-300 text-center mb-12 max-w-2xl mx-auto" data-aos="fade-up"
+                    data-aos-delay="100">
+                    Your path to becoming a funded forex trader starts here
+                </p>
+
+                <div class="grid md:grid-cols-3 gap-8 relative">
+                    <div
+                        class="hidden md:block absolute top-20 left-1/4 right-1/4 h-0.5 bg-gradient-to-r from-gray-700/50 to-gray-500/50 z-0">
+                    </div>
+
+                    <div class="text-center relative z-10" data-aos="fade-right">
+                        <div
+                            class="liquid-glass w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg transform hover:scale-110 transition duration-300 floating">
+                            <i class="fas fa-credit-card text-cyan-400 text-2xl"></i>
+                        </div>
+                        <div
+                            class="bg-gray-700 text-white w-8 h-8 rounded-full flex items-center justify-center mx-auto mb-4 font-bold">
+                            1</div>
+                        <h3 class="text-xl font-semibold mb-4 text-white">Choose Challenge</h3>
+                        <p class="text-gray-400">Select your challenge starting from just ₹199 for a $200 funded account
+                        </p>
+                    </div>
+
+                    <div class="text-center relative z-10" data-aos="fade-up" data-aos-delay="100">
+                        <div class="liquid-glass w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg transform hover:scale-110 transition duration-300 floating"
+                            style="animation-delay: 0.5s;">
+                            <i class="fas fa-chart-line text-green-400 text-2xl"></i>
+                        </div>
+                        <div
+                            class="bg-gray-700 text-white w-8 h-8 rounded-full flex items-center justify-center mx-auto mb-4 font-bold">
+                            2</div>
+                        <h3 class="text-xl font-semibold mb-4 text-white">Pass Challenge</h3>
+                        <p class="text-gray-400">Trade demo account following our rules. Prove your consistent
+                            profitability</p>
+                    </div>
+
+                    <div class="text-center relative z-10" data-aos="fade-left" data-aos-delay="200">
+                        <div class="liquid-glass w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg transform hover:scale-110 transition duration-300 floating"
+                            style="animation-delay: 1s;">
+                            <i class="fas fa-trophy text-yellow-400 text-2xl"></i>
+                        </div>
+                        <div
+                            class="bg-gray-700 text-white w-8 h-8 rounded-full flex items-center justify-center mx-auto mb-4 font-bold">
+                            3</div>
+                        <h3 class="text-xl font-semibold mb-4 text-white">Get Funded</h3>
+                        <p class="text-gray-400">Receive your funded account up to $500 and keep 80% of profits</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <div class="section-divider"></div>
+
+        <!-- Challenges Section -->
+        <section id="challenges" class="py-16 bg-starry-night relative">
+            <div class="stars"></div>
+            <div class="relative z-10 max-w-7xl mx-auto px-4">
+                <h2 class="text-3xl md:text-4xl font-bold text-center text-white mb-4 glow-text" data-aos="fade-up">
+                    Choose Your Challenge
+                </h2>
+                <p class="text-xl text-gray-300 text-center mb-12 max-w-2xl mx-auto" data-aos="fade-up"
+                    data-aos-delay="100">
+                    Start small, dream big. Select the challenge that matches your trading goals
+                </p>
+
+                <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
+                    <!-- Challenge 1 -->
+                    <div class="liquid-glass rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2"
+                        data-aos="flip-left">
+                        <div
+                            class="bg-gradient-to-r from-gray-800 to-gray-900 text-white p-6 rounded-t-2xl text-center border-b border-gray-700">
+                            <h3 class="text-2xl font-bold">Starter</h3>
+                            <div class="text-4xl font-bold mt-2">₹199</div>
+                            <p class="text-gray-400">Perfect for beginners</p>
+                        </div>
+                        <div class="p-6">
+                            <div class="text-center mb-6">
+                                <div class="text-2xl font-bold text-white">$200</div>
+                                <div class="text-gray-400">Funded Account</div>
+                            </div>
+                            <ul class="space-y-3 mb-8">
+                                <li class="flex items-center"><i class="fas fa-check text-green-400 mr-3"></i><span
+                                        class="text-white">8% Profit Target</span></li>
+                                <li class="flex items-center"><i class="fas fa-check text-green-400 mr-3"></i><span
+                                        class="text-white">5% Maximum Loss</span></li>
+                                <li class="flex items-center"><i class="fas fa-check text-green-400 mr-3"></i><span
+                                        class="text-white">30 Day Challenge</span></li>
+                                <li class="flex items-center"><i class="fas fa-check text-green-400 mr-3"></i><span
+                                        class="text-white">80% Profit Share</span></li>
+                                <li class="flex items-center"><i class="fas fa-check text-green-400 mr-3"></i><span
+                                        class="text-white">2 phase challenge</span></li>
+                            </ul>
+                            <a href="{{ '/waitlist' if PRELAUNCH_MODE else '/register' }}"
+                                class="block w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white text-center py-3 rounded-xl font-semibold hover:from-blue-700 hover:to-blue-800 transition duration-300">
+                                Start This Challenge
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Challenge 2 - Most Popular -->
+                    <div class="liquid-glass rounded-2xl shadow-2xl transform scale-105 border-2 border-green-500 relative"
+                        data-aos="flip-up" data-aos-delay="100">
+                        <div class="absolute -top-4 left-1/2 transform -translate-x-1/2">
+                            <span
+                                class="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-4 py-1 rounded-full text-sm font-bold">MOST
+                                POPULAR</span>
+                        </div>
+                        <div
+                            class="bg-gradient-to-r from-gray-900 to-gray-800 text-white p-6 rounded-t-2xl text-center border-b border-gray-700">
+                            <h3 class="text-2xl font-bold">Professional</h3>
+                            <div class="text-4xl font-bold mt-2">₹399</div>
+                            <p class="text-gray-400">Best value for serious traders</p>
+                        </div>
+                        <div class="p-6">
+                            <div class="text-center mb-6">
+                                <div class="text-2xl font-bold text-white">$400</div>
+                                <div class="text-gray-400">Funded Account</div>
+                            </div>
+                            <ul class="space-y-3 mb-8">
+                                <li class="flex items-center"><i class="fas fa-check text-green-400 mr-3"></i><span
+                                        class="text-white">10% Profit Target</span></li>
+                                <li class="flex items-center"><i class="fas fa-check text-green-400 mr-3"></i><span
+                                        class="text-white">6% Maximum Loss</span></li>
+                                <li class="flex items-center"><i class="fas fa-check text-green-400 mr-3"></i><span
+                                        class="text-white">45 Day Challenge</span></li>
+                                <li class="flex items-center"><i class="fas fa-check text-green-400 mr-3"></i><span
+                                        class="text-white">80% Profit Share</span></li>
+                                <li class="flex items-center"><i class="fas fa-check text-green-400 mr-3"></i><span
+                                        class="text-white">Free Retry Available</span></li>
+                                <li class="flex items-center"><i class="fas fa-check text-green-400 mr-3"></i><span
+                                        class="text-white">2 phase challenge</span></li>
+                            </ul>
+                            <a href="{{ '/waitlist' if PRELAUNCH_MODE else '/register' }}"
+                                class="block w-full bg-gradient-to-r from-green-600 to-green-700 text-white text-center py-3 rounded-xl font-semibold hover:from-green-700 hover:to-green-800 transition duration-300">
+                                Start This Challenge
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Challenge 3 -->
+                    <div class="liquid-glass rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2"
+                        data-aos="flip-right" data-aos-delay="200">
+                        <div
+                            class="bg-gradient-to-r from-gray-900 to-gray-800 text-white p-6 rounded-t-2xl text-center border-b border-gray-700">
+                            <h3 class="text-2xl font-bold">Advanced</h3>
+                            <div class="text-4xl font-bold mt-2">₹499</div>
+                            <p class="text-gray-400">For expert traders</p>
+                        </div>
+                        <div class="p-6">
+                            <div class="text-center mb-6">
+                                <div class="text-2xl font-bold text-white">$500</div>
+                                <div class="text-gray-400">Funded Account</div>
+                            </div>
+                            <ul class="space-y-3 mb-8">
+                                <li class="flex items-center"><i class="fas fa-check text-green-400 mr-3"></i><span
+                                        class="text-white">10% Profit Target</span></li>
+                                <li class="flex items-center"><i class="fas fa-check text-green-400 mr-3"></i><span
+                                        class="text-white">8% Maximum Loss</span></li>
+                                <li class="flex items-center"><i class="fas fa-check text-green-400 mr-3"></i><span
+                                        class="text-white">60 Day Challenge</span></li>
+                                <li class="flex items-center"><i class="fas fa-check text-green-400 mr-3"></i><span
+                                        class="text-white">85% Profit Share</span></li>
+                                <li class="flex items-center"><i class="fas fa-check text-green-400 mr-3"></i><span
+                                        class="text-white">2 Free Retries</span></li>
+                                <li class="flex items-center"><i class="fas fa-check text-green-400 mr-3"></i><span
+                                        class="text-white">2 phase challenge</span></li>
+                            </ul>
+                            <a href="{{ '/waitlist' if PRELAUNCH_MODE else '/register' }}"
+                                class="block w-full bg-gradient-to-r from-purple-600 to-purple-700 text-white text-center py-3 rounded-xl font-semibold hover:from-purple-700 hover:to-purple-800 transition duration-300">
+                                Start This Challenge
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <div class="section-divider"></div>
+
+        <!-- =============================================
+             DASHBOARD SHOWCASE SECTION — MOVED ABOVE RULES
+             ============================================= -->
+        <section id="dashboard" class="py-20 dashboard-section relative">
+
+            <!-- Background grid -->
+            <div class="grid-bg"></div>
+
+            <!-- Ambient orbs -->
+            <div class="orb"
+                style="width:400px;height:400px;background:radial-gradient(circle,rgba(34,197,94,0.08),transparent 70%);top:-80px;left:-100px;animation-duration:10s;">
+            </div>
+            <div class="orb"
+                style="width:300px;height:300px;background:radial-gradient(circle,rgba(6,182,212,0.07),transparent 70%);bottom:-60px;right:-80px;animation-duration:7s;animation-direction:alternate-reverse;">
+            </div>
+
+            <div class="relative z-10 max-w-7xl mx-auto px-4">
+
+                <!-- Section Header -->
+                <div class="text-center mb-16">
+                    <div data-aos="fade-down">
+                        <span
+                            class="inline-flex items-center gap-2 bg-green-500/10 border border-green-500/20 text-green-400 px-4 py-2 rounded-full text-sm font-semibold mb-6">
+                            <span class="w-2 h-2 rounded-full bg-green-400 animate-pulse inline-block"></span>
+                            Live Dashboard Preview
+                        </span>
+                    </div>
+                    <h2 class="text-3xl md:text-5xl font-bold text-white mb-5 glow-text leading-tight"
+                        data-aos="fade-up">
+                        See How Your Trading<br>
+                        <span
+                            class="text-gradient bg-gradient-to-r from-green-400 to-cyan-400 bg-clip-text text-transparent">Dashboard
+                            Works</span>
+                    </h2>
+                    <p class="text-lg md:text-xl text-gray-400 max-w-2xl mx-auto" data-aos="fade-up"
+                        data-aos-delay="100">
+                        Track progress, manage risk, and complete your challenge with full control
+                    </p>
+                </div>
+
+                <!-- MAIN LAYOUT: Big screenshot left + feature list right -->
+                <div class="grid lg:grid-cols-2 gap-12 items-center mb-16">
+
+                    <!-- Left: Main Big Screenshot -->
+                    <div class="relative" data-aos="fade-right" data-aos-delay="150">
+
+                        <!-- Floating badge: top-left -->
+                        <div class="feature-badge" style="top: -18px; left: 20px; animation-delay: 0s;">
+                            <span class="dot" style="background:#22c55e;"></span>
+                            Live P&L Tracking
+                        </div>
+
+                        <!-- Floating badge: bottom-right -->
+                        <div class="feature-badge" style="bottom: -16px; right: 20px; animation-delay: 1.5s;">
+                            <span class="dot" style="background:#06b6d4;"></span>
+                            Real-Time Risk Meter
+                        </div>
+
+                        <div class="screenshot-frame" style="position:relative;">
+                            <div class="glow-ring"></div>
+
+                            <!-- Browser bar chrome -->
+                            <div class="browser-bar">
+                                <div class="browser-dot red"></div>
+                                <div class="browser-dot yellow"></div>
+                                <div class="browser-dot green"></div>
+                                <div class="browser-url">app.tragenefunded.com/dashboard</div>
+                            </div>
+
+                            <!-- Scanning line effect -->
+                            <div class="scan-line"></div>
+
+                            <!-- YOUR DASHBOARD SCREENSHOT HERE -->
+                            <!-- Replace the placeholder below with:
+                                 <img src="{{ url_for('static', filename='images/dashboard-main.png') }}" class="screenshot-img" alt="Dashboard Main" style="aspect-ratio:16/9;">
+                            -->
+                            <img src="{{ url_for('static', filename='images/dashboard-main.jpeg') }}"
+                                class="screenshot-img" alt="Dashboard Main" style="aspect-ratio:16/9;">
+                        </div>
+                    </div>
+
+                    <!-- Right: Feature list -->
+                    <div class="space-y-3" data-aos="fade-left" data-aos-delay="200">
+
+                        <div class="dashboard-feature-item">
+                            <div class="feature-icon-wrap" style="background:rgba(34,197,94,0.12);">
+                                <i class="fas fa-chart-area text-green-400 text-lg"></i>
+                            </div>
+                            <div>
+                                <div class="text-white font-semibold mb-1">Live P&L Overview</div>
+                                <div class="text-gray-400 text-sm">Watch your profits update in real-time. Every trade
+                                    reflected instantly on your challenge progress bar.</div>
+                            </div>
+                        </div>
+
+                        <div class="dashboard-feature-item">
+                            <div class="feature-icon-wrap" style="background:rgba(6,182,212,0.12);">
+                                <i class="fas fa-tachometer-alt text-cyan-400 text-lg"></i>
+                            </div>
+                            <div>
+                                <div class="text-white font-semibold mb-1">Risk Meter & Drawdown Tracker</div>
+                                <div class="text-gray-400 text-sm">Visual risk gauge shows your remaining drawdown room
+                                    at a glance. Never breach a rule by accident.</div>
+                            </div>
+                        </div>
+
+                        <div class="dashboard-feature-item">
+                            <div class="feature-icon-wrap" style="background:rgba(168,85,247,0.12);">
+                                <i class="fas fa-bullseye text-purple-400 text-lg"></i>
+                            </div>
+                            <div>
+                                <div class="text-white font-semibold mb-1">Challenge Progress Bar</div>
+                                <div class="text-gray-400 text-sm">See exactly how far you are from the profit target.
+                                    Days remaining, trades made, and milestone markers.</div>
+                            </div>
+                        </div>
+
+                        <div class="dashboard-feature-item">
+                            <div class="feature-icon-wrap" style="background:rgba(251,191,36,0.12);">
+                                <i class="fas fa-history text-yellow-400 text-lg"></i>
+                            </div>
+                            <div>
+                                <div class="text-white font-semibold mb-1">Full Trade History</div>
+                                <div class="text-gray-400 text-sm">Every trade logged with entry, exit, lot size, and
+                                    outcome. Analyse your performance anytime.</div>
+                            </div>
+                        </div>
+
+                        <div class="dashboard-feature-item">
+                            <div class="feature-icon-wrap" style="background:rgba(239,68,68,0.12);">
+                                <i class="fas fa-bell text-red-400 text-lg"></i>
+                            </div>
+                            <div>
+                                <div class="text-white font-semibold mb-1">Instant Rule Alerts</div>
+                                <div class="text-gray-400 text-sm">Get warned before you hit a daily loss limit. Smart
+                                    alerts protect your challenge status 24/7.</div>
+                            </div>
+                        </div>
+
+                        <div class="dashboard-feature-item">
+                            <div class="feature-icon-wrap" style="background:rgba(34,197,94,0.12);">
+                                <i class="fas fa-download text-green-400 text-lg"></i>
+                            </div>
+                            <div>
+                                <div class="text-white font-semibold mb-1">One-Click Payout Request</div>
+                                <div class="text-gray-400 text-sm">Request your profit payout directly from the
+                                    dashboard. Processed bi-weekly, hassle-free.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- BOTTOM ROW: 3 smaller screenshots side by side -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-16">
+
+                    <!-- Mini screenshot 1 -->
+                    <div class="mini-screenshot-frame" data-aos="fade-up" data-aos-delay="100">
+                        <div class="browser-bar" style="padding:8px 12px;">
+                            <div class="browser-dot red"></div>
+                            <div class="browser-dot yellow"></div>
+                            <div class="browser-dot green"></div>
+                            <div class="browser-url">Challenge Progress</div>
+                        </div>
+                        <!-- YOUR SCREENSHOT: replace placeholder with img tag -->
+                        <!-- <img src="{{ url_for('static', filename='images/dashboard-progress.png') }}" class="screenshot-img" alt="Challenge Progress" style="aspect-ratio:16/9;"> -->
+                        <img src="{{ url_for('static', filename='images/dashboard-progress.jpeg') }}"
+                            class="screenshot-img" alt="Challenge Progress">
+                        <div class="mini-label">📊 Challenge Progress</div>
+                    </div>
+
+                    <!-- Mini screenshot 2 -->
+                    <div class="mini-screenshot-frame" data-aos="fade-up" data-aos-delay="200">
+                        <div class="browser-bar" style="padding:8px 12px;">
+                            <div class="browser-dot red"></div>
+                            <div class="browser-dot yellow"></div>
+                            <div class="browser-dot green"></div>
+                            <div class="browser-url">Trade History</div>
+                        </div>
+                        <!-- <img src="{{ url_for('static', filename='images/dashboard-trades.png') }}" class="screenshot-img" alt="Trade History" style="aspect-ratio:16/9;"> -->
+                        <img src="{{ url_for('static', filename='images/dashboard-trades.jpeg') }}"
+                            class="screenshot-img" alt="Trade History">
+                        <div class="mini-label">📋 Trade History</div>
+                    </div>
+
+                    <!-- Mini screenshot 3 -->
+                    <div class="mini-screenshot-frame" data-aos="fade-up" data-aos-delay="300">
+                        <div class="browser-bar" style="padding:8px 12px;">
+                            <div class="browser-dot red"></div>
+                            <div class="browser-dot yellow"></div>
+                            <div class="browser-dot green"></div>
+                            <div class="browser-url">KYC Center</div>
+                        </div>
+                        <!-- <img src="{{ url_for('static', filename='images/dashboard-payout.png') }}" class="screenshot-img" alt="Payout Center" style="aspect-ratio:16/9;"> -->
+                        <img src="{{ url_for('static', filename='images/dashboard-payout.jpeg') }}"
+                            class="screenshot-img" alt="KYC Center">
+                        <div class="mini-label">KYC Center</div>
+                    </div>
+                </div>
+
+                <!-- MOBILE PREVIEW ROW -->
+                <div class="flex flex-col md:flex-row items-center justify-center gap-10" data-aos="fade-up"
+                    data-aos-delay="150">
+
+                    <!-- Text side -->
+                    <div class="max-w-sm text-center md:text-left">
+                        <div
+                            class="inline-flex items-center gap-2 bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 px-3 py-1.5 rounded-full text-xs font-semibold mb-4">
+                            <i class="fas fa-mobile-alt"></i>
+                            Mobile Ready
+                        </div>
+                        <h3 class="text-2xl md:text-3xl font-bold text-white mb-4">Trade & Track<br>On the Go</h3>
+                        <p class="text-gray-400 mb-6">Your full dashboard, perfectly optimised for mobile. Check your
+                            P&L, monitor risk, and request payouts right from your phone.</p>
+
+                        <!-- Mini stats row -->
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="liquid-glass p-4 rounded-xl text-center">
+                                <div class="stat-number">100%</div>
+                                <div class="text-gray-400 text-xs mt-1">Mobile Optimised</div>
+                            </div>
+                            <div class="liquid-glass p-4 rounded-xl text-center">
+                                <div class="stat-number">24/7</div>
+                                <div class="text-gray-400 text-xs mt-1">Live Tracking</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Phone mockup 1 -->
+                    <div class="mobile-frame w-44" style="animation-delay:0s;">
+                        <div class="mobile-notch"></div>
+                        <div class="mobile-screen">
+                            <!-- <img src="{{ url_for('static', filename='images/mobile-dashboard-1.png') }}" class="screenshot-img" alt="Mobile Dashboard" style="aspect-ratio:9/16;"> -->
+                            <img src="{{ url_for('static', filename='images/mobile-dashboard-1.jpeg') }}"
+                                class="screenshot-img" alt="Mobile Dashboard">
+                        </div>
+                    </div>
+
+                    <!-- Phone mockup 2 (slightly offset) -->
+                    <div class="mobile-frame w-44" style="margin-top:32px;animation-delay:1s;">
+                        <div class="mobile-notch"></div>
+                        <div class="mobile-screen">
+                            <!-- <img src="{{ url_for('static', filename='images/mobile-dashboard-2.png') }}" class="screenshot-img" alt="Mobile Trade History" style="aspect-ratio:9/16;"> -->
+                            <img src="{{ url_for('static', filename='images/mobile-dashboard-2.jpeg') }}"
+                                class="screenshot-img" alt="Mobile Trade">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bottom CTA inside the section -->
+                <div class="text-center mt-16" data-aos="fade-up">
+                    <a href="{{ '/waitlist' if PRELAUNCH_MODE else '/register' }}"
+                        class="group inline-flex items-center gap-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white px-10 py-4 rounded-2xl text-lg font-semibold hover:from-green-600 hover:to-emerald-700 transition-all duration-300 transform hover:scale-105 shadow-2xl">
+                        <i class="fas fa-rocket group-hover:translate-y-[-2px] transition-transform"></i>
+                        Get Access to Your Dashboard
+                        <i class="fas fa-arrow-right group-hover:translate-x-1 transition-transform"></i>
+                    </a>
+                    <p class="text-gray-500 text-sm mt-3">Start with just ₹199 · Instant access · No hidden fees</p>
+                </div>
+            </div>
+        </section>
+        <!-- END DASHBOARD SECTION -->
+
+        <div class="section-divider"></div>
+
+        <!-- Trading Rules Section -->
+        <section id="rules" class="py-16 bg-starry-night relative">
+            <div class="stars"></div>
+            <div class="relative z-10 max-w-6xl mx-auto px-4">
+                <h2 class="text-3xl md:text-4xl font-bold text-center text-white mb-4 glow-text" data-aos="fade-up">
+                    Trading Rules & Guidelines
+                </h2>
+                <p class="text-xl text-gray-300 text-center mb-12 max-w-2xl mx-auto" data-aos="fade-up"
+                    data-aos-delay="100">
+                    Clear, fair rules designed for your success
+                </p>
+
+                <div class="grid md:grid-cols-2 gap-8">
+                    <div class="liquid-glass rounded-2xl p-8" data-aos="fade-right">
+                        <div class="flex items-center mb-6">
+                            <div class="w-12 h-12 bg-green-500/20 rounded-xl flex items-center justify-center mr-4">
+                                <i class="fas fa-bullseye text-green-400 text-xl"></i>
+                            </div>
+                            <h3 class="text-2xl font-bold text-white">Profit Targets</h3>
+                        </div>
+                        <ul class="space-y-4">
+                            <li class="flex items-start"><i class="fas fa-check text-green-400 mt-1 mr-3"></i><span
+                                    class="text-white"><strong>Starter:</strong> Achieve 8% profit within 30 days</span>
+                            </li>
+                            <li class="flex items-start"><i class="fas fa-check text-green-400 mt-1 mr-3"></i><span
+                                    class="text-white"><strong>Professional:</strong> Achieve 10% profit within 45
+                                    days</span></li>
+                            <li class="flex items-start"><i class="fas fa-check text-green-400 mt-1 mr-3"></i><span
+                                    class="text-white"><strong>Advanced:</strong> Achieve 12% profit within 60
+                                    days</span></li>
+                        </ul>
+                    </div>
+
+                    <div class="liquid-glass rounded-2xl p-8" data-aos="fade-left">
+                        <div class="flex items-center mb-6">
+                            <div class="w-12 h-12 bg-red-500/20 rounded-xl flex items-center justify-center mr-4">
+                                <i class="fas fa-shield-alt text-red-400 text-xl"></i>
+                            </div>
+                            <h3 class="text-2xl font-bold text-white">Risk Management</h3>
+                        </div>
+                        <ul class="space-y-4">
+                            <li class="flex items-start"><i
+                                    class="fas fa-exclamation-triangle text-yellow-400 mt-1 mr-3"></i><span
+                                    class="text-white"><strong>Maximum Daily Loss:</strong> 3% of account balance</span>
+                            </li>
+                            <li class="flex items-start"><i
+                                    class="fas fa-exclamation-triangle text-yellow-400 mt-1 mr-3"></i><span
+                                    class="text-white"><strong>Maximum Overall Loss:</strong> 5-8% based on
+                                    challenge</span></li>
+                            <li class="flex items-start"><i
+                                    class="fas fa-exclamation-triangle text-yellow-400 mt-1 mr-3"></i><span
+                                    class="text-white"><strong>No holding positions over weekend</strong></span></li>
+                        </ul>
+                    </div>
+
+                    <div class="liquid-glass rounded-2xl p-8" data-aos="fade-right" data-aos-delay="100">
+                        <div class="flex items-center mb-6">
+                            <div class="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center mr-4">
+                                <i class="fas fa-clock text-blue-400 text-xl"></i>
+                            </div>
+                            <h3 class="text-2xl font-bold text-white">Trading Period</h3>
+                        </div>
+                        <ul class="space-y-4">
+                            <li class="flex items-start"><i class="fas fa-calendar text-blue-400 mt-1 mr-3"></i><span
+                                    class="text-white">Trade anytime during market hours</span></li>
+                            <li class="flex items-start"><i class="fas fa-calendar text-blue-400 mt-1 mr-3"></i><span
+                                    class="text-white">No minimum trading days required</span></li>
+                            <li class="flex items-start"><i class="fas fa-calendar text-blue-400 mt-1 mr-3"></i><span
+                                    class="text-white">Complete challenge within allocated time</span></li>
+                        </ul>
+                    </div>
+
+                    <div class="liquid-glass rounded-2xl p-8" data-aos="fade-left" data-aos-delay="100">
+                        <div class="flex items-center mb-6">
+                            <div class="w-12 h-12 bg-purple-500/20 rounded-xl flex items-center justify-center mr-4">
+                                <i class="fas fa-money-bill-wave text-purple-400 text-xl"></i>
+                            </div>
+                            <h3 class="text-2xl font-bold text-white">Profit Sharing</h3>
+                        </div>
+                        <ul class="space-y-4">
+                            <li class="flex items-start"><i
+                                    class="fas fa-percentage text-purple-400 mt-1 mr-3"></i><span
+                                    class="text-white"><strong>80% profit share</strong> for Starter &
+                                    Professional</span></li>
+                            <li class="flex items-start"><i
+                                    class="fas fa-percentage text-purple-400 mt-1 mr-3"></i><span
+                                    class="text-white"><strong>85% profit share</strong> for Advanced challenge</span>
+                            </li>
+                            <li class="flex items-start"><i class="fas fa-sync text-purple-400 mt-1 mr-3"></i><span
+                                    class="text-white">Bi-weekly payout processing</span></li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="text-center mt-12" data-aos="fade-up">
+                    <div class="liquid-glass rounded-2xl p-8 text-white border border-gray-700">
+                        <h3 class="text-2xl md:text-3xl font-bold mb-4">Ready to Start Your Trading Journey?</h3>
+                        <p class="text-gray-300 text-xl mb-6">Join thousands of traders who started with just ₹99</p>
+                        <a href="{{ '/waitlist' if PRELAUNCH_MODE else '/register' }}"
+                            class="inline-flex items-center bg-gradient-to-r from-green-500 to-emerald-600 text-white px-8 py-4 rounded-xl text-lg font-semibold hover:from-green-600 hover:to-emerald-700 transition duration-300 transform hover:scale-105 shadow-lg">
+                            <span>Start Your Challenge Now</span>
+                            <i class="fas fa-arrow-right ml-2"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <div class="section-divider"></div>
+
+        <!-- Testimonials Section -->
+        <section id="testimonials" class="py-16 bg-starry-night relative overflow-hidden">
+            <div class="stars"></div>
+            <div class="relative z-10 max-w-7xl mx-auto px-4">
+                <h2 class="text-3xl md:text-4xl font-bold text-center text-white mb-4 glow-text" data-aos="fade-up">
+                    What Our Traders Say
+                </h2>
+                <p class="text-xl text-gray-300 text-center mb-12 max-w-2xl mx-auto" data-aos="fade-up"
+                    data-aos-delay="100">
+                    Real experiences from traders who started their journey with us
+                </p>
+
+                <div class="relative overflow-hidden" data-aos="fade-up" data-aos-delay="200">
+                    <div
+                        class="absolute left-0 top-0 bottom-0 w-20 bg-gradient-to-r from-gray-900 to-transparent z-10 pointer-events-none">
+                    </div>
+                    <div
+                        class="absolute right-0 top-0 bottom-0 w-20 bg-gradient-to-l from-gray-900 to-transparent z-10 pointer-events-none">
+                    </div>
+
+                    <div class="testimonials-track flex gap-6 py-4" style="width: max-content;">
+                        <div class="testimonial-card liquid-glass p-6 rounded-2xl">
+                            <div class="flex items-center mb-4">
+                                <div
+                                    class="w-10 h-10 bg-cyan-500/20 rounded-full flex items-center justify-center mr-3">
+                                    <span class="text-cyan-400 font-bold text-lg">J</span>
+                                </div>
+                                <div>
+                                    <h3 class="text-white font-semibold">Jay S.</h3>
+                                    <p class="text-gray-400 text-sm">Mumbai</p>
+                                </div>
+                            </div>
+                            <p class="text-gray-300 leading-relaxed">"Started with the ₹199 challenge just to test the
+                                platform. Rules are simple and easy to follow. Passed in around 12 days."</p>
+                            <div class="mt-4 flex text-yellow-400"><i class="fas fa-star"></i><i
+                                    class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i
+                                    class="fas fa-star"></i></div>
+                        </div>
+
+                        <div class="testimonial-card liquid-glass p-6 rounded-2xl">
+                            <div class="flex items-center mb-4">
+                                <div
+                                    class="w-10 h-10 bg-pink-500/20 rounded-full flex items-center justify-center mr-3">
+                                    <span class="text-pink-400 font-bold text-lg">P</span>
+                                </div>
+                                <div>
+                                    <h3 class="text-white font-semibold">Priyanka M.</h3>
+                                    <p class="text-gray-400 text-sm">Delhi</p>
+                                </div>
+                            </div>
+                            <p class="text-gray-300 leading-relaxed">"As a beginner, I didn't want to risk much money.
+                                This was affordable and helped me understand how prop trading works."</p>
+                            <div class="mt-4 flex text-yellow-400"><i class="fas fa-star"></i><i
+                                    class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i
+                                    class="fas fa-star"></i></div>
+                        </div>
+
+                        <div class="testimonial-card liquid-glass p-6 rounded-2xl">
+                            <div class="flex items-center mb-4">
+                                <div
+                                    class="w-10 h-10 bg-green-500/20 rounded-full flex items-center justify-center mr-3">
+                                    <span class="text-green-400 font-bold text-lg">V</span>
+                                </div>
+                                <div>
+                                    <h3 class="text-white font-semibold">Vishal R.</h3>
+                                    <p class="text-gray-400 text-sm">Pune</p>
+                                </div>
+                            </div>
+                            <p class="text-gray-300 leading-relaxed">"The challenge is straightforward. No confusing
+                                rules like other firms. Good for building discipline."</p>
+                            <div class="mt-4 flex text-yellow-400"><i class="fas fa-star"></i><i
+                                    class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i
+                                    class="fas fa-star"></i></div>
+                        </div>
+
+                        <div class="testimonial-card liquid-glass p-6 rounded-2xl">
+                            <div class="flex items-center mb-4">
+                                <div
+                                    class="w-10 h-10 bg-purple-500/20 rounded-full flex items-center justify-center mr-3">
+                                    <span class="text-purple-400 font-bold text-lg">A</span>
+                                </div>
+                                <div>
+                                    <h3 class="text-white font-semibold">Aman K.</h3>
+                                    <p class="text-gray-400 text-sm">Indore</p>
+                                </div>
+                            </div>
+                            <p class="text-gray-300 leading-relaxed">"Tried multiple platforms before, but this one
+                                feels more beginner-friendly. Low entry cost is a big plus."</p>
+                            <div class="mt-4 flex text-yellow-400"><i class="fas fa-star"></i><i
+                                    class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i
+                                    class="fas fa-star"></i></div>
+                        </div>
+
+                        <div class="testimonial-card liquid-glass p-6 rounded-2xl">
+                            <div class="flex items-center mb-4">
+                                <div
+                                    class="w-10 h-10 bg-orange-500/20 rounded-full flex items-center justify-center mr-3">
+                                    <span class="text-orange-400 font-bold text-lg">R</span>
+                                </div>
+                                <div>
+                                    <h3 class="text-white font-semibold">Rohit P.</h3>
+                                    <p class="text-gray-400 text-sm">Bangalore</p>
+                                </div>
+                            </div>
+                            <p class="text-gray-300 leading-relaxed">"I liked the simple rules and clear targets. Took
+                                me around 2 weeks to complete the challenge."</p>
+                            <div class="mt-4 flex text-yellow-400"><i class="fas fa-star"></i><i
+                                    class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i
+                                    class="fas fa-star"></i></div>
+                        </div>
+
+                        <div class="testimonial-card liquid-glass p-6 rounded-2xl">
+                            <div class="flex items-center mb-4">
+                                <div
+                                    class="w-10 h-10 bg-teal-500/20 rounded-full flex items-center justify-center mr-3">
+                                    <span class="text-teal-400 font-bold text-lg">S</span>
+                                </div>
+                                <div>
+                                    <h3 class="text-white font-semibold">Sneha T.</h3>
+                                    <p class="text-gray-400 text-sm">Hyderabad</p>
+                                </div>
+                            </div>
+                            <p class="text-gray-300 leading-relaxed">"Good for practicing trading with structure. Helped
+                                me improve risk management."</p>
+                            <div class="mt-4 flex text-yellow-400"><i class="fas fa-star"></i><i
+                                    class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i
+                                    class="fas fa-star"></i></div>
+                        </div>
+
+                        <div class="testimonial-card liquid-glass p-6 rounded-2xl">
+                            <div class="flex items-center mb-4">
+                                <div
+                                    class="w-10 h-10 bg-blue-500/20 rounded-full flex items-center justify-center mr-3">
+                                    <span class="text-blue-400 font-bold text-lg">K</span>
+                                </div>
+                                <div>
+                                    <h3 class="text-white font-semibold">Karan D.</h3>
+                                    <p class="text-gray-400 text-sm">Ahmedabad</p>
+                                </div>
+                            </div>
+                            <p class="text-gray-300 leading-relaxed">"Started small and learned a lot during the
+                                challenge. The process is smooth and easy to understand."</p>
+                            <div class="mt-4 flex text-yellow-400"><i class="fas fa-star"></i><i
+                                    class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i
+                                    class="fas fa-star"></i></div>
+                        </div>
+
+                        <div class="testimonial-card liquid-glass p-6 rounded-2xl">
+                            <div class="flex items-center mb-4">
+                                <div class="w-10 h-10 bg-red-500/20 rounded-full flex items-center justify-center mr-3">
+                                    <span class="text-red-400 font-bold text-lg">N</span>
+                                </div>
+                                <div>
+                                    <h3 class="text-white font-semibold">Neha V.</h3>
+                                    <p class="text-gray-400 text-sm">Nagpur</p>
+                                </div>
+                            </div>
+                            <p class="text-gray-300 leading-relaxed">"Affordable way to experience a funded-style
+                                trading environment. Good for beginners like me."</p>
+                            <div class="mt-4 flex text-yellow-400"><i class="fas fa-star"></i><i
+                                    class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i
+                                    class="fas fa-star"></i></div>
+                        </div>
+
+                        <!-- Duplicates for seamless loop -->
+                        <div class="testimonial-card liquid-glass p-6 rounded-2xl">
+                            <div class="flex items-center mb-4">
+                                <div
+                                    class="w-10 h-10 bg-cyan-500/20 rounded-full flex items-center justify-center mr-3">
+                                    <span class="text-cyan-400 font-bold text-lg">J</span>
+                                </div>
+                                <div>
+                                    <h3 class="text-white font-semibold">Jay S.</h3>
+                                    <p class="text-gray-400 text-sm">Mumbai</p>
+                                </div>
+                            </div>
+                            <p class="text-gray-300 leading-relaxed">"Started with the ₹199 challenge just to test the
+                                platform. Rules are simple and easy to follow. Passed in around 12 days."</p>
+                            <div class="mt-4 flex text-yellow-400"><i class="fas fa-star"></i><i
+                                    class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i
+                                    class="fas fa-star"></i></div>
+                        </div>
+
+                        <div class="testimonial-card liquid-glass p-6 rounded-2xl">
+                            <div class="flex items-center mb-4">
+                                <div
+                                    class="w-10 h-10 bg-pink-500/20 rounded-full flex items-center justify-center mr-3">
+                                    <span class="text-pink-400 font-bold text-lg">P</span>
+                                </div>
+                                <div>
+                                    <h3 class="text-white font-semibold">Priyanka M.</h3>
+                                    <p class="text-gray-400 text-sm">Delhi</p>
+                                </div>
+                            </div>
+                            <p class="text-gray-300 leading-relaxed">"As a beginner, I didn't want to risk much money.
+                                This was affordable and helped me understand how prop trading works."</p>
+                            <div class="mt-4 flex text-yellow-400"><i class="fas fa-star"></i><i
+                                    class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i
+                                    class="fas fa-star"></i></div>
+                        </div>
+
+                        <div class="testimonial-card liquid-glass p-6 rounded-2xl">
+                            <div class="flex items-center mb-4">
+                                <div
+                                    class="w-10 h-10 bg-green-500/20 rounded-full flex items-center justify-center mr-3">
+                                    <span class="text-green-400 font-bold text-lg">V</span>
+                                </div>
+                                <div>
+                                    <h3 class="text-white font-semibold">Vishal R.</h3>
+                                    <p class="text-gray-400 text-sm">Pune</p>
+                                </div>
+                            </div>
+                            <p class="text-gray-300 leading-relaxed">"The challenge is straightforward. No confusing
+                                rules like other firms. Good for building discipline."</p>
+                            <div class="mt-4 flex text-yellow-400"><i class="fas fa-star"></i><i
+                                    class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i
+                                    class="fas fa-star"></i></div>
+                        </div>
+
+                        <div class="testimonial-card liquid-glass p-6 rounded-2xl">
+                            <div class="flex items-center mb-4">
+                                <div
+                                    class="w-10 h-10 bg-purple-500/20 rounded-full flex items-center justify-center mr-3">
+                                    <span class="text-purple-400 font-bold text-lg">A</span>
+                                </div>
+                                <div>
+                                    <h3 class="text-white font-semibold">Aman K.</h3>
+                                    <p class="text-gray-400 text-sm">Indore</p>
+                                </div>
+                            </div>
+                            <p class="text-gray-300 leading-relaxed">"Tried multiple platforms before, but this one
+                                feels more beginner-friendly. Low entry cost is a big plus."</p>
+                            <div class="mt-4 flex text-yellow-400"><i class="fas fa-star"></i><i
+                                    class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i
+                                    class="fas fa-star"></i></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <div class="section-divider"></div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-black/80 text-white py-12 border-t border-gray-800">
+        <div class="max-w-7xl mx-auto px-4">
+            <div class="grid md:grid-cols-4 gap-8">
+                <div>
+                    <h3 class="text-2xl font-bold mb-4 flex items-center">
+                        <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Tragene Funded Logo"
+                            class="h-10 w-auto mr-2 rounded-full">
+                        Tragene Funded
+                    </h3>
+                    <p class="text-gray-400">Professional Forex Trading Challenges. Start your funded account journey
+                        today.</p>
+                </div>
+                <div>
+                    <h4 class="font-semibold mb-4">Quick Links</h4>
+                    <ul class="space-y-2 text-gray-400">
+                        <li><a href="#home" class="hover:text-white transition">Home</a></li>
+                        <li><a href="#challenges" class="hover:text-white transition">Challenges</a></li>
+                        <li><a href="#rules" class="hover:text-white transition">Trading Rules</a></li>
+                        <li><a href="#dashboard" class="hover:text-white transition">Dashboard</a></li>
+                        <li><a href="#testimonials" class="hover:text-white transition">Testimonials</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="font-semibold mb-4">Support</h4>
+                    <ul class="space-y-2 text-gray-400">
+                        <li><a href="#" class="hover:text-white transition">Help Center</a></li>
+                        <li><a href="#" class="hover:text-white transition">Contact Us</a></li>
+                        <li><a href="#" class="hover:text-white transition">FAQ</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="font-semibold mb-4">Legal</h4>
+                    <ul class="space-y-2 text-gray-400">
+                        <li><a href="/legal#privacy" class="hover:text-white transition">Privacy Policy</a></li>
+                        <li><a href="/legal#terms" class="hover:text-white transition">Terms of Service</a></li>
+                        <li><a href="/legal#refund" class="hover:text-white transition">Risk Disclosure</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="border-t border-gray-700 mt-8 pt-8 text-center text-gray-400">
+                <p>&copy; 2024 Tragene Funded. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Create stars
+        function createStars() {
+            const starsContainer = document.getElementById('stars');
+            const starCount = 150;
+
+            for (let i = 0; i < starCount; i++) {
+                const star = document.createElement('div');
+                star.classList.add('star');
+                star.style.left = `${Math.random() * 100}%`;
+                star.style.top = `${Math.random() * 100}%`;
+                star.style.width = `${Math.random() * 3}px`;
+                star.style.height = star.style.width;
+                star.style.animationDelay = `${Math.random() * 5}s`;
+                starsContainer.appendChild(star);
+            }
+
+            document.querySelectorAll('.stars').forEach(container => {
+                if (container.id !== 'stars') {
+                    for (let i = 0; i < 50; i++) {
+                        const star = document.createElement('div');
+                        star.classList.add('star');
+                        star.style.left = `${Math.random() * 100}%`;
+                        star.style.top = `${Math.random() * 100}%`;
+                        star.style.width = `${Math.random() * 2}px`;
+                        star.style.height = star.style.width;
+                        star.style.animationDelay = `${Math.random() * 5}s`;
+                        container.appendChild(star);
+                    }
+                }
+            });
+        }
+
+        AOS.init({
+            duration: 800,
+            once: true,
+            offset: 50,
+            easing: 'ease-out-cubic'
+        });
+
+        document.addEventListener('DOMContentLoaded', function () {
+            createStars();
+
+            const popularCard = document.querySelector('.scale-105');
+            if (popularCard) {
+                setInterval(() => {
+                    popularCard.classList.add('animate-pulse');
+                    setTimeout(() => popularCard.classList.remove('animate-pulse'), 2000);
+                }, 5000);
+            }
+        });
+
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+    </script>
+</body>
+
+</html>

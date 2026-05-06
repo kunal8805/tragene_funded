@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify Phone - Tragene Funded</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body class="bg-gray-50">
+    <nav class="bg-gradient-to-r from-blue-700 to-blue-800 shadow-lg">
+        <div class="max-w-7xl mx-auto px-4">
+            <div class="flex justify-between items-center py-3">
+                <div class="flex items-center space-x-4">
+                    <a href="/dashboard" class="flex items-center space-x-2">
+                        <div class="bg-white p-2 rounded-lg">
+                            <i class="fas fa-chart-line text-blue-600 text-sm"></i>
+                        </div>
+                        <span class="text-white font-bold">TRAGENE FUNDED</span>
+                    </a>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <span class="text-blue-100">Welcome, {{ user.first_name }}!</span>
+                    <a href="/logout" class="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm font-medium transition">Logout</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="max-w-md mx-auto px-4 py-8">
+        <div class="bg-white rounded-xl p-6 shadow-sm border">
+            <div class="text-center mb-6">
+                <i class="fas fa-mobile-alt text-blue-600 text-4xl mb-4"></i>
+                <h1 class="text-2xl font-bold text-gray-900">Verify Phone Number</h1>
+                <p class="text-gray-600 mt-2">Enter the OTP sent to your phone</p>
+            </div>
+
+            <!-- OTP Info Box -->
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                <div class="flex items-start">
+                    <i class="fas fa-info-circle text-blue-500 mt-1 mr-3"></i>
+                    <div>
+                        <h3 class="font-semibold text-blue-800">TEST MODE</h3>
+                        <p class="text-blue-700 text-sm mt-1">
+                            In production, OTP would be sent via SMS.<br>
+                            <strong>For testing: Check console or request OTP to see the code.</strong>
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- OTP Form -->
+            <form method="POST">
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        Enter 6-digit OTP
+                    </label>
+                    <input type="text" name="otp_code" maxlength="6" 
+                           class="w-full p-3 border border-gray-300 rounded-lg text-center text-xl font-mono tracking-widest focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                           placeholder="000000" required>
+                    <p class="text-sm text-gray-500 mt-2">Enter the 6-digit code you received</p>
+                </div>
+
+                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-lg font-semibold transition mb-4">
+                    Verify OTP
+                </button>
+            </form>
+
+            <!-- Resend OTP -->
+            <div class="text-center">
+                <p class="text-gray-600 text-sm mb-2">Didn't receive the code?</p>
+                <a href="/send-phone-verification" class="text-blue-600 hover:text-blue-700 font-medium">
+                    <i class="fas fa-redo mr-2"></i>Send New OTP
+                </a>
+            </div>
+
+            <!-- Quick Test Button -->
+            <div class="mt-6 p-4 bg-gray-100 rounded-lg">
+                <p class="text-sm text-gray-700 mb-2">Quick test: Get OTP code instantly</p>
+                <a href="/send-phone-verification" class="block bg-green-600 hover:bg-green-700 text-white text-center py-2 px-4 rounded-lg font-semibold transition">
+                    <i class="fas fa-bolt mr-2"></i>Get Test OTP
+                </a>
+            </div>
+        </div>
+
+        <div class="text-center mt-6">
+            <a href="/kyc/verify" class="text-blue-600 hover:text-blue-700 font-medium">
+                <i class="fas fa-arrow-left mr-2"></i>Back to KYC
+            </a>
+        </div>
+    </div>
+
+    <script>
+        // Auto-focus OTP input
+        document.querySelector('input[name="otp_code"]').focus();
+        
+        // Auto-tab between OTP digits (if you want multiple inputs)
+        const inputs = document.querySelectorAll('input[type="text"]');
+        inputs.forEach((input, index) => {
+            input.addEventListener('input', (e) => {
+                if (e.target.value.length === 1 && index < inputs.length - 1) {
+                    inputs[index + 1].focus();
+                }
+            });
+            
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Backspace' && e.target.value.length === 0 && index > 0) {
+                    inputs[index - 1].focus();
+                }
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,366 @@
+{% extends "user/base.html" %}
+
+{% block title %}Payment Status - Tragene Funded{% endblock %}
+
+{% block header_title %}
+{% if status == 'success' %}
+Payment Successful
+{% elif status == 'pending' %}
+Payment Pending
+{% elif status == 'failed' %}
+Payment Failed
+{% else %}
+Payment Status
+{% endif %}
+{% endblock %}
+
+{% block header_subtitle %}
+{% if status == 'success' %}
+Your transaction was completed successfully
+{% elif status == 'pending' %}
+Your transaction is being processed
+{% elif status == 'failed' %}
+Your transaction could not be completed
+{% endif %}
+{% endblock %}
+
+{% block head %}
+<style>
+    /* Custom Animations not in Tailwind default */
+    @keyframes shake {
+
+        0%,
+        100% {
+            transform: translateX(0);
+        }
+
+        25% {
+            transform: translateX(-5px);
+        }
+
+        75% {
+            transform: translateX(5px);
+        }
+    }
+
+    .animate-shake {
+        animation: shake 0.5s ease-in-out;
+    }
+
+    @keyframes copyFlash {
+        0% {
+            background-color: #10b981;
+        }
+
+        100% {
+            background-color: #059669;
+        }
+    }
+
+    .animate-copy-flash {
+        animation: copyFlash 0.5s ease;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Page Header Content -->
+<div class="mb-8">
+    <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+        {% if status == 'success' %}
+        <i class="fas fa-check-circle text-green-500 mr-2 animate-bounce"></i> Payment Successful!
+        {% elif status == 'pending' %}
+        <i class="fas fa-clock text-yellow-500 mr-2 animate-pulse"></i> Payment Pending
+        {% elif status == 'failed' %}
+        <i class="fas fa-times-circle text-red-500 mr-2 animate-shake"></i> Payment Failed
+        {% else %}
+        Payment Status
+        {% endif %}
+    </h1>
+    <div class="text-gray-600 dark:text-gray-400">
+        {% if status == 'success' %}
+        Your payment has been processed successfully. Your challenge account is being created.
+        {% elif status == 'pending' %}
+        Your payment is being processed. This may take a few minutes.
+        {% elif status == 'failed' %}
+        Your payment could not be processed. Please try again or contact support.
+        {% endif %}
+    </div>
+</div>
+
+<!-- Main Grid -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+    <!-- Left Column: Payment & Challenge Details -->
+    <div class="lg:col-span-2 space-y-6">
+
+        <!-- Payment Status Card -->
+        <div class="glass-card p-6 border dark:border-dark-border">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-xl font-bold text-gray-900 dark:text-white">Payment Details</h2>
+                <span
+                    class="px-3 py-1 rounded-full text-sm font-medium {% if status == 'success' %}bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400{% elif status == 'pending' %}bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400{% else %}bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400{% endif %}">
+                    {{ status|upper }}
+                </span>
+            </div>
+
+            <div class="space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">Payment ID</p>
+                        <p class="font-mono font-medium text-gray-900 dark:text-white">{{ payment.payment_id if payment
+                            else 'N/A' }}
+                        </p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">Amount</p>
+                        <p class="text-lg font-bold text-gray-900 dark:text-white">₹{{ payment.amount if payment else
+                            '0' }}</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">Date</p>
+                        <p class="font-medium text-gray-900 dark:text-white">{{ payment.created_at.strftime('%d %b %Y,
+                            %I:%M %p') if
+                            payment else 'N/A' }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">Method</p>
+                        <p class="font-medium text-gray-900 dark:text-white">{{ payment.payment_method|upper if payment
+                            else 'N/A' }}
+                        </p>
+                    </div>
+                </div>
+
+                {% if payment and payment.gateway_id %}
+                <div>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Transaction ID</p>
+                    <p class="font-mono text-sm text-gray-900 dark:text-white">{{ payment.gateway_id }}</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Progress Bar for Account Creation -->
+            {% if status == 'success' and challenge and challenge.status == 'account_creating' %}
+            <div class="mt-8">
+                <div class="flex justify-between mb-2">
+                    <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Creating Trading Account</span>
+                    <span class="text-sm font-medium text-gray-700 dark:text-gray-300">50%</span>
+                </div>
+                <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
+                    <div class="bg-blue-600 h-2.5 rounded-full transition-all duration-1000 ease-in-out"
+                        style="width: 50%" id="creationProgressBar"></div>
+                </div>
+                <p class="text-sm text-gray-600 dark:text-gray-400 mt-2">This may take 1-2 minutes. Please wait...</p>
+            </div>
+            {% endif %}
+
+            <!-- Action Buttons -->
+            <div class="mt-8 flex flex-wrap gap-3">
+                {% if status == 'success' %}
+                <a href="/user/dashboard"
+                    class="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg font-medium hover:from-blue-600 hover:to-blue-700 transition">
+                    <i class="fas fa-tachometer-alt mr-2"></i> Go to Dashboard
+                </a>
+                <a href="/user/challenges"
+                    class="px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg font-medium hover:from-green-600 hover:to-green-700 transition">
+                    <i class="fas fa-trophy mr-2"></i> View Challenges
+                </a>
+                {% if challenge and challenge.status == 'active' %}
+                <a href="/user/trading"
+                    class="px-6 py-3 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-lg font-medium hover:from-purple-600 hover:to-purple-700 transition">
+                    <i class="fas fa-chart-line mr-2"></i> Start Trading
+                </a>
+                {% endif %}
+                {% elif status == 'failed' %}
+                <a href="/user/challenges"
+                    class="px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg font-medium hover:from-red-600 hover:to-red-700 transition">
+                    <i class="fas fa-redo mr-2"></i> Try Again
+                </a>
+                <a href="mailto:support@tragene.com"
+                    class="px-6 py-3 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg font-medium hover:bg-gray-300 dark:hover:bg-gray-600 transition">
+                    <i class="fas fa-headset mr-2"></i> Contact Support
+                </a>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Challenge Status Section -->
+        {% if challenge %}
+        <div class="glass-card p-6 border dark:border-dark-border">
+            <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-6">Challenge Status</h2>
+
+            <div class="space-y-6">
+                <!-- Current Challenge -->
+                <div class="border dark:border-gray-700 rounded-xl p-5 relative overflow-hidden">
+                    {% set status_gradient =
+                    'bg-gradient-to-br from-emerald-400 to-emerald-600' if challenge.status == 'active' else
+                    'bg-gradient-to-br from-amber-400 to-amber-600' if challenge.status == 'pending' else
+                    'bg-gradient-to-br from-blue-400 to-blue-600' if challenge.status == 'passed' else
+                    'bg-gradient-to-br from-red-400 to-red-600'
+                    %}
+                    <div
+                        class="absolute -top-3 -right-3 w-12 h-12 rounded-full flex items-center justify-center font-bold text-sm text-white shadow-lg {{ status_gradient }}">
+                        {% if challenge.phase == 1 %}P1{% else %}P2{% endif %}
+                    </div>
+
+                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mt-2">
+                        <div>
+                            <h3 class="font-bold text-lg text-gray-900 dark:text-white mb-1">{{
+                                challenge.challenge_template.name }}
+                            </h3>
+                            <div class="flex items-center space-x-4 text-sm text-gray-600 dark:text-gray-400">
+                                <span><i class="fas fa-wallet mr-1"></i> ${{ challenge.challenge_template.account_size
+                                    }}</span>
+                                <span><i class="fas fa-calendar mr-1"></i> {{ challenge.challenge_template.duration_days
+                                    }} days</span>
+                            </div>
+                        </div>
+
+                        <div class="text-right pr-8">
+                            <div class="text-2xl font-bold text-gray-900 dark:text-white mb-1">{{ challenge.status|upper
+                                }}</div>
+                            {% if challenge.status == 'active' %}
+                            <div class="text-sm text-green-600 dark:text-green-400">
+                                <i class="fas fa-play-circle mr-1"></i> Trading Active
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Progress Bar -->
+                    {% if challenge.status == 'active' %}
+                    <div class="mt-4">
+                        <div class="flex justify-between mb-1">
+                            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Progress</span>
+                            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{
+                                challenge.progress_percentage|round(1)
+                                }}%</span>
+                        </div>
+                        <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                            <div class="bg-green-500 h-2 rounded-full"
+                                style="width: {{ challenge.progress_percentage }}%"></div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Right Column: Quick Actions & MT5 Credentials -->
+    <div class="space-y-6">
+        <!-- MT5 Credentials (Only show if account is active) -->
+        {% if challenge and challenge.status == 'active' and challenge.mt5_login %}
+        <div class="glass-card p-6 border dark:border-dark-border">
+            <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center">
+                <i class="fas fa-terminal mr-2"></i> MT5 Credentials
+            </h2>
+
+            <!-- Credential Box -->
+            <div
+                class="bg-gradient-to-br from-slate-800 to-slate-900 text-white font-mono rounded-xl border border-slate-700 relative overflow-hidden p-5 mb-4">
+                <!-- Top gradient line -->
+                <div class="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-blue-500 to-purple-500"></div>
+
+                <div class="space-y-4">
+                    <div>
+                        <p class="text-sm text-gray-400 mb-1">Server</p>
+                        <p class="text-lg font-mono text-white">{{ challenge.mt5_server }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-400 mb-1">Login</p>
+                        <p class="text-lg font-mono text-white">{{ challenge.mt5_login }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-400 mb-1">Password</p>
+                        <div class="flex items-center justify-between">
+                            <p class="text-lg font-mono text-white" id="mt5Password">••••••••</p>
+                            <button onclick="togglePassword()"
+                                class="text-blue-400 hover:text-blue-300 text-sm font-sans">
+                                <i class="fas fa-eye"></i> Show
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="space-y-3">
+                <button onclick="copyToClipboard('{{ challenge.mt5_login }}')"
+                    class="w-full py-2 bg-gray-800 text-white rounded-lg font-medium hover:bg-gray-900 transition flex items-center justify-center">
+                    <i class="fas fa-copy mr-2"></i> Copy Login
+                </button>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Need Help? -->
+        <div class="glass-card p-6 border dark:border-dark-border">
+            <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Need Help?</h2>
+            <div class="space-y-4">
+                <a href="mailto:support@tragene.com"
+                    class="flex items-center p-3 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 rounded-lg transition">
+                    <i class="fas fa-envelope text-blue-600 dark:text-blue-400 mr-3"></i>
+                    <span class="font-medium text-gray-900 dark:text-white">Email Support</span>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Toggle password visibility
+    function togglePassword() {
+        const passwordEl = document.getElementById('mt5Password');
+        const button = event.currentTarget;
+
+        if (passwordEl.textContent === '••••••••') {
+            passwordEl.textContent = '{{ challenge.mt5_password }}';
+            button.innerHTML = '<i class="fas fa-eye-slash"></i> Hide';
+        } else {
+            passwordEl.textContent = '••••••••';
+            button.innerHTML = '<i class="fas fa-eye"></i> Show';
+        }
+    }
+
+    // Copy to clipboard
+    function copyToClipboard(text) {
+        navigator.clipboard.writeText(text).then(() => {
+            const button = event.currentTarget;
+            const originalText = button.innerHTML;
+
+            button.innerHTML = '<i class="fas fa-check mr-2"></i> Copied!';
+            button.classList.add('animate-copy-flash');
+
+            setTimeout(() => {
+                button.innerHTML = originalText;
+                button.classList.remove('animate-copy-flash');
+            }, 2000);
+        });
+    }
+
+    // Auto-refresh if account is being created
+    {% if challenge and challenge.status == 'account_creating' %}
+    setTimeout(() => {
+        window.location.reload();
+    }, 10000); // Refresh every 10 seconds
+    {% endif %}
+
+    // Simulate progress bar animation
+    document.addEventListener('DOMContentLoaded', function () {
+        const progressBar = document.getElementById('creationProgressBar');
+        if (progressBar) {
+            // Animate from 0% to current width
+            progressBar.style.width = '0%';
+            requestAnimationFrame(() => {
+                progressBar.style.width = '50%';
+            });
+        }
+    });
+</script>
+{% endblock %}
