@@ -136,31 +136,40 @@ def allowed_file(filename):
 @app.context_processor
 def inject_user():
     """Make user available in all templates as both 'user' and 'current_user'"""
-    user = None
+    context = {
+        'current_user': None,
+        'user': None,
+        'PRELAUNCH_MODE': PRELAUNCH_MODE,
+        'DEV_MODE': DEV_MODE
+    }
+
+
     if 'user_id' in session:
         user = User.query.get(session['user_id'])
+        if user:
+            class CurrentUser:
+                def __init__(self, user_obj):
+                    self.id = user_obj.id
+                    self.email = user_obj.email
+                    self.first_name = user_obj.first_name
+                    self.last_name = user_obj.last_name
+                    self.name = f"{user_obj.first_name} {user_obj.last_name}"
+                    self.kyc_status = user_obj.kyc_status
+                    self.phone_verified = user_obj.phone_verified
+                    self.email_verified = user_obj.email_verified
+                    self.is_authenticated = True
+                    self.is_admin = user_obj.is_admin
+                    self.is_active = True
+                    
+                def __repr__(self):
+                    return f"<CurrentUser {self.email}>"
+            
+            context['current_user'] = CurrentUser(user)
+            context['user'] = user
     
-    if user:
-        class CurrentUser:
-            def __init__(self, user_obj):
-                self.id = user_obj.id
-                self.email = user_obj.email
-                self.first_name = user_obj.first_name
-                self.last_name = user_obj.last_name
-                self.name = f"{user_obj.first_name} {user_obj.last_name}"
-                self.kyc_status = user_obj.kyc_status
-                self.phone_verified = user_obj.phone_verified
-                self.email_verified = user_obj.email_verified
-                self.is_authenticated = True
-                self.is_admin = user_obj.is_admin
-                self.is_active = True
-                
-            def __repr__(self):
-                return f"<CurrentUser {self.email}>"
-        
-        return dict(current_user=CurrentUser(user), user=user)
-    
-    return dict(current_user=None, user=None)
+    return context
+
+
 
 # ===== FIXED EMAIL SENDER FUNCTION =====
 def send_test_email(to_email, subject, html_content):
@@ -523,7 +532,8 @@ def payment_failed():
 # ===== MAIN ROUTES =====
 @app.route('/')
 def home():
-    return render_template('index.html', PRELAUNCH_MODE=PRELAUNCH_MODE)
+    return render_template('index.html')
+
 
 @app.route('/legal')
 def legal():

@@ -137,7 +137,7 @@
                     <a href="/login" class="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded-lg text-sm font-medium transition duration-300">
                         Login
                     </a>
-                    <a href="/register" class="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white px-3 py-1 rounded-lg text-sm font-medium transition duration-300">
+                    <a href="{{ '/waitlist' if PRELAUNCH_MODE else '/register' }}" class="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white px-3 py-1 rounded-lg text-sm font-medium transition duration-300">
                         Get Started
                     </a>
                 </div>
