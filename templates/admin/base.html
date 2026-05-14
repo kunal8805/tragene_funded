@@ -260,6 +260,7 @@
         </div>
 
         <nav class="p-4 space-y-2 flex-1 overflow-y-auto pb-6">
+            <div class="px-3 py-2 text-xs font-bold text-gray-400 uppercase tracking-wider">Platform</div>
             <a href="/admin"
                 class="flex items-center space-x-3 p-3 {% if request.endpoint == 'admin.admin_dashboard' %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
                 <i class="fas fa-tachometer-alt w-5"></i>
@@ -272,6 +273,7 @@
                 <span>Users</span>
             </a>
 
+            <div class="px-3 py-2 mt-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Operations</div>
             <a href="/admin/kyc"
                 class="flex items-center space-x-3 p-3 {% if 'admin.kyc' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
                 <i class="fas fa-id-card w-5"></i>
@@ -300,6 +302,18 @@
                 class="flex items-center space-x-3 p-3 {% if 'admin.admin_waitlist' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
                 <i class="fas fa-list-ul w-5"></i>
                 <span>Waitlist</span>
+            </a>
+
+            <div class="px-3 py-2 mt-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Support System</div>
+            <a href="/admin/support"
+                class="flex items-center space-x-3 p-3 {% if 'admin.admin_support' in request.endpoint or 'admin.admin_ticket_detail' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
+                <i class="fas fa-headset w-5"></i>
+                <span>Support Tickets</span>
+            </a>
+            <a href="/admin/faq"
+                class="flex items-center space-x-3 p-3 {% if 'admin.admin_faq' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
+                <i class="fas fa-question-circle w-5"></i>
+                <span>Manage FAQs</span>
             </a>
 
             <a href="/admin/settings"
@@ -353,6 +367,7 @@
 
         <!-- Navigation -->
         <nav class="p-4 space-y-2 flex-1 overflow-y-auto pb-6">
+            <div class="px-3 py-2 text-xs font-bold text-gray-400 uppercase tracking-wider">Platform</div>
             <a href="/admin"
                 class="flex items-center space-x-3 p-3 {% if request.endpoint == 'admin.admin_dashboard' %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition"
                 onclick="toggleSidebar()">
@@ -367,6 +382,7 @@
                 <span>Users</span>
             </a>
 
+            <div class="px-3 py-2 mt-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Operations</div>
             <a href="/admin/kyc"
                 class="flex items-center space-x-3 p-3 {% if 'admin.kyc' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition"
                 onclick="toggleSidebar()">
@@ -393,6 +409,20 @@
                 onclick="toggleSidebar()">
                 <i class="fas fa-list-ul w-5"></i>
                 <span>Waitlist</span>
+            </a>
+
+            <div class="px-3 py-2 mt-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Support System</div>
+            <a href="/admin/support"
+                class="flex items-center space-x-3 p-3 {% if 'admin.admin_support' in request.endpoint or 'admin.admin_ticket_detail' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition"
+                onclick="toggleSidebar()">
+                <i class="fas fa-headset w-5"></i>
+                <span>Support Tickets</span>
+            </a>
+            <a href="/admin/faq"
+                class="flex items-center space-x-3 p-3 {% if 'admin.admin_faq' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition"
+                onclick="toggleSidebar()">
+                <i class="fas fa-question-circle w-5"></i>
+                <span>Manage FAQs</span>
             </a>
 
             <a href="/admin/settings"

@@ -105,14 +105,8 @@ class User(db.Model):
         }
         return status_map.get(self.kyc_status, 'Not Started')
     
-    def auto_verify_email(self):
-        """Auto verify email without sending actual email"""
-        self.email_verified = True
-        self.email_verification_token = None
-        print(f"✅ Email auto-verified for: {self.email}")
-        return True
-    
     def get_full_name(self):
+
         return f"{self.first_name} {self.last_name}"
     
     def __repr__(self):
@@ -525,9 +519,11 @@ class Payment(db.Model):
     # Payment Details
     payment_id = db.Column(db.String(100), unique=True, nullable=False, index=True)
     amount = db.Column(db.Float, nullable=False)
+    expected_amount = db.Column(db.Float, nullable=False, default=0.0)
     currency = db.Column(db.String(10), default='INR')
     payment_method = db.Column(db.String(20), nullable=False)
-    gateway = db.Column(db.String(50), default='razorpay')
+    gateway = db.Column(db.String(50), default='cashfree')
+    challenge_template_id = db.Column(db.Integer, nullable=True, index=True)
     
     # Status
     status = db.Column(db.String(20), default='pending', index=True)
@@ -550,6 +546,28 @@ class Payment(db.Model):
         return f'<Payment {self.payment_id} - {self.status}>'
 
 
+class WebhookLog(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    
+    # Payload details
+    event_type = db.Column(db.String(100), index=True)
+    order_id = db.Column(db.String(100), index=True)
+    raw_payload = db.Column(db.Text, nullable=False)
+    headers = db.Column(db.Text)
+    signature = db.Column(db.String(500))
+    
+    # Processing Status
+    status = db.Column(db.String(50), default='pending', index=True) # pending, processed, failed, duplicate
+    error_message = db.Column(db.Text)
+    
+    # Timestamps
+    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
+    processed_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    
+    def __repr__(self):
+        return f'<WebhookLog {self.event_type} - {self.order_id} - {self.status}>'
+
+
 class AdminLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     admin_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
@@ -570,22 +588,61 @@ class SupportTicket(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
     subject = db.Column(db.String(200), nullable=False)
-    message = db.Column(db.Text, nullable=False)
+    ticket_number = db.Column(db.String(20), unique=True, nullable=False)
+    category = db.Column(db.String(100), default='General', index=True)
     status = db.Column(db.String(20), default='open', index=True)
     priority = db.Column(db.String(20), default='normal', index=True)
-    assigned_to = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True, index=True)
-    resolution = db.Column(db.Text)
+    admin_note = db.Column(db.Text, default='')
     
-    # Timestamps
+    assigned_to = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True, index=True)
+    is_deleted = db.Column(db.Boolean, default=False, index=True)
+    
+    last_reply_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    last_user_read_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    last_admin_read_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
     updated_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     resolved_at = db.Column(db.DateTime(timezone=True), nullable=True, index=True)
     
+    # Relationships
     user = db.relationship('User', foreign_keys=[user_id], backref='support_tickets', lazy=True)
     assignee = db.relationship('User', foreign_keys=[assigned_to], lazy=True)
+    messages = db.relationship('TicketMessage', backref='ticket', cascade='all, delete-orphan', lazy='dynamic')
     
     def __repr__(self):
-        return f'<SupportTicket {self.id} - {self.subject}>'
+        return f'<SupportTicket {self.ticket_number} - {self.subject}>'
+
+
+class TicketMessage(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    ticket_id = db.Column(db.Integer, db.ForeignKey('support_ticket.id'), nullable=False, index=True)
+    sender_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    message = db.Column(db.Text, nullable=False)
+    is_admin_reply = db.Column(db.Boolean, default=False)
+    attachment_url = db.Column(db.String(500))
+    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+    sender = db.relationship('User', foreign_keys=[sender_id], lazy=True)
+
+    def __repr__(self):
+        return f'<TicketMessage {self.id} for Ticket {self.ticket_id}>'
+
+
+class FAQ(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    question = db.Column(db.String(500), nullable=False)
+    answer = db.Column(db.Text, nullable=False)
+    category = db.Column(db.String(100), index=True)
+    is_pinned = db.Column(db.Boolean, default=False, index=True)
+    helpful_yes = db.Column(db.Integer, default=0)
+    helpful_no = db.Column(db.Integer, default=0)
+    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+    def __repr__(self):
+        return f'<FAQ {self.question[:30]}>'
+
 
 
 class Trade(db.Model):

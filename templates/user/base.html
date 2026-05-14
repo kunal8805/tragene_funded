@@ -5,11 +5,11 @@
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-8SBBXX72M7"></script>
     <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
+        window.dataLayer = window.dataLayer || [];
+        function gtag() { dataLayer.push(arguments); }
+        gtag('js', new Date());
 
-      gtag('config', 'G-8SBBXX72M7');
+        gtag('config', 'G-8SBBXX72M7');
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -137,6 +137,8 @@
             z-index: 50;
             background: white;
             box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
         }
 
         .dark .sidebar-mobile {
@@ -200,18 +202,179 @@
         /* Desktop Layout */
         .desktop-sidebar {
             width: 280px;
-            min-height: 100vh;
+            height: 100vh;
             background: white;
             box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
             position: fixed;
             left: 0;
             top: 0;
             z-index: 30;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
         }
 
         .dark .desktop-sidebar {
             background: #1e293b;
             box-shadow: 2px 0 10px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Sidebar Header - Fixed at top */
+        .sidebar-header {
+            flex-shrink: 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .dark .sidebar-header {
+            border-bottom-color: #334155;
+        }
+
+        /* Sidebar Navigation - Scrollable */
+        .sidebar-nav {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 1rem;
+        }
+
+        /* Sidebar Footer - Fixed at bottom */
+        .sidebar-footer {
+            flex-shrink: 0;
+            border-top: 1px solid #e5e7eb;
+            padding: 1rem;
+            background: white;
+        }
+
+        .dark .sidebar-footer {
+            border-top-color: #334155;
+            background: #1e293b;
+        }
+
+        /* Custom Scrollbar */
+        .sidebar-nav::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .sidebar-nav::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .sidebar-nav::-webkit-scrollbar-thumb {
+            background: rgba(0, 123, 255, 0.2);
+            border-radius: 10px;
+        }
+
+        .sidebar-nav:hover::-webkit-scrollbar-thumb {
+            background: rgba(0, 123, 255, 0.5);
+        }
+
+        /* Firefox scrollbar */
+        .sidebar-nav {
+            scrollbar-width: thin;
+            scrollbar-color: rgba(0, 123, 255, 0.2) transparent;
+        }
+
+        /* Navigation Items */
+        .nav-section-label {
+            padding: 0.5rem 0.75rem;
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: #9ca3af;
+            margin-top: 0.5rem;
+        }
+
+        .dark .nav-section-label {
+            color: #6b7280;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem 1rem;
+            border-radius: 12px;
+            color: #6b7280;
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            margin-bottom: 0.25rem;
+        }
+
+        .dark .nav-item {
+            color: #94a3b8;
+        }
+
+        .nav-item:hover {
+            background: #f3f4f6;
+            color: #1f2937;
+        }
+
+        .dark .nav-item:hover {
+            background: #1e293b;
+            color: #f1f5f9;
+        }
+
+        .nav-item.active {
+            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+            color: #2563eb;
+            border: 1px solid #bfdbfe;
+            box-shadow: 0 2px 8px rgba(37, 99, 235, 0.1);
+        }
+
+        .dark .nav-item.active {
+            background: linear-gradient(135deg, #1e3a5f 0%, #1e3a8a 100%);
+            color: #60a5fa;
+            border-color: #3b82f6;
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
+        }
+
+        .nav-item i {
+            width: 1.25rem;
+            text-align: center;
+            font-size: 1rem;
+        }
+
+        .nav-item.active i {
+            color: #2563eb;
+        }
+
+        .dark .nav-item.active i {
+            color: #60a5fa;
+        }
+
+        /* Theme Toggle Button */
+        .theme-toggle-btn {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 0.75rem;
+            border-radius: 12px;
+            background: #f3f4f6;
+            border: 1px solid #e5e7eb;
+            color: #6b7280;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .dark .theme-toggle-btn {
+            background: #1e293b;
+            border-color: #334155;
+            color: #94a3b8;
+        }
+
+        .theme-toggle-btn:hover {
+            background: #e5e7eb;
+            color: #1f2937;
+        }
+
+        .dark .theme-toggle-btn:hover {
+            background: #334155;
+            color: #f1f5f9;
         }
 
         .desktop-content {
@@ -244,6 +407,15 @@
                 grid-template-columns: 1fr;
             }
         }
+
+        /* Logo hover effect */
+        .logo-container {
+            transition: transform 0.3s ease;
+        }
+
+        .logo-container:hover {
+            transform: scale(1.05);
+        }
     </style>
     {% block head %}{% endblock %}
 </head>
@@ -273,7 +445,7 @@
                 </button>
                 <!-- Circular Logo -->
                 <div
-                    class="w-10 h-10 rounded-full overflow-hidden border border-gray-300 dark:border-gray-600 bg-white flex items-center justify-center shrink-0">
+                    class="w-10 h-10 rounded-full overflow-hidden border border-gray-300 dark:border-gray-600 bg-white flex items-center justify-center shrink-0 logo-container">
                     <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Tragene Funded Logo"
                         class="w-full h-full object-contain">
                 </div>
@@ -298,9 +470,10 @@
     </header>
 
     <!-- Desktop Sidebar -->
-    <div class="desktop-sidebar hidden lg:block">
-        <div class="p-6 border-b border-gray-200 dark:border-dark-border">
-            <a href="/" class="flex items-center gap-3">
+    <div class="desktop-sidebar hidden lg:flex flex-col">
+        <!-- Sidebar Header - Fixed -->
+        <div class="sidebar-header p-6">
+            <a href="/" class="flex items-center gap-3 logo-container">
                 <!-- Circular Logo -->
                 <div
                     class="w-14 h-14 rounded-full overflow-hidden border-2 border-gray-300 dark:border-gray-600 bg-white flex items-center justify-center shrink-0">
@@ -315,66 +488,77 @@
             </a>
         </div>
 
-        <nav class="p-4 space-y-2">
-            <a href="/user/dashboard"
-                class="flex items-center space-x-3 p-3 {% if request.endpoint == 'user.dashboard' %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
-                <i
-                    class="fas fa-tachometer-alt w-5 {% if request.endpoint == 'user.dashboard' %}text-blue-600 dark:text-blue-400{% endif %}"></i>
-                <span class="font-medium">Dashboard</span>
+        <!-- Sidebar Navigation - Scrollable -->
+        <nav class="sidebar-nav space-y-1">
+            <div class="nav-section-label">Main Menu</div>
+
+            <a href="/user/dashboard" class="nav-item {% if request.endpoint == 'user.dashboard' %}active{% endif %}">
+                <i class="fas fa-tachometer-alt"></i>
+                <span>Dashboard</span>
             </a>
+
             <a href="/user/challenges"
-                class="flex items-center space-x-3 p-3 {% if request.endpoint == 'user.challenges' or request.endpoint == 'user.user_challenges' %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
-                <i
-                    class="fas fa-trophy w-5 {% if request.endpoint == 'user.challenges' %}text-blue-600 dark:text-blue-400{% endif %}"></i>
+                class="nav-item {% if request.endpoint == 'user.challenges' or request.endpoint == 'user.user_challenges' %}active{% endif %}">
+                <i class="fas fa-trophy"></i>
                 <span>Challenges</span>
             </a>
-            <a href="/user/trading"
-                class="flex items-center space-x-3 p-3 {% if request.endpoint == 'user.trading' %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
-                <i
-                    class="fas fa-chart-line w-5 {% if request.endpoint == 'user.trading' %}text-blue-600 dark:text-blue-400{% endif %}"></i>
+
+            <a href="/user/trading" class="nav-item {% if request.endpoint == 'user.trading' %}active{% endif %}">
+                <i class="fas fa-chart-line"></i>
                 <span>Trading</span>
             </a>
+
             <a href="{{ url_for('user.user_history') }}"
-                class="flex items-center space-x-3 p-3 {% if request.endpoint == 'user.user_history' %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
-                <i
-                    class="fas fa-history w-5 {% if request.endpoint == 'user.user_history' %}text-blue-600 dark:text-blue-400{% endif %}"></i>
+                class="nav-item {% if request.endpoint == 'user.user_history' %}active{% endif %}">
+                <i class="fas fa-history"></i>
                 <span>History</span>
             </a>
+
+            <div class="nav-section-label">Account</div>
+
             <a href="/user/kyc"
-                class="flex items-center space-x-3 p-3 {% if request.endpoint == 'user.kyc' or request.endpoint == 'user.kyc_verification' %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
-                <i
-                    class="fas fa-id-card w-5 {% if request.endpoint == 'user.kyc' %}text-blue-600 dark:text-blue-400{% endif %}"></i>
+                class="nav-item {% if request.endpoint == 'user.kyc' or request.endpoint == 'user.kyc_verification' %}active{% endif %}">
+                <i class="fas fa-id-card"></i>
                 <span>KYC Verification</span>
             </a>
-            <a href="/user/payouts"
-                class="flex items-center space-x-3 p-3 {% if request.endpoint == 'user.payouts' %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
-                <i
-                    class="fas fa-wallet w-5 {% if request.endpoint == 'user.payouts' %}text-blue-600 dark:text-blue-400{% endif %}"></i>
+
+            <a href="/user/payouts" class="nav-item {% if request.endpoint == 'user.payouts' %}active{% endif %}">
+                <i class="fas fa-wallet"></i>
                 <span>Payouts</span>
             </a>
-            <a href="/user/settings"
-                class="flex items-center space-x-3 p-3 {% if request.endpoint == 'user.settings' %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
-                <i
-                    class="fas fa-cog w-5 {% if request.endpoint == 'user.settings' %}text-blue-600 dark:text-blue-400{% endif %}"></i>
+
+            <a href="/user/settings" class="nav-item {% if request.endpoint == 'user.settings' %}active{% endif %}">
+                <i class="fas fa-cog"></i>
                 <span>Settings</span>
             </a>
+
+            <div class="nav-section-label">Support</div>
+
+            <a href="/user/help"
+                class="nav-item {% if request.endpoint == 'user.help' or request.endpoint == 'user.ticket_create' or request.endpoint == 'user.ticket_chat' %}active{% endif %}">
+                <i class="fas fa-question-circle"></i>
+                <span>Help Center</span>
+            </a>
+
+            <!-- Spacer to push theme toggle to bottom -->
+            <div class="pb-16"></div>
         </nav>
 
-        <!-- Dark Mode Toggle Desktop -->
-        <div class="absolute bottom-0 w-full p-4 border-t border-gray-200 dark:border-dark-border">
-            <button id="theme-toggle-desktop"
-                class="w-full flex items-center justify-center space-x-2 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition">
+        <!-- Sidebar Footer - Fixed at bottom -->
+        <div class="sidebar-footer">
+            <button id="theme-toggle-desktop" class="theme-toggle-btn">
                 <i class="fas fa-moon hidden dark:block"></i>
                 <i class="fas fa-sun block dark:hidden"></i>
-                <span class="hidden dark:block">Switch to Light</span>
-                <span class="block dark:hidden">Switch to Dark</span>
+                <span class="hidden dark:block">Switch to Light Mode</span>
+                <span class="block dark:hidden">Switch to Dark Mode</span>
             </button>
         </div>
     </div>
 
     <!-- Mobile Sidebar -->
     <div id="mobileSidebar" class="sidebar-mobile lg:hidden">
-        <div class="p-6 border-b border-gray-200 dark:border-dark-border">
+        <!-- Header - Fixed -->
+        <div class="p-6 border-b border-gray-200 dark:border-dark-border flex-shrink-0">
             <div class="flex items-center justify-between">
                 <div class="flex items-center gap-3">
                     <div
@@ -394,57 +578,73 @@
             </div>
         </div>
 
-        <nav class="p-4 space-y-2">
-            <a href="/user/dashboard"
-                class="flex items-center space-x-3 p-3 {% if request.endpoint == 'user.dashboard' %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition"
+        <!-- Navigation - Scrollable -->
+        <nav class="flex-1 overflow-y-auto p-4 space-y-1">
+            <div class="nav-section-label">Main Menu</div>
+
+            <a href="/user/dashboard" class="nav-item {% if request.endpoint == 'user.dashboard' %}active{% endif %}"
                 onclick="toggleSidebar()">
-                <i
-                    class="fas fa-tachometer-alt w-5 {% if request.endpoint == 'user.dashboard' %}text-blue-600 dark:text-blue-400{% endif %}"></i>
-                <span class="font-medium">Dashboard</span>
+                <i class="fas fa-tachometer-alt"></i>
+                <span>Dashboard</span>
             </a>
-            <a href="/user/challenges"
-                class="flex items-center space-x-3 p-3 {% if request.endpoint == 'user.challenges' %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition"
+
+            <a href="/user/challenges" class="nav-item {% if request.endpoint == 'user.challenges' %}active{% endif %}"
                 onclick="toggleSidebar()">
-                <i
-                    class="fas fa-trophy w-5 {% if request.endpoint == 'user.challenges' %}text-blue-600 dark:text-blue-400{% endif %}"></i>
+                <i class="fas fa-trophy"></i>
                 <span>Challenges</span>
             </a>
-            <a href="/user/trading"
-                class="flex items-center space-x-3 p-3 {% if request.endpoint == 'user.trading' %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition"
+
+            <a href="/user/trading" class="nav-item {% if request.endpoint == 'user.trading' %}active{% endif %}"
                 onclick="toggleSidebar()">
-                <i
-                    class="fas fa-chart-line w-5 {% if request.endpoint == 'user.trading' %}text-blue-600 dark:text-blue-400{% endif %}"></i>
+                <i class="fas fa-chart-line"></i>
                 <span>Trading</span>
             </a>
+
             <a href="/user/history"
-                class="flex items-center space-x-3 p-3 {% if request.endpoint == 'user.trading_history' %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition"
+                class="nav-item {% if request.endpoint == 'user.trading_history' %}active{% endif %}"
                 onclick="toggleSidebar()">
-                <i
-                    class="fas fa-history w-5 {% if request.endpoint == 'user.trading_history' %}text-blue-600 dark:text-blue-400{% endif %}"></i>
+                <i class="fas fa-history"></i>
                 <span>History</span>
             </a>
-            <a href="/user/kyc"
-                class="flex items-center space-x-3 p-3 {% if request.endpoint == 'user.kyc' %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition"
+
+            <div class="nav-section-label">Account</div>
+
+            <a href="/user/kyc" class="nav-item {% if request.endpoint == 'user.kyc' %}active{% endif %}"
                 onclick="toggleSidebar()">
-                <i
-                    class="fas fa-id-card w-5 {% if request.endpoint == 'user.kyc' %}text-blue-600 dark:text-blue-400{% endif %}"></i>
+                <i class="fas fa-id-card"></i>
                 <span>KYC Verification</span>
             </a>
-            <a href="/user/payouts"
-                class="flex items-center space-x-3 p-3 {% if request.endpoint == 'user.payouts' %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition"
+
+            <a href="/user/payouts" class="nav-item {% if request.endpoint == 'user.payouts' %}active{% endif %}"
                 onclick="toggleSidebar()">
-                <i
-                    class="fas fa-wallet w-5 {% if request.endpoint == 'user.payouts' %}text-blue-600 dark:text-blue-400{% endif %}"></i>
+                <i class="fas fa-wallet"></i>
                 <span>Payouts</span>
             </a>
-            <a href="/user/settings"
-                class="flex items-center space-x-3 p-3 {% if request.endpoint == 'user.settings' %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition"
+
+            <a href="/user/settings" class="nav-item {% if request.endpoint == 'user.settings' %}active{% endif %}"
                 onclick="toggleSidebar()">
-                <i
-                    class="fas fa-cog w-5 {% if request.endpoint == 'user.settings' %}text-blue-600 dark:text-blue-400{% endif %}"></i>
+                <i class="fas fa-cog"></i>
                 <span>Settings</span>
             </a>
+
+            <div class="nav-section-label">Support</div>
+
+            <a href="/user/help" class="nav-item {% if request.endpoint == 'user.help' %}active{% endif %}"
+                onclick="toggleSidebar()">
+                <i class="fas fa-question-circle"></i>
+                <span>Help Center</span>
+            </a>
         </nav>
+
+        <!-- Footer - Fixed at bottom -->
+        <div class="flex-shrink-0 border-t border-gray-200 dark:border-dark-border p-4">
+            <button id="theme-toggle-mobile-sidebar" class="theme-toggle-btn" onclick="toggleSidebar()">
+                <i class="fas fa-moon hidden dark:block"></i>
+                <i class="fas fa-sun block dark:hidden"></i>
+                <span class="hidden dark:block">Switch to Light Mode</span>
+                <span class="block dark:hidden">Switch to Dark Mode</span>
+            </button>
+        </div>
     </div>
 
     <!-- Main Content -->
@@ -520,6 +720,7 @@
         // Dark Mode Logic
         const themeToggleDesktop = document.getElementById('theme-toggle-desktop');
         const themeToggleMobile = document.getElementById('theme-toggle-mobile');
+        const themeToggleMobileSidebar = document.getElementById('theme-toggle-mobile-sidebar');
 
         function toggleTheme() {
             if (document.documentElement.classList.contains('dark')) {
@@ -533,6 +734,7 @@
 
         if (themeToggleDesktop) themeToggleDesktop.addEventListener('click', toggleTheme);
         if (themeToggleMobile) themeToggleMobile.addEventListener('click', toggleTheme);
+        if (themeToggleMobileSidebar) themeToggleMobileSidebar.addEventListener('click', toggleTheme);
     </script>
     {% block scripts %}{% endblock %}
 </body>

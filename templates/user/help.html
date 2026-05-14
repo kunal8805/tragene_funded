@@ -1,0 +1,276 @@
+{% extends "user/base.html" %}
+
+{% block title %}Help Center - Tragene Funded{% endblock %}
+{% block header_title %}Help Center{% endblock %}
+{% block header_subtitle %}Find answers or talk to our support team{% endblock %}
+
+{% block head %}
+<style>
+    .faq-card {
+        transition: all 0.3s ease;
+    }
+    .faq-card:hover {
+        transform: translateY(-2px);
+    }
+    .category-pill {
+        transition: all 0.2s ease;
+    }
+    .category-pill.active {
+        background: #3b82f6;
+        color: white;
+    }
+    .status-badge {
+        font-size: 0.7rem;
+        padding: 0.2rem 0.5rem;
+        border-radius: 9999px;
+        text-transform: uppercase;
+        font-weight: 700;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto space-y-8">
+    <!-- Tabs -->
+    <div class="flex border-b border-gray-200 dark:border-dark-border">
+        <button id="tab-faq" onclick="switchTab('faq')" class="px-6 py-3 font-semibold text-blue-600 border-b-2 border-blue-600 transition-all">
+            Knowledge Base
+        </button>
+        <button id="tab-tickets" onclick="switchTab('tickets')" class="px-6 py-3 font-semibold text-gray-500 hover:text-blue-600 transition-all">
+            My Tickets
+        </button>
+    </div>
+
+    <!-- Knowledge Base Section -->
+    <div id="section-faq" class="space-y-6">
+        <!-- Search Bar -->
+        <div class="glass-card p-6">
+            <form action="{{ url_for('user.help') }}" method="GET" class="relative">
+                <input type="text" name="search" value="{{ search_query }}" placeholder="Search for answers (e.g. 'payout', 'MT5', 'drawdown')..." 
+                       class="w-full pl-12 pr-4 py-4 rounded-xl bg-gray-50 dark:bg-gray-800 border-none focus:ring-2 focus:ring-blue-500 text-lg">
+                <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-xl"></i>
+                <button type="submit" class="absolute right-3 top-1/2 -translate-y-1/2 bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 transition">
+                    Search
+                </button>
+            </form>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+            <!-- Categories Sidebar -->
+            <div class="lg:col-span-1 space-y-2">
+                <h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">Categories</h3>
+                <button onclick="filterCategory('all')" class="category-pill w-full text-left px-4 py-3 rounded-xl hover:bg-blue-50 dark:hover:bg-blue-900/20 active font-medium">
+                    All Questions
+                </button>
+                {% for category in categories.keys() %}
+                <button onclick="filterCategory('{{ category }}')" class="category-pill w-full text-left px-4 py-3 rounded-xl hover:bg-blue-50 dark:hover:bg-blue-900/20 font-medium">
+                    {{ category }}
+                </button>
+                {% endfor %}
+                
+                <div class="pt-8">
+                    <div class="glass-card p-6 bg-gradient-to-br from-blue-600 to-indigo-700 text-white">
+                        <h4 class="font-bold mb-2">Need more help?</h4>
+                        <p class="text-sm text-blue-100 mb-4">Can't find what you're looking for? Open a support ticket.</p>
+                        <a href="{{ url_for('user.ticket_create') }}" class="block w-full text-center bg-white text-blue-600 py-2 rounded-lg font-bold hover:bg-blue-50 transition">
+                            Create Ticket
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- FAQ List -->
+            <div class="lg:col-span-3 space-y-4">
+                {% if categories %}
+                    {% for category, faqs in categories.items() %}
+                    <div class="faq-category-group" data-category="{{ category }}">
+                        <h3 class="text-xl font-bold mb-4 text-gray-800 dark:text-white">{{ category }}</h3>
+                        <div class="space-y-3">
+                            {% for faq in faqs %}
+                            <div class="faq-card glass-card overflow-hidden">
+                                <button onclick="toggleFaq({{ faq.id }})" class="w-full flex items-center justify-between p-5 text-left">
+                                    <span class="font-semibold text-gray-800 dark:text-gray-200">
+                                        {% if faq.is_pinned %}<i class="fas fa-thumbtack text-blue-500 mr-2"></i>{% endif %}
+                                        {{ faq.question }}
+                                    </span>
+                                    <i id="icon-{{ faq.id }}" class="fas fa-chevron-down text-gray-400 transition-transform"></i>
+                                </button>
+                                <div id="faq-{{ faq.id }}" class="hidden px-5 pb-5">
+                                    <div class="pt-4 border-t border-gray-100 dark:border-dark-border text-gray-600 dark:text-gray-400 leading-relaxed">
+                                        {{ faq.answer | safe }}
+                                    </div>
+                                    <div class="mt-6 flex items-center justify-between pt-4 border-t border-gray-50 dark:border-dark-border">
+                                        <span class="text-xs text-gray-400">Was this helpful?</span>
+                                        <div class="flex gap-3">
+                                            <button onclick="voteHelpful({{ faq.id }}, 'yes')" class="text-xs flex items-center gap-1 px-3 py-1 rounded-full border border-gray-200 dark:border-gray-700 hover:bg-green-50 dark:hover:bg-green-900/20 hover:text-green-600 transition">
+                                                <i class="far fa-thumbs-up"></i> Yes
+                                            </button>
+                                            <button onclick="voteHelpful({{ faq.id }}, 'no')" class="text-xs flex items-center gap-1 px-3 py-1 rounded-full border border-gray-200 dark:border-gray-700 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 transition">
+                                                <i class="far fa-thumbs-down"></i> No
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="glass-card p-12 text-center">
+                        <i class="fas fa-search text-5xl text-gray-200 mb-4"></i>
+                        <h3 class="text-xl font-bold text-gray-400">No results found for "{{ search_query }}"</h3>
+                        <p class="text-gray-400 mt-2">Try different keywords or browse categories.</p>
+                        <a href="{{ url_for('user.help') }}" class="text-blue-500 mt-4 inline-block font-medium">Clear search</a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Tickets Section -->
+    <div id="section-tickets" class="hidden space-y-6">
+        <div class="flex justify-between items-center">
+            <h3 class="text-2xl font-bold text-gray-800 dark:text-white">Your Support Tickets</h3>
+            <a href="{{ url_for('user.ticket_create') }}" class="bg-blue-600 text-white px-6 py-2 rounded-xl font-bold hover:bg-blue-700 transition shadow-lg shadow-blue-500/30">
+                <i class="fas fa-plus mr-2"></i>New Ticket
+            </a>
+        </div>
+
+        <div class="glass-card overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-dark-border">
+                        <tr>
+                            <th class="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Ticket</th>
+                            <th class="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Subject</th>
+                            <th class="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Category</th>
+                            <th class="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Status</th>
+                            <th class="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Last Activity</th>
+                            <th class="px-6 py-4 text-right text-xs font-bold text-gray-400 uppercase tracking-wider">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100 dark:divide-dark-border">
+                        {% for ticket in tickets %}
+                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/30 transition">
+                            <td class="px-6 py-4">
+                                <span class="font-mono text-sm font-bold text-blue-600">{{ ticket.ticket_number }}</span>
+                            </td>
+                            <td class="px-6 py-4">
+                                <p class="font-semibold text-gray-800 dark:text-gray-200">{{ ticket.subject }}</p>
+                            </td>
+                            <td class="px-6 py-4">
+                                <span class="text-sm text-gray-500">{{ ticket.category }}</span>
+                            </td>
+                            <td class="px-6 py-4">
+                                {% if ticket.status == 'open' %}
+                                <span class="status-badge bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">Open</span>
+                                {% elif ticket.status == 'in_progress' %}
+                                <span class="status-badge bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">In Progress</span>
+                                {% elif ticket.status == 'resolved' %}
+                                <span class="status-badge bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400">Resolved</span>
+                                {% else %}
+                                <span class="status-badge bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">Closed</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-4 text-sm text-gray-500">
+                                {{ ticket.updated_at.strftime('%d %b, %H:%M') }}
+                            </td>
+                            <td class="px-6 py-4 text-right">
+                                <a href="{{ url_for('user.ticket_chat', ticket_number=ticket.ticket_number) }}" class="text-blue-600 hover:text-blue-800 font-bold text-sm">
+                                    View Chat
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        {% if not tickets %}
+                        <tr>
+                            <td colspan="6" class="px-6 py-12 text-center text-gray-400">
+                                <p>You haven't raised any support tickets yet.</p>
+                            </td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function switchTab(tab) {
+        const faqBtn = document.getElementById('tab-faq');
+        const ticketsBtn = document.getElementById('tab-tickets');
+        const faqSec = document.getElementById('section-faq');
+        const ticketsSec = document.getElementById('section-tickets');
+        
+        if (tab === 'faq') {
+            faqBtn.className = 'px-6 py-3 font-semibold text-blue-600 border-b-2 border-blue-600 transition-all';
+            ticketsBtn.className = 'px-6 py-3 font-semibold text-gray-500 hover:text-blue-600 transition-all';
+            faqSec.classList.remove('hidden');
+            ticketsSec.classList.add('hidden');
+        } else {
+            ticketsBtn.className = 'px-6 py-3 font-semibold text-blue-600 border-b-2 border-blue-600 transition-all';
+            faqBtn.className = 'px-6 py-3 font-semibold text-gray-500 hover:text-blue-600 transition-all';
+            ticketsSec.classList.remove('hidden');
+            faqSec.classList.add('hidden');
+        }
+    }
+
+    function toggleFaq(id) {
+        const content = document.getElementById(`faq-${id}`);
+        const icon = document.getElementById(`icon-${id}`);
+        
+        if (content.classList.contains('hidden')) {
+            content.classList.remove('hidden');
+            icon.style.transform = 'rotate(180deg)';
+        } else {
+            content.classList.add('hidden');
+            icon.style.transform = 'rotate(0deg)';
+        }
+    }
+
+    function filterCategory(category) {
+        // Update pills
+        document.querySelectorAll('.category-pill').forEach(btn => {
+            btn.classList.remove('active', 'bg-blue-50', 'dark:bg-blue-900/20', 'text-blue-600');
+            if ((category === 'all' && btn.innerText === 'All Questions') || btn.innerText === category) {
+                btn.classList.add('active', 'bg-blue-50', 'dark:bg-blue-900/20', 'text-blue-600');
+            }
+        });
+
+        // Filter groups
+        document.querySelectorAll('.faq-category-group').forEach(group => {
+            if (category === 'all' || group.dataset.category === category) {
+                group.classList.remove('hidden');
+            } else {
+                group.classList.add('hidden');
+            }
+        });
+    }
+
+    function voteHelpful(faqId, vote) {
+        fetch("{{ url_for('user.help_vote') }}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ faq_id: faqId, vote: vote }),
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Thank you for your feedback!');
+            }
+        });
+    }
+
+    // Handle initial tab if query param exists
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('tab') === 'tickets') {
+        switchTab('tickets');
+    }
+</script>
+{% endblock %}

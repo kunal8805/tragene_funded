@@ -8,8 +8,11 @@ import random
 import time
 from werkzeug.utils import secure_filename
 
-# ===== ADD RAZORPAY IMPORTS =====
-import razorpay
+# ===== ADD CASHFREE IMPORTS =====
+from cashfree_pg.models.create_order_request import CreateOrderRequest
+from cashfree_pg.api_client import Cashfree
+from cashfree_pg.models.customer_details import CustomerDetails
+from cashfree_pg.models.order_meta import OrderMeta
 import hashlib
 import hmac
 import json
@@ -25,27 +28,30 @@ load_dotenv()
 DEV_MODE = os.getenv("DEV_MODE", "false").lower() == "true"
 PRELAUNCH_MODE = os.getenv("PRELAUNCH_MODE", "true").lower() == "true"
 
-# ===== RAZORPAY CONFIGURATION =====
-RAZORPAY_KEY_ID = os.getenv('RAZORPAY_KEY_ID')
-RAZORPAY_KEY_SECRET = os.getenv('RAZORPAY_KEY_SECRET')
+# ===== CASHFREE CONFIGURATION =====
+CASHFREE_APP_ID = os.getenv('CASHFREE_APP_ID')
+CASHFREE_SECRET_KEY = os.getenv('CASHFREE_SECRET_KEY')
+CASHFREE_WEBHOOK_SECRET = os.getenv('CASHFREE_WEBHOOK_SECRET')
 
-if RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET:
-    razorpay_client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
+if CASHFREE_APP_ID and CASHFREE_SECRET_KEY:
+    Cashfree.XClientId = CASHFREE_APP_ID
+    Cashfree.XClientSecret = CASHFREE_SECRET_KEY
+    Cashfree.XEnvironment = Cashfree.PRODUCTION
     if DEV_MODE:
-        print("✅ Razorpay client initialized")
+        print("[OK] Cashfree client initialized")
 else:
-    razorpay_client = None
     if DEV_MODE:
-        print("⚠️ Razorpay keys not set - payment system disabled")
+        print("[WARNING] Cashfree keys not set - payment system disabled")
 
-# Import Resend correctly for v2.19.0
+# Import Resend correctly for v2.29.0+
 try:
-    from resend import Resend
+    import resend
     RESEND_AVAILABLE = True
 except ImportError:
     RESEND_AVAILABLE = False
     if DEV_MODE:
         print("[WARNING] Resend package not installed. Email functionality disabled.")
+
 
 # Get the current directory and set template path explicitly
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -56,7 +62,7 @@ app = Flask(__name__, template_folder=template_dir)
 # ===== SECRET KEY & DATABASE CONFIG =====
 app.config['SECRET_KEY'] = os.getenv('APP_SECRET_KEY')
 if not app.config['SECRET_KEY']:
-    raise ValueError("❌ APP_SECRET_KEY must be set in .env file")
+    raise ValueError("APP_SECRET_KEY must be set in .env file")
 
 # Session security
 app.config['SESSION_COOKIE_SECURE'] = not DEV_MODE  # HTTPS only in production
@@ -75,20 +81,17 @@ if DEV_MODE:
 
 # ===== RESEND CONFIGURATION =====
 RESEND_API_KEY = os.getenv('RESEND_API_KEY')
-TEST_EMAIL = os.getenv('TEST_EMAIL', 'dhadekunal11@gmail.com')
 
 # Initialize Resend client ONLY if available
 if RESEND_AVAILABLE and RESEND_API_KEY:
     try:
-        client = Resend(api_key=RESEND_API_KEY)
+        resend.api_key = RESEND_API_KEY
         if DEV_MODE:
-            print("✅ Resend client initialized successfully")
+            print("[OK] Resend API key configured successfully")
     except Exception as e:
-        print(f"❌ Failed to initialize Resend: {e}")
-        client = None
+        print(f"[ERROR] Failed to configure Resend: {e}")
         RESEND_AVAILABLE = False
-else:
-    client = None
+
 
 # File upload configuration
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
@@ -96,7 +99,7 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'pdf'}
 
 # ===== INITIALIZE DATABASE & MIGRATE =====
-from models import db, User, ChallengeTemplate, Payment, ChallengePurchase, WaitlistLead
+from models import db, User, ChallengeTemplate, Payment, ChallengePurchase, WaitlistLead, WebhookLog
 
 db.init_app(app)
 migrate = Migrate(app, db)
@@ -173,33 +176,29 @@ def inject_user():
 
 # ===== FIXED EMAIL SENDER FUNCTION =====
 def send_test_email(to_email, subject, html_content):
-    if not RESEND_AVAILABLE or client is None:
+    if not RESEND_AVAILABLE or not resend.api_key:
         if DEV_MODE:
-            print("⚠️ Email skipped - Resend not available")
-        return True
+            print("⚠️ Email skipped - Resend not available or API key missing")
+        return False  # Return False if not available so we don't flash success
     
     try:
         params = {
-            "from": "Tragene Funded <onboarding@resend.dev>",
-            "to": [TEST_EMAIL],
-            "subject": f"[TEST] {subject}",
-            "html": f"""
-            <div style='font-family: Arial;'>
-                <strong>TEST EMAIL</strong><br>
-                Original recipient: {to_email}<br><br>
-                {html_content}
-            </div>
-            """
+            "from": "Tragene Funded <support@tragenefunded.com>",
+            "to": [to_email],
+            "subject": subject,
+            "html": html_content
         }
 
-        result = client.emails.send(params)
+        result = resend.Emails.send(params)
         if DEV_MODE:
             print(f"✅ Email sent successfully: {result}")
         return True
 
+
     except Exception as e:
         print(f"❌ Email failed: {str(e)}")
         return False
+
 
 # ===== LOGIN DECORATOR =====
 def login_required(f):
@@ -211,32 +210,72 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
-# ===== RAZORPAY HELPER FUNCTIONS =====
-def verify_razorpay_payment(razorpay_order_id, razorpay_payment_id, razorpay_signature):
-    """Verify Razorpay payment signature"""
-    if not RAZORPAY_KEY_SECRET:
-        print("❌ Razorpay secret not configured")
+# ===== CASHFREE HELPER FUNCTIONS =====
+def verify_cashfree_webhook_signature(payload_body, signature, timestamp):
+    """Verify Cashfree webhook signature"""
+    if not CASHFREE_WEBHOOK_SECRET:
+        print("❌ Cashfree webhook secret not configured")
         return False
-    
-    try:
-        body = f"{razorpay_order_id}|{razorpay_payment_id}"
-        expected_signature = hmac.new(
-            RAZORPAY_KEY_SECRET.encode(),
-            body.encode(),
-            hashlib.sha256
-        ).hexdigest()
         
-        if razorpay_signature == expected_signature:
+    try:
+        import base64
+        data = timestamp + payload_body
+        expected_signature_b64 = base64.b64encode(hmac.new(
+            CASHFREE_WEBHOOK_SECRET.encode('utf-8'),
+            data.encode('utf-8'),
+            hashlib.sha256
+        ).digest()).decode('utf-8')
+        
+        if signature == expected_signature_b64:
             if DEV_MODE:
-                print(f"✅ Payment verified: {razorpay_payment_id}")
+                print(f"✅ Webhook signature verified")
             return True
         else:
-            print(f"❌ Invalid signature for payment: {razorpay_payment_id}")
+            print(f"❌ Invalid webhook signature")
             return False
             
     except Exception as e:
-        print(f"❌ Payment verification error: {e}")
+        print(f"❌ Webhook verification error: {e}")
         return False
+
+def provision_challenge(payment, user, challenge_template_id):
+    """Helper to provision a challenge after successful payment"""
+    from models import db, ChallengePurchase, ChallengeTemplate
+    from utils.challenge_auth import get_next_serial_no, generate_challenge_code, generate_challenge_token
+    
+    challenge = ChallengeTemplate.query.get(challenge_template_id)
+    if not challenge:
+        return False, "Challenge template not found"
+        
+    purchase = ChallengePurchase(
+        user_id=user.id,
+        challenge_template_id=challenge.id,
+        purchase_date=datetime.now(timezone.utc),
+        amount=challenge.price,
+        payment_method='cashfree',
+        status='active',
+        start_date=datetime.now(timezone.utc),
+        end_date=datetime.now(timezone.utc) + timedelta(days=challenge.duration_days),
+        mt5_account=f"TRG_{user.id}_{challenge.id}_{datetime.now().strftime('%Y%m%d')}",
+        current_profit=0.0,
+        current_loss=0.0,
+        phase=1,
+        progress_percentage=0.0,
+        days_remaining=challenge.duration_days
+    )
+    
+    purchase.serial_no = get_next_serial_no()
+    purchase.challenge_code = generate_challenge_code()
+    purchase.challenge_token = generate_challenge_token()
+    
+    db.session.add(purchase)
+    db.session.flush()
+    payment.challenge_purchase_id = purchase.id
+    
+    if DEV_MODE:
+        print(f"🎯 Challenge purchase created: {purchase.id}")
+        
+    return True, purchase.id
 
 # ===== SEED DEFAULT DATA =====
 with app.app_context():
@@ -262,7 +301,7 @@ with app.app_context():
             db.session.add(admin)
             db.session.commit()
             if DEV_MODE:
-                print(f"✅ Default admin created: {admin_email}")
+                print(f"[OK] Default admin created: {admin_email}")
 
         if not ChallengeTemplate.query.first():
             default_challenges = [
@@ -275,7 +314,7 @@ with app.app_context():
                 db.session.add(challenge)
             db.session.commit()
             if DEV_MODE:
-                print("✅ Default challenge templates created")
+                print("[OK] Default challenge templates created")
     except Exception as e:
         if DEV_MODE:
             print(f"[INFO] DB not ready for seeding: {e}")
@@ -294,12 +333,12 @@ with app.app_context():
     except ImportError as e:
         print(f"[WARNING] Some blueprints not found: {e}")
 
-# ===== RAZORPAY PAYMENT ROUTES =====
-@app.route('/create-razorpay-order', methods=['POST'])
+# ===== CASHFREE PAYMENT ROUTES =====
+@app.route('/create-cashfree-order', methods=['POST'])
 @login_required
-def create_razorpay_order():
-    """Create Razorpay order when user clicks 'Proceed to Payment'"""
-    if not razorpay_client:
+def create_cashfree_order():
+    """Create Cashfree order when user clicks 'Proceed to Payment'"""
+    if not CASHFREE_APP_ID:
         return jsonify({'success': False, 'error': 'Payment system not configured'})
     
     try:
@@ -320,34 +359,53 @@ def create_razorpay_order():
         if user.kyc_status != 'approved':
             return jsonify({'success': False, 'error': 'Please complete KYC verification first'})
         
-        notes = {
-            'user_id': str(user.id),
-            'challenge_id': str(challenge.id),
-            'challenge_name': challenge.name,
-            'account_size': str(challenge.account_size)
-        }
+        # Calculate expected payable amount on backend.
+        # This is where coupon logic would apply. For now, it's just price.
+        expected_payable_amount = float(challenge.price)
         
-        amount_in_paise = int(challenge.price * 100)
-        order_data = {
-            'amount': amount_in_paise,
-            'currency': 'INR',
-            'payment_capture': 1,
-            'notes': notes
-        }
+        # Unique Order ID
+        internal_order_id = f"ORDER_{user.id}_{int(time.time())}_{secrets.token_hex(4)}"
         
-        order = razorpay_client.order.create(data=order_data)
+        customer_details = CustomerDetails(
+            customer_id=f"USER_{user.id}",
+            customer_phone=user.phone or "9999999999",
+            customer_email=user.email,
+            customer_name=f"{user.first_name} {user.last_name}"
+        )
+        
+        order_meta = OrderMeta(
+            return_url=f"https://www.tragenefunded.com/payment-success?order_id={internal_order_id}",
+            notify_url="https://www.tragenefunded.com/cashfree-webhook"
+        )
+        
+        create_order_request = CreateOrderRequest(
+            order_amount=expected_payable_amount,
+            order_currency="INR",
+            order_id=internal_order_id,
+            customer_details=customer_details,
+            order_meta=order_meta,
+            order_note=f"Challenge: {challenge.name}"
+        )
+        
+        # Create order in Cashfree
+        api_response = Cashfree(Cashfree.PRODUCTION).PGCreateOrder(x_api_version="2025-01-01", create_order_request=create_order_request)
+        order_response = api_response.data
+        
         if DEV_MODE:
-            print(f"✅ Razorpay Order Created: {order['id']} for ₹{challenge.price}")
+            print(f"[OK] Cashfree Order Created: {internal_order_id} for INR {expected_payable_amount}")
         
         payment = Payment(
             user_id=user.id,
-            payment_id=order['id'],
-            amount=challenge.price,
+            challenge_template_id=challenge.id,
+            payment_id=internal_order_id,
+            amount=expected_payable_amount,
+            expected_amount=expected_payable_amount,
             currency='INR',
-            payment_method='razorpay',
+            payment_method='cashfree',
             status='pending',
+            gateway='cashfree',
             gateway_id='',
-            gateway_response=json.dumps({'order_id': order['id']})
+            gateway_response=json.dumps({'payment_session_id': order_response.payment_session_id})
         )
         
         db.session.add(payment)
@@ -355,152 +413,165 @@ def create_razorpay_order():
         
         return jsonify({
             'success': True,
-            'order_id': order['id'],
-            'amount': challenge.price,
-            'amount_in_paise': amount_in_paise,
-            'currency': 'INR',
-            'key': RAZORPAY_KEY_ID,
-            'name': 'Tragene Funded',
-            'description': f'{challenge.name} - ${challenge.account_size} Account',
-            'user': {
-                'name': f'{user.first_name} {user.last_name}',
-                'email': user.email,
-                'phone': user.phone
-            },
-            'prefill': {
-                'name': f'{user.first_name} {user.last_name}',
-                'email': user.email,
-                'contact': user.phone
-            },
-            'notes': notes
+            'payment_session_id': order_response.payment_session_id,
+            'order_id': internal_order_id
         })
         
     except Exception as e:
         db.session.rollback()
-        print(f"❌ Create order error: {e}")
+        print(f"[ERROR] Create order error: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
-@app.route('/verify-payment', methods=['POST'])
-@login_required
-def verify_payment():
-    """Verify payment after Razorpay redirect"""
-    if not razorpay_client:
-        flash('Payment system not configured', 'error')
-        return redirect(url_for('user.challenges'))
-    
+@app.route('/cashfree-webhook', methods=['POST'])
+def cashfree_webhook():
+    """Cashfree Webhook - Single Source of Truth"""
     try:
-        user_id = session.get('user_id')
-        user = User.query.get(user_id)
+        from models import WebhookLog, Payment, db
+        payload = request.get_data().decode('utf-8')
+        signature = request.headers.get('x-webhook-signature')
+        timestamp = request.headers.get('x-webhook-timestamp')
         
-        if not user:
-            flash('User not found', 'error')
-            return redirect(url_for('auth.login'))
+        if not signature or not timestamp:
+            return jsonify({'status': 'missing headers'}), 400
+            
+        if not verify_cashfree_webhook_signature(payload, signature, timestamp):
+            return jsonify({'status': 'invalid signature'}), 401
+            
+        data = json.loads(payload)
+        event_type = data.get('type')
+        order_id = data.get('data', {}).get('order', {}).get('order_id')
         
-        razorpay_order_id = request.form.get('razorpay_order_id')
-        razorpay_payment_id = request.form.get('razorpay_payment_id')
-        razorpay_signature = request.form.get('razorpay_signature')
-        challenge_id = request.form.get('challenge_id')
-        
-        if DEV_MODE:
-            print(f"\n🔍 Payment Verification: {user.email}")
-        
-        if not all([razorpay_order_id, razorpay_payment_id, razorpay_signature]):
-            flash('Invalid payment response', 'error')
-            return redirect(url_for('user.challenges'))
-        
-        is_valid = verify_razorpay_payment(
-            razorpay_order_id,
-            razorpay_payment_id,
-            razorpay_signature
+        # Log incoming webhook
+        webhook_log = WebhookLog(
+            event_type=event_type,
+            order_id=order_id,
+            raw_payload=payload,
+            headers=json.dumps(dict(request.headers)),
+            signature=signature,
+            status='pending'
         )
-        
-        if not is_valid:
-            flash('Payment verification failed. Possible fraud attempt.', 'error')
-            return redirect(url_for('user.challenges'))
-        
-        try:
-            payment_details = razorpay_client.payment.fetch(razorpay_payment_id)
-        except Exception as e:
-            print(f"❌ Error fetching payment: {e}")
-            payment_details = {'status': 'captured'}
-        
-        payment = Payment.query.filter_by(payment_id=razorpay_order_id).first()
-        
-        if not payment:
-            payment = Payment(
-                user_id=user.id,
-                payment_id=razorpay_order_id,
-                amount=0,
-                currency='INR',
-                payment_method='razorpay',
-                status='pending',
-                gateway_id=razorpay_payment_id,
-                gateway_response=json.dumps(payment_details)
-            )
-        
-        if payment.status == 'success':
-            flash('Payment already verified.', 'info')
-            return redirect(url_for('user.payment_status', payment_id=payment.id))
-        
-        payment.status = 'success' if payment_details.get('status') == 'captured' else 'failed'
-        payment.gateway_id = razorpay_payment_id
-        payment.gateway_response = json.dumps(payment_details)
-        payment.updated_at = datetime.now(timezone.utc)
-        
-        if not challenge_id and payment_details.get('notes'):
-            notes = payment_details.get('notes', {})
-            challenge_id = notes.get('challenge_id')
-        
-        if payment.status == 'success' and challenge_id:
-            challenge = ChallengeTemplate.query.get(challenge_id)
-            if not challenge:
-                flash('Challenge not found', 'error')
-                return redirect(url_for('user.challenges'))
-            
-            payment.amount = challenge.price
-            
-            purchase = ChallengePurchase(
-                user_id=user.id,
-                challenge_template_id=challenge.id,
-                purchase_date=datetime.now(timezone.utc),
-                amount=challenge.price,
-                payment_method='razorpay',
-                status='active',
-                start_date=datetime.now(timezone.utc),
-                end_date=datetime.now(timezone.utc) + timedelta(days=challenge.duration_days),
-                mt5_account=f"TRG_{user.id}_{challenge.id}_{datetime.now().strftime('%Y%m%d')}",
-                current_profit=0.0,
-                current_loss=0.0,
-                phase=1,
-                progress_percentage=0.0,
-                days_remaining=challenge.duration_days
-            )
-            
-            from utils.challenge_auth import get_next_serial_no, generate_challenge_code, generate_challenge_token
-            purchase.serial_no = get_next_serial_no()
-            purchase.challenge_code = generate_challenge_code()
-            purchase.challenge_token = generate_challenge_token()
-            
-            db.session.add(purchase)
-            db.session.flush()
-            payment.challenge_purchase_id = purchase.id
-            
-            if DEV_MODE:
-                print(f"🎯 Challenge purchase created: {purchase.id}")
-            
-            flash(f'✅ Payment successful! Your {challenge.name} account has been created.', 'success')
-        else:
-            flash('❌ Payment failed or invalid. Please try again.', 'error')
-        
+        db.session.add(webhook_log)
         db.session.commit()
         
+        if event_type == 'PAYMENT_SUCCESS_WEBHOOK':
+            payment_info = data.get('data', {}).get('payment', {})
+            cf_payment_id = payment_info.get('cf_payment_id')
+            paid_amount = float(payment_info.get('payment_amount', 0))
+            payment_currency = payment_info.get('payment_currency')
+            
+            payment = Payment.query.filter_by(payment_id=order_id).first()
+            if not payment:
+                webhook_log.status = 'failed'
+                webhook_log.error_message = 'Payment record not found'
+                db.session.commit()
+                return jsonify({'status': 'order not found'}), 200
+                
+            # Idempotency check
+            if payment.status in ['paid', 'success']:
+                webhook_log.status = 'duplicate'
+                db.session.commit()
+                return jsonify({'status': 'already processed'}), 200
+                
+            # Strict Amount Validation
+            if paid_amount != payment.expected_amount:
+                payment.status = 'failed'
+                webhook_log.status = 'failed'
+                webhook_log.error_message = f'Amount mismatch. Expected {payment.expected_amount}, got {paid_amount}'
+                db.session.commit()
+                return jsonify({'status': 'amount mismatch'}), 200
+                
+            if payment_currency != 'INR':
+                payment.status = 'failed'
+                webhook_log.status = 'failed'
+                webhook_log.error_message = 'Currency mismatch'
+                db.session.commit()
+                return jsonify({'status': 'currency mismatch'}), 200
+                
+            # Double check with Cashfree API
+            try:
+                api_response = Cashfree(Cashfree.PRODUCTION).PGOrderFetchPayments(x_api_version="2025-01-01", order_id=order_id)
+                payments_list = api_response.data
+                
+                is_actually_paid = False
+                for p in payments_list:
+                    if str(p.cf_payment_id) == str(cf_payment_id) and p.payment_status == 'SUCCESS':
+                        is_actually_paid = True
+                        break
+                        
+                if not is_actually_paid:
+                    webhook_log.status = 'failed'
+                    webhook_log.error_message = 'Direct API verification failed'
+                    db.session.commit()
+                    return jsonify({'status': 'api verification failed'}), 200
+            except Exception as e:
+                print(f"Direct verification error: {e}")
+                return jsonify({'status': 'error verifying with API'}), 500
+                
+            # Provisioning
+            user = User.query.get(payment.user_id)
+            success, msg = provision_challenge(payment, user, payment.challenge_template_id)
+            
+            if success:
+                payment.status = 'success' # Keep as success for frontend compatibility
+                payment.gateway_id = str(cf_payment_id)
+                payment.gateway_response = json.dumps(data)
+                webhook_log.status = 'processed'
+                webhook_log.processed_at = datetime.now(timezone.utc)
+            else:
+                payment.status = 'failed'
+                webhook_log.status = 'failed'
+                webhook_log.error_message = f'Provisioning failed: {msg}'
+                
+            db.session.commit()
+            return jsonify({'status': 'success'}), 200
+            
+        elif event_type == 'PAYMENT_FAILED_WEBHOOK':
+            payment = Payment.query.filter_by(payment_id=order_id).first()
+            if payment and payment.status == 'pending':
+                payment.status = 'failed'
+                payment.gateway_response = json.dumps(data)
+                webhook_log.status = 'processed'
+                db.session.commit()
+            return jsonify({'status': 'recorded failure'}), 200
+            
+        else:
+            webhook_log.status = 'ignored'
+            db.session.commit()
+            return jsonify({'status': 'event ignored'}), 200
+            
+    except Exception as e:
+        print(f"Webhook processing error: {e}")
+        return jsonify({'status': 'error'}), 500
+
+@app.route('/payment-success')
+@login_required
+def payment_success():
+    """Purely UI route for successful payment return. NO PROVISIONING HERE."""
+    order_id = request.args.get('order_id')
+    if not order_id:
+        flash('Invalid order reference', 'error')
+        return redirect(url_for('user.challenges'))
+        
+    payment = Payment.query.filter_by(payment_id=order_id).first()
+    if not payment:
+        flash('Payment not found', 'error')
+        return redirect(url_for('user.challenges'))
+        
+    if payment.user_id != session.get('user_id'):
+        flash('Access denied', 'error')
+        return redirect(url_for('user.dashboard'))
+        
+    if payment.status == 'pending':
+        flash('Your payment is being verified securely. Please check back in a moment.', 'info')
         return redirect(url_for('user.payment_status', payment_id=payment.id))
         
-    except Exception as e:
-        db.session.rollback()
-        print(f"❌ Payment verification error: {e}")
-        flash('Error processing payment. Please contact support.', 'error')
-        return redirect(url_for('user.challenges'))
+    elif payment.status == 'success' or payment.status == 'paid':
+        flash('Payment successful! Your account has been created.', 'success')
+        return redirect(url_for('user.payment_status', payment_id=payment.id))
+        
+    else:
+        flash('❌ Payment failed or invalid. Please try again.', 'error')
+        return redirect(url_for('user.payment_status', payment_id=payment.id))
 
 @app.route('/payment/status/<int:payment_id>')
 @login_required
@@ -580,8 +651,9 @@ if __name__ == '__main__':
         print(f"Database: {db_url[:60]}...")
         print(f"Template folder: {app.template_folder}")
         print(f"Resend: {'ENABLED' if RESEND_AVAILABLE else 'DISABLED'}")
-        print(f"Razorpay: {'ENABLED' if razorpay_client else 'DISABLED'}")
-        
+        # Cashfree status (Razorpay removed)
+        cashfree_enabled = bool(CASHFREE_APP_ID and CASHFREE_SECRET_KEY)
+        print(f"Cashfree: {'ENABLED' if cashfree_enabled else 'DISABLED'}")    
         important_templates = ['index.html', 'user/user_dashboard.html', 'login.html', 
                               'user/payment_status.html', 'user/payment_failed.html']
         for template in important_templates:

@@ -1,0 +1,68 @@
+{% extends "admin/base.html" %}
+
+{% block title %}{{ 'Edit' if faq else 'Create' }} FAQ - Admin Panel{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto space-y-6">
+    <div class="flex items-center gap-4">
+        <a href="{{ url_for('admin.admin_faq') }}" class="text-gray-400 hover:text-blue-600 transition">
+            <i class="fas fa-arrow-left text-xl"></i>
+        </a>
+        <h2 class="text-2xl font-bold text-gray-800">{{ 'Edit' if faq else 'Create New' }} FAQ</h2>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm p-8">
+        <form action="{{ url_for('admin.admin_faq_edit', faq_id=faq.id) if faq else url_for('admin.admin_faq_create') }}" method="POST" class="space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Category -->
+                <div class="space-y-2">
+                    <label class="text-sm font-bold text-gray-500 uppercase">Category</label>
+                    <select name="category" required class="w-full p-3 rounded-lg border-gray-200 focus:ring-2 focus:ring-blue-500">
+                        <option value="General Questions" {% if faq and faq.category == 'General Questions' %}selected{% endif %}>General Questions</option>
+                        <option value="Challenge & Rules" {% if faq and faq.category == 'Challenge & Rules' %}selected{% endif %}>Challenge & Rules</option>
+                        <option value="Payouts & Funding" {% if faq and faq.category == 'Payouts & Funding' %}selected{% endif %}>Payouts & Funding</option>
+                        <option value="Accounts & Dashboard" {% if faq and faq.category == 'Accounts & Dashboard' %}selected{% endif %}>Accounts & Dashboard</option>
+                        <option value="KYC & Verification" {% if faq and faq.category == 'KYC & Verification' %}selected{% endif %}>KYC & Verification</option>
+                        <option value="Technical Support" {% if faq and faq.category == 'Technical Support' %}selected{% endif %}>Technical Support</option>
+                    </select>
+                </div>
+
+                <!-- Pinned -->
+                <div class="space-y-2">
+                    <label class="text-sm font-bold text-gray-500 uppercase">Visibility</label>
+                    <div class="flex items-center h-12">
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" name="is_pinned" value="1" class="sr-only peer" {% if faq and faq.is_pinned %}checked{% endif %}>
+                            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                            <span class="ml-3 text-sm font-medium text-gray-700">Pin to Top</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Question -->
+            <div class="space-y-2">
+                <label class="text-sm font-bold text-gray-500 uppercase">Question</label>
+                <input type="text" name="question" value="{{ faq.question if faq else '' }}" required placeholder="e.g. How do I request a payout?" 
+                       class="w-full p-3 rounded-lg border-gray-200 focus:ring-2 focus:ring-blue-500">
+            </div>
+
+            <!-- Answer -->
+            <div class="space-y-2">
+                <label class="text-sm font-bold text-gray-500 uppercase">Answer (HTML allowed)</label>
+                <textarea name="answer" required rows="10" placeholder="Provide a detailed answer. You can use <p>, <b>, <ul> tags etc." 
+                          class="w-full p-3 rounded-lg border-gray-200 focus:ring-2 focus:ring-blue-500">{{ faq.answer if faq else '' }}</textarea>
+            </div>
+
+            <div class="pt-4 flex gap-4">
+                <button type="submit" class="bg-blue-600 text-white px-8 py-3 rounded-lg font-bold hover:bg-blue-700 transition">
+                    {{ 'Update' if faq else 'Create' }} FAQ
+                </button>
+                <a href="{{ url_for('admin.admin_faq') }}" class="bg-gray-100 text-gray-600 px-8 py-3 rounded-lg font-bold hover:bg-gray-200 transition">
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

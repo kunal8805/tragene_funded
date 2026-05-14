@@ -6,8 +6,8 @@
 {% block header_subtitle %}Complete your purchase to start trading{% endblock %}
 
 {% block head %}
-<!-- Razorpay Checkout -->
-<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<!-- Cashfree Checkout -->
+<script src="https://sdk.cashfree.com/js/v3/cashfree.js"></script>
 
 <style>
     /* Payment Method Selection */
@@ -490,7 +490,7 @@
                     </div>
 
                     <!-- Submit Button -->
-                    <button type="button" onclick="initiateRazorpayPayment()" id="purchaseBtn"
+                    <button type="button" onclick="initiateCashfreePayment()" id="purchaseBtn"
                         class="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white py-3 rounded-xl font-bold text-lg transition-all duration-300 ripple disabled:opacity-50 disabled:cursor-not-allowed"
                         {% if user.kyc_status !='approved' %}disabled{% endif %}>
                         <span id="btnText">Proceed to Payment</span>
@@ -535,27 +535,7 @@
     </div>
 </div>
 
-<!-- Payment Processing Modal -->
-<div id="paymentModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
-    <div class="bg-white dark:bg-gray-800 rounded-2xl p-8 text-center max-w-sm w-full mx-4 border dark:border-gray-700">
-        <div
-            class="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
-            <i class="fas fa-credit-card text-green-600 dark:text-green-400 text-2xl"></i>
-        </div>
-        <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2">Complete Payment</h3>
-        <p class="text-gray-600 dark:text-gray-400 mb-6">You will be redirected to Razorpay's secure payment page</p>
-        <div class="space-y-3">
-            <button onclick="closePaymentModal()"
-                class="w-full py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg font-medium hover:bg-gray-300 dark:hover:bg-gray-600 transition">
-                Cancel
-            </button>
-            <button onclick="openRazorpayCheckout()"
-                class="w-full py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg font-medium hover:from-blue-600 hover:to-blue-700 transition">
-                <i class="fas fa-lock mr-2"></i> Proceed Securely
-            </button>
-        </div>
-    </div>
-</div>
+
 {% endblock %}
 
 {% block scripts %}
@@ -580,43 +560,48 @@
         selectedOption.querySelector('input[type="radio"]').checked = true;
     }
 
-    // Prevent form submission (we'll handle with Razorpay)
+    // Prevent form submission
     function handlePayment(event) {
         event.preventDefault();
         return false;
     }
 
-    // Global variables for Razorpay
-    let razorpayOrderId = null;
-    let razorpayOptions = null;
+    // Initialize Cashfree SDK
+    const cashfree = Cashfree({
+        mode: "production" 
+    });
 
-    // Razorpay Payment Handler
-    async function initiateRazorpayPayment() {
+    let currentPaymentSessionId = null;
+
+    // Cashfree Payment Handler
+    async function initiateCashfreePayment() {
         console.log('Starting payment process...');
 
-        // Get form data
         const challengeId = document.getElementById('challenge_id').value;
         const paymentMethod = document.querySelector('input[name="payment_method"]:checked');
         const terms = document.getElementById('termsCheckbox').checked;
 
-        // Validation
         if (!paymentMethod) {
-            alert('Please select a payment method');
+            showPaymentStatus('Please select a payment method', 'warning');
             return;
         }
 
         if (!terms) {
-            alert('Please accept the terms and conditions');
+            showPaymentStatus('Please accept the terms and conditions', 'warning');
             return;
         }
 
-        // Show loading modal
-        const loadingModal = document.getElementById('loadingModal');
-        loadingModal.classList.remove('hidden');
+        const btn = document.getElementById('purchaseBtn');
+        const btnText = document.getElementById('btnText');
+        const btnLoader = document.getElementById('btnLoader');
 
+        btn.disabled = true;
+        btnText.classList.add('hidden');
+        btnLoader.classList.remove('hidden');
+        
         try {
-            // Create Razorpay order via backend
-            const response = await fetch('/create-razorpay-order', {
+            // Create Cashfree order via backend
+            const response = await fetch('/create-cashfree-order', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
@@ -632,120 +617,28 @@
                 throw new Error(data.error || 'Failed to create payment order');
             }
 
-            console.log('Order created:', data.order_id);
-            razorpayOrderId = data.order_id;
+            console.log('Order created successfully');
+            currentPaymentSessionId = data.payment_session_id;
 
-            // Create Razorpay options
-            razorpayOptions = {
-                "key": data.key,
-                "amount": data.amount_in_paise || (data.amount * 100),
-                "currency": data.currency,
-                "name": data.name,
-                "description": data.description,
-                "order_id": data.order_id,
-                "handler": function (response) {
-                    console.log('Payment successful:', response);
-                    // Submit payment verification
-                    submitPaymentVerification(response);
-                },
-                "prefill": {
-                    "name": data.prefill.name,
-                    "email": data.prefill.email,
-                    "contact": data.prefill.contact
-                },
-                "notes": data.notes,
-                "theme": {
-                    "color": "#3B82F6"
-                },
-                "modal": {
-                    "ondismiss": function () {
-                        console.log('Payment modal closed');
-                        showPaymentStatus('Payment cancelled. Please try again.', 'warning');
-                    }
-                }
-            };
+            // Redirect to Cashfree Checkout seamlessly
+            cashfree.checkout({
+                paymentSessionId: currentPaymentSessionId
+            });
 
-            // Hide loading, show payment modal
-            loadingModal.classList.add('hidden');
-            showPaymentModal();
+            // Note: Re-enable buttons if user closes popup
+            setTimeout(() => {
+                btn.disabled = false;
+                btnText.classList.remove('hidden');
+                btnLoader.classList.add('hidden');
+            }, 5000);
 
         } catch (error) {
             console.error('Payment initiation error:', error);
-            loadingModal.classList.add('hidden');
             showPaymentStatus(error.message, 'error');
-        }
-    }
-
-    // Show payment modal
-    function showPaymentModal() {
-        const paymentModal = document.getElementById('paymentModal');
-        paymentModal.classList.remove('hidden');
-    }
-
-    // Close payment modal
-    function closePaymentModal() {
-        const paymentModal = document.getElementById('paymentModal');
-        paymentModal.classList.add('hidden');
-    }
-
-    // Open Razorpay checkout
-    function openRazorpayCheckout() {
-        closePaymentModal();
-
-        // Update button state
-        const btn = document.getElementById('purchaseBtn');
-        const btnText = document.getElementById('btnText');
-        const btnLoader = document.getElementById('btnLoader');
-
-        btn.disabled = true;
-        btnText.classList.add('hidden');
-        btnLoader.classList.remove('hidden');
-
-        // Open Razorpay checkout
-        const rzp = new Razorpay(razorpayOptions);
-        rzp.open();
-
-        // Re-enable button after 5 seconds
-        setTimeout(() => {
+            
             btn.disabled = false;
             btnText.classList.remove('hidden');
             btnLoader.classList.add('hidden');
-        }, 5000);
-    }
-
-    // Submit payment verification to backend
-    async function submitPaymentVerification(paymentResponse) {
-        console.log('Verifying payment:', paymentResponse);
-
-        try {
-            // Create form for submission
-            const form = document.createElement('form');
-            form.method = 'POST';
-            form.action = '/verify-payment';
-
-            // Add hidden inputs
-            const inputs = {
-                'razorpay_order_id': paymentResponse.razorpay_order_id,
-                'razorpay_payment_id': paymentResponse.razorpay_payment_id,
-                'razorpay_signature': paymentResponse.razorpay_signature,
-                'challenge_id': document.getElementById('challenge_id').value
-            };
-
-            for (const [key, value] of Object.entries(inputs)) {
-                const input = document.createElement('input');
-                input.type = 'hidden';
-                input.name = key;
-                input.value = value;
-                form.appendChild(input);
-            }
-
-            // Submit form
-            document.body.appendChild(form);
-            form.submit();
-
-        } catch (error) {
-            console.error('Verification submission error:', error);
-            showPaymentStatus('Error verifying payment. Please contact support.', 'error');
         }
     }
 

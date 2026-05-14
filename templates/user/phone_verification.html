@@ -1,0 +1,118 @@
+{% extends "user/base.html" %}
+
+{% block title %}Phone Verification - Tragene Funded{% endblock %}
+
+{% block header_title %}Phone Verification{% endblock %}
+{% block header_subtitle %}Verification information and security process{% endblock %}
+
+{% block content %}
+
+<div class="max-w-2xl mx-auto py-8">
+
+    ```
+    <div class="glass-card p-8 shadow-sm border dark:border-dark-border">
+
+        <div class="text-center mb-8">
+            <i class="fas fa-phone-alt text-blue-600 dark:text-blue-400 text-5xl mb-4"></i>
+
+            <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-3">
+                Phone Verification Information
+            </h1>
+
+            <p class="text-gray-600 dark:text-gray-400">
+                Your phone number has been securely stored with your account.
+            </p>
+        </div>
+
+        <!-- Main Info Box -->
+        <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-6 mb-6">
+            <div class="flex items-start">
+                <i class="fas fa-info-circle text-blue-500 text-2xl mr-4 mt-1"></i>
+
+                <div>
+                    <h3 class="text-lg font-semibold text-blue-800 dark:text-blue-300 mb-3">
+                        Manual Verification Process
+                    </h3>
+
+                    <div class="space-y-3 text-blue-700 dark:text-blue-400 text-sm leading-relaxed">
+
+                        <p>
+                            • Phone OTP verification is currently not required to complete KYC submission.
+                        </p>
+
+                        <p>
+                            • Your registered phone number may be verified later through SMS, WhatsApp,
+                            or direct communication from our support team if needed.
+                        </p>
+
+                        <p>
+                            • Additional verification may be requested during payouts, security reviews,
+                            suspicious activity checks, or account recovery processes.
+                        </p>
+
+                        <p>
+                            • Please ensure your registered phone number is active, accessible,
+                            and belongs to you.
+                        </p>
+
+                        <p>
+                            • Users may be asked to confirm ownership of their phone number
+                            by replying to a message or responding to support verification requests.
+                        </p>
+
+                        <p>
+                            • Providing false or inaccessible phone information may result in
+                            delayed payouts or account verification issues.
+                        </p>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Security Notice -->
+        <div
+            class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl p-5 mb-6">
+
+            <div class="flex items-start">
+                <i class="fas fa-shield-alt text-yellow-500 text-xl mr-3 mt-1"></i>
+
+                <div>
+                    <h4 class="font-semibold text-yellow-800 dark:text-yellow-300 mb-2">
+                        Security & Compliance Notice
+                    </h4>
+
+                    <p class="text-yellow-700 dark:text-yellow-400 text-sm leading-relaxed">
+                        Tragene Funded reserves the right to request additional verification
+                        information to maintain platform security, prevent fraud, and comply
+                        with internal review procedures.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Continue Button -->
+        <div class="text-center">
+            <a href="{{ url_for('user.kyc') }}"
+                class="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-lg font-semibold transition inline-flex items-center">
+
+                <i class="fas fa-check-circle mr-2"></i>
+                Continue to KYC
+            </a>
+        </div>
+
+    </div>
+
+    <!-- Back Link -->
+    <div class="text-center mt-6">
+        <a href="{{ url_for('user.dashboard') }}"
+            class="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium inline-flex items-center">
+
+            <i class="fas fa-arrow-left mr-2"></i>
+            Back to Dashboard
+        </a>
+    </div>
+    ```
+
+</div>
+{% endblock %}

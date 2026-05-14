@@ -5,6 +5,8 @@ import secrets
 import random
 from functools import wraps
 from models import db, User
+from app import send_test_email
+
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -40,7 +42,13 @@ def login():
             flash('Invalid email or password.', 'error')
     return render_template('login.html')
 
+@auth_bp.route('/secret-registration')
+def secret_registration():
+    """Hidden route to access registration page during pre-launch"""
+    return render_template('register.html')
+
 @auth_bp.route('/register', methods=['GET', 'POST'])
+
 def register():
     if request.method == 'POST':
         first_name = request.form['first_name']
@@ -105,11 +113,52 @@ def logout():
 @login_required
 def send_verification_email():
     user = User.query.get(session['user_id'])
+
+    if user.email_verified:
+        flash('Email already verified!', 'success')
+        return redirect(url_for('user.kyc'))
+
     verification_token = secrets.token_urlsafe(32)
     user.email_verification_token = verification_token
     db.session.commit()
-    flash('Verification email sent!', 'success')
+
+    verification_link = url_for(
+        'auth.verify_email_token',
+        token=verification_token,
+        _external=True
+    )
+
+    html = f"""
+    <div style="font-family:Arial;padding:20px;">
+        <h2>Verify Your Email</h2>
+        <p>Hello {user.first_name},</p>
+        <p>Click the button below to verify your email address.</p>
+        <a href="{verification_link}"
+           style="
+               background:#16a34a;
+               color:white;
+               padding:12px 20px;
+               border-radius:8px;
+               text-decoration:none;
+               display:inline-block;
+           ">
+           Verify Email
+        </a>
+        <p style="margin-top:20px;">
+            If you did not create this account, please ignore this email.
+        </p>
+    </div>
+    """
+
+    send_test_email(
+        user.email,
+        "Verify Your Email - Tragene Funded",
+        html
+    )
+
+    flash('Verification email sent successfully!', 'success')
     return redirect(url_for('user.kyc'))
+
 
 @auth_bp.route('/verify-email/<token>')
 def verify_email_token(token):
@@ -130,75 +179,13 @@ def verify_email_token(token):
 
 
 
-@auth_bp.route('/auto-verify-email')
-@login_required
-def auto_verify_email():
-    user = User.query.get(session['user_id'])
-    user.email_verified = True
-    user.email_verification_token = None
-    db.session.commit()
-    flash('Email auto-verified successfully!', 'success')
-    return redirect(url_for('user.kyc'))
 
-@auth_bp.route('/send-phone-verification')
-@login_required
-def send_phone_verification():
-    user = User.query.get(session['user_id'])
-    otp_code = str(random.randint(100000, 999999))
-    user.phone_verification_code = otp_code
-    # STORE AS TIMESTAMP (FLOAT)
-    user.phone_verification_sent_at = datetime.now(timezone.utc).timestamp()
-    user.phone_verification_attempts = 0
-    db.session.commit()
-    print(f"📱 OTP for {user.phone}: {otp_code}")
-    flash(f'OTP sent! Code: {otp_code}', 'success')
-    return redirect(url_for('auth.verify_phone_otp'))
-
-@auth_bp.route('/verify-phone-otp', methods=['GET', 'POST'])
-@login_required
-def verify_phone_otp():
-    user = User.query.get(session['user_id'])
-    
-    if request.method == 'POST':
-        entered_otp = request.form.get('otp_code', '').strip()
-        
-        if not user.phone_verification_code:
-            flash('Please request a new OTP.', 'error')
-            return redirect(url_for('auth.send_phone_verification'))
-        
-        # COMPARE TIMESTAMPS (FLOATS)
-        if user.phone_verification_sent_at:
-            current_timestamp = datetime.now(timezone.utc).timestamp()
-            time_elapsed = current_timestamp - user.phone_verification_sent_at
-            
-            if time_elapsed > 600:  # 10 minutes
-                flash('OTP expired. Request new one.', 'error')
-                return redirect(url_for('auth.send_phone_verification'))
-        
-        if user.phone_verification_attempts >= 3:
-            flash('Too many attempts. Request new OTP.', 'error')
-            return redirect(url_for('auth.send_phone_verification'))
-        
-        if entered_otp == user.phone_verification_code:
-            user.phone_verified = True
-            user.phone_verification_code = None
-            user.phone_verification_sent_at = None
-            user.phone_verification_attempts = 0
-            db.session.commit()
-            flash('Phone verified successfully!', 'success')
-            return redirect(url_for('user.kyc'))
-        else:
-            user.phone_verification_attempts += 1
-            db.session.commit()
-            attempts_left = 3 - user.phone_verification_attempts
-            flash(f'Invalid OTP. {attempts_left} attempts left.', 'error')
-    
-    return render_template('user/verify_phone_otp.html', user=user)
 
 @auth_bp.route('/resend-phone-otp')
 @login_required
 def resend_phone_otp():
     return redirect(url_for('auth.send_phone_verification'))
+
 
 @auth_bp.route('/verify/phone')
 @login_required

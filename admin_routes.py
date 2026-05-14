@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify
 from functools import wraps
-from models import db, User, ChallengeTemplate, ChallengePurchase, Payout
+from models import db, User, ChallengeTemplate, ChallengePurchase, Payout, FAQ, SupportTicket, TicketMessage
 from datetime import datetime, timedelta, timezone
 import secrets
 
@@ -486,9 +486,19 @@ def admin_unban_user(user_id):
         flash('Cannot modify admin users.', 'error')
     return redirect(url_for('admin.admin_users'))
 
+@admin_bp.route('/verify_phone/<int:user_id>')
+@admin_required
+def admin_verify_phone(user_id):
+    user = User.query.get_or_404(user_id)
+    user.phone_verified = True
+    user.phone_verification_code = None
+    db.session.commit()
+    flash(f'Phone number for {user.email} marked as verified.', 'success')
+    return redirect(request.referrer or url_for('admin.admin_users'))
 @admin_bp.route('/bulk_action', methods=['POST'])
 @admin_required
 def admin_bulk_action():
+
     user_ids = request.form.getlist('user_ids')
     action = request.form.get('action')
     
@@ -759,6 +769,170 @@ def admin_waitlist_update_status(lead_id):
         flash('Invalid status.', 'error')
         
     return redirect(url_for('admin.admin_waitlist_detail', lead_id=lead_id))
+# ===== ADMIN FAQ MANAGEMENT =====
+@admin_bp.route('/faq')
+@admin_required
+def admin_faq():
+    faqs = FAQ.query.order_by(FAQ.category, FAQ.created_at.desc()).all()
+    return render_template('admin/faq_manage.html', faqs=faqs)
 
+@admin_bp.route('/faq/create', methods=['GET', 'POST'])
+@admin_required
+def admin_faq_create():
+    if request.method == 'POST':
+        question = request.form.get('question')
+        answer = request.form.get('answer')
+        category = request.form.get('category')
+        is_pinned = 'is_pinned' in request.form
+        
+        faq = FAQ(
+            question=question,
+            answer=answer,
+            category=category,
+            is_pinned=is_pinned
+        )
+        db.session.add(faq)
+        db.session.commit()
+        
+        flash('FAQ created successfully!', 'success')
+        return redirect(url_for('admin.admin_faq'))
+    
+    return render_template('admin/faq_form.html')
 
+@admin_bp.route('/faq/edit/<int:faq_id>', methods=['GET', 'POST'])
+@admin_required
+def admin_faq_edit(faq_id):
+    faq = FAQ.query.get_or_404(faq_id)
+    
+    if request.method == 'POST':
+        faq.question = request.form.get('question')
+        faq.answer = request.form.get('answer')
+        faq.category = request.form.get('category')
+        faq.is_pinned = 'is_pinned' in request.form
+        
+        db.session.commit()
+        flash('FAQ updated successfully!', 'success')
+        return redirect(url_for('admin.admin_faq'))
+    
+    return render_template('admin/faq_form.html', faq=faq)
 
+@admin_bp.route('/faq/delete/<int:faq_id>')
+@admin_required
+def admin_faq_delete(faq_id):
+    faq = FAQ.query.get_or_404(faq_id)
+    db.session.delete(faq)
+    db.session.commit()
+    flash('FAQ deleted successfully!', 'success')
+    return redirect(url_for('admin.admin_faq'))
+
+# ===== ADMIN SUPPORT TICKETING =====
+@admin_bp.route('/support')
+@admin_required
+def admin_support():
+    status_filter = request.args.get('status', 'all')
+    
+    query = SupportTicket.query
+    if status_filter != 'all':
+        query = query.filter_by(status=status_filter)
+    
+    tickets = query.order_by(SupportTicket.updated_at.desc()).all()
+    
+    stats = {
+        'open': SupportTicket.query.filter_by(status='open').count(),
+        'in_progress': SupportTicket.query.filter_by(status='in_progress').count(),
+        'resolved': SupportTicket.query.filter_by(status='resolved').count(),
+        'closed': SupportTicket.query.filter_by(status='closed').count()
+    }
+    
+    return render_template('admin/support_dashboard.html', 
+                         tickets=tickets, 
+                         stats=stats, 
+                         status_filter=status_filter)
+
+@admin_bp.route('/support/ticket/<string:ticket_number>')
+@admin_required
+def admin_ticket_detail(ticket_number):
+    ticket = SupportTicket.query.filter_by(ticket_number=ticket_number).first_or_404()
+    
+    # Mark as read by admin
+    ticket.last_admin_read_at = datetime.now(timezone.utc)
+    db.session.commit()
+    
+    messages = ticket.messages.order_by(TicketMessage.created_at.asc()).all()
+    
+    return render_template('admin/ticket_detail.html', ticket=ticket, messages=messages)
+
+@admin_bp.route('/support/ticket/<string:ticket_number>/reply', methods=['POST'])
+@admin_required
+def admin_ticket_reply(ticket_number):
+    admin_user = User.query.get(session['user_id'])
+    ticket = SupportTicket.query.filter_by(ticket_number=ticket_number).first_or_404()
+    
+    message_text = request.form.get('message')
+    attachment = request.files.get('attachment')
+    
+    if not message_text and not attachment:
+        flash('Message cannot be empty.', 'error')
+        return redirect(url_for('admin.admin_ticket_detail', ticket_number=ticket_number))
+    
+    # Save attachment if exists
+    attachment_url = None
+    if attachment and attachment.filename != '':
+        # Use simple allowed check
+        def is_allowed(filename):
+            return '.' in filename and filename.rsplit('.', 1)[1].lower() in {'png', 'jpg', 'jpeg', 'pdf'}
+            
+        if is_allowed(attachment.filename):
+            from werkzeug.utils import secure_filename
+            import os, time
+            filename = secure_filename(f"admin_{ticket_number}_reply_{int(time.time())}_{attachment.filename}")
+            upload_dir = os.path.join('static', 'uploads', 'tickets')
+            os.makedirs(upload_dir, exist_ok=True)
+            attachment.save(os.path.join(upload_dir, filename))
+            attachment_url = f"uploads/tickets/{filename}"
+    
+    message = TicketMessage(
+        ticket_id=ticket.id,
+        sender_id=admin_user.id,
+        message=message_text or "Sent an attachment",
+        is_admin_reply=True,
+        attachment_url=attachment_url
+    )
+    
+    # Update ticket status to in_progress if it was open
+    if ticket.status == 'open':
+        ticket.status = 'in_progress'
+    
+    ticket.updated_at = datetime.now(timezone.utc)
+    ticket.last_reply_at = datetime.now(timezone.utc)
+    
+    db.session.add(message)
+    db.session.commit()
+    
+    flash('Reply sent successfully!', 'success')
+    return redirect(url_for('admin.admin_ticket_detail', ticket_number=ticket_number))
+
+@admin_bp.route('/support/ticket/<string:ticket_number>/status', methods=['POST'])
+@admin_required
+def admin_ticket_status(ticket_number):
+    ticket = SupportTicket.query.filter_by(ticket_number=ticket_number).first_or_404()
+    new_status = request.form.get('status')
+    
+    if new_status in ['open', 'in_progress', 'resolved', 'closed']:
+        ticket.status = new_status
+        if new_status == 'resolved':
+            ticket.resolved_at = datetime.now(timezone.utc)
+        ticket.updated_at = datetime.now(timezone.utc)
+        db.session.commit()
+        flash(f'Ticket status updated to {new_status}.', 'success')
+    
+    return redirect(url_for('admin.admin_ticket_detail', ticket_number=ticket_number))
+
+@admin_bp.route('/support/ticket/<string:ticket_number>/note', methods=['POST'])
+@admin_required
+def admin_ticket_note(ticket_number):
+    ticket = SupportTicket.query.filter_by(ticket_number=ticket_number).first_or_404()
+    ticket.admin_note = request.form.get('admin_note', '')
+    db.session.commit()
+    flash('Admin note updated.', 'success')
+    return redirect(url_for('admin.admin_ticket_detail', ticket_number=ticket_number))

@@ -1,11 +1,13 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify
 from functools import wraps
-from models import db, User, ChallengeTemplate, ChallengePurchase, Payment, Payout
+from models import db, User, ChallengeTemplate, ChallengePurchase, Payment, Payout, SupportTicket, TicketMessage, FAQ
 from datetime import datetime, timezone, timedelta
 import os
 import secrets
 import random
 from werkzeug.utils import secure_filename
+from PIL import Image
+import time
 
 user_bp = Blueprint('user', __name__, url_prefix='/user')
 
@@ -94,9 +96,10 @@ def kyc_verification():
     user = User.query.get(session['user_id'])
     
     if request.method == 'POST':
-        if not user.email_verified or not user.phone_verified:
-            flash('Please verify your email and phone number first.', 'error')
+        if not user.email_verified:
+            flash('Please verify your email address first.', 'error')
             return redirect(url_for('user.kyc_verification'))
+
         
         document_type = request.form.get('document_type')
         document_number = request.form.get('document_number', '').strip()
@@ -128,30 +131,73 @@ def kyc_verification():
             flash('Only PNG, JPG, JPEG, and PDF files are allowed.', 'error')
             return redirect(url_for('user.kyc_verification'))
         
+        # Helper to process and compress images
+        def process_kyc_image(file_storage, prefix):
+            """
+            Process KYC file:
+            1. If Image: Resize (max 1200px width), Compress (65% quality), Convert to JPEG.
+            2. If PDF: Save as is.
+            Returns: Relative path to saved file.
+            """
+            ext = file_storage.filename.rsplit('.', 1)[1].lower()
+            timestamp = int(time.time())
+            
+            # Create unique filename
+            # userid_timestamp_front.jpg
+            base_filename = f"{user.id}_{timestamp}_{prefix}"
+            
+            # Ensure upload directory exists
+            kyc_dir = os.path.join('static', 'uploads', 'kyc')
+            os.makedirs(kyc_dir, exist_ok=True)
+            
+            if ext in ['png', 'jpg', 'jpeg']:
+                target_filename = f"{base_filename}.jpg"
+                target_path = os.path.join(kyc_dir, target_filename)
+                
+                # Open image using Pillow
+                img = Image.open(file_storage)
+                
+                # Convert to RGB (required for saving as JPEG if source is RGBA)
+                if img.mode in ("RGBA", "P"):
+                    img = img.convert("RGB")
+                
+                # Resize if wider than 1200px
+                max_width = 1200
+                if img.width > max_width:
+                    ratio = max_width / float(img.width)
+                    height = int(float(img.height) * ratio)
+                    img = img.resize((max_width, height), Image.Resampling.LANCZOS)
+                
+                # Save compressed JPEG
+                img.save(target_path, "JPEG", quality=65, optimize=True)
+                return f"uploads/kyc/{target_filename}"
+            
+            elif ext == 'pdf':
+                target_filename = f"{base_filename}.pdf"
+                target_path = os.path.join(kyc_dir, target_filename)
+                file_storage.save(target_path)
+                return f"uploads/kyc/{target_filename}"
+            
+            return None
+
         try:
-            # Create user upload directory
-            user_upload_dir = os.path.join('static/uploads', str(user.id))
-            os.makedirs(user_upload_dir, exist_ok=True)
+            # Process files
+            front_rel_path = process_kyc_image(front_file, 'front')
+            back_rel_path = process_kyc_image(back_file, 'back')
             
-            # Save front file
-            front_filename = f"front_{secrets.token_hex(8)}_{secure_filename(front_file.filename)}"
-            front_path = os.path.join(user_upload_dir, front_filename)
-            front_file.save(front_path)
-            
-            # Save back file
-            back_filename = f"back_{secrets.token_hex(8)}_{secure_filename(back_file.filename)}"
-            back_path = os.path.join(user_upload_dir, back_filename)
-            back_file.save(back_path)
-            
+            if not front_rel_path or not back_rel_path:
+                flash('Error processing files. Please try again.', 'error')
+                return redirect(url_for('user.kyc_verification'))
+
             # Update user KYC status
+            user.id_front_url = front_rel_path
+            user.id_back_url = back_rel_path
             user.document_type = document_type
             user.document_number = document_number
             user.kyc_status = 'submitted'
             user.kyc_submitted_at = datetime.now(timezone.utc)
-            user.id_front_url = f"/static/uploads/{user.id}/{front_filename}"
-            user.id_back_url = f"/static/uploads/{user.id}/{back_filename}"
-            
             db.session.commit()
+
             
             flash('KYC documents submitted successfully! We will review them within 24-48 hours.', 'success')
             return redirect(url_for('user.dashboard'))
@@ -169,80 +215,15 @@ def kyc_status():
     user = User.query.get(session['user_id'])
     return render_template('user/kyc_status.html', user=user)
 
-# ===== PHONE VERIFICATION ROUTES =====
-@user_bp.route('/send-phone-verification')
+@user_bp.route('/phone-verification')
 @login_required
-def send_phone_verification():
+def phone_verification():
     user = User.query.get(session['user_id'])
-    
-    # Generate OTP
-    otp_code = str(random.randint(100000, 999999))
-    
-    # Save OTP to user
-    user.phone_verification_code = otp_code
-    
-    # ✅ FIX: Add .timestamp() or use time.time()
-    import time
-    user.phone_verification_sent_at = datetime.now(timezone.utc).timestamp()  # ← ADD .timestamp()
-    # OR simpler: user.phone_verification_sent_at = time.time()
-    
-    user.phone_verification_attempts = 0
-    db.session.commit()
-    
-    # In production, send SMS here
-    # For testing, we'll just show it
-    print(f"📱 OTP for {user.phone}: {otp_code}")
-    print(f"⏰ Sent at timestamp: {user.phone_verification_sent_at}")
-    
-    flash(f'OTP sent to your phone! Test OTP: {otp_code}', 'success')
-    return redirect(url_for('user.verify_phone_otp'))
+    return render_template('user/phone_verification.html', user=user)
 
-@user_bp.route('/verify-phone-otp', methods=['GET', 'POST'])
-@login_required
-def verify_phone_otp():
-    user = User.query.get(session['user_id'])
-    
-    if request.method == 'POST':
-        entered_otp = request.form.get('otp_code', '').strip()
-        
-        if not user.phone_verification_code:
-            flash('Please request a new OTP code.', 'error')
-            return redirect(url_for('user.send_phone_verification'))
-        
-        # ✅ FIX: Convert timestamp back to datetime for comparison
-        import time
-        from datetime import datetime, timezone, timedelta
-        
-        if user.phone_verification_sent_at:
-            # Convert float timestamp to datetime
-            sent_time = datetime.fromtimestamp(user.phone_verification_sent_at, tz=timezone.utc)
-            time_elapsed = datetime.now(timezone.utc) - sent_time
-            
-            if time_elapsed.total_seconds() > 600:
-                flash('OTP has expired. Please request a new one.', 'error')
-                return redirect(url_for('user.send_phone_verification'))
-        
-        if user.phone_verification_attempts >= 3:
-            flash('Too many failed attempts. Please request a new OTP.', 'error')
-            return redirect(url_for('user.send_phone_verification'))
-        
-        if entered_otp == user.phone_verification_code:
-            user.phone_verified = True
-            user.phone_verification_code = None
-            user.phone_verification_sent_at = None  # Clear timestamp too
-            user.phone_verification_attempts = 0
-            db.session.commit()
-            
-            flash('Phone number verified successfully!', 'success')
-            return redirect(url_for('user.kyc'))
-        else:
-            user.phone_verification_attempts += 1
-            db.session.commit()
-            
-            attempts_left = 3 - user.phone_verification_attempts
-            flash(f'Invalid OTP code. {attempts_left} attempts remaining.', 'error')
-    
-    return render_template('user/verify_phone_otp.html', user=user)
+
+# ===== CHALLENGE ROUTES =====
+
 
 # ===== CHALLENGE ROUTES =====
 @user_bp.route('/buy_challenges')  # ✅ FIXED: Added leading slash
@@ -687,5 +668,168 @@ def trading_dashboard(challenge_id):
                          challenge=challenge)
 
 
+# ===== HELP CENTER & SUPPORT ROUTES =====
+@user_bp.route('/help')
+@login_required
+def help():
+    user = User.query.get(session['user_id'])
+    search_query = request.args.get('search', '').strip()
+    
+    if search_query:
+        faqs = FAQ.query.filter(
+            (FAQ.question.ilike(f'%{search_query}%')) |
+            (FAQ.answer.ilike(f'%{search_query}%'))
+        ).order_by(FAQ.is_pinned.desc(), FAQ.created_at.desc()).all()
+    else:
+        faqs = FAQ.query.order_by(FAQ.is_pinned.desc(), FAQ.created_at.desc()).all()
+    
+    # Group FAQs by category
+    categories = {}
+    for faq in faqs:
+        if faq.category not in categories:
+            categories[faq.category] = []
+        categories[faq.category].append(faq)
+    
+    # Get user's tickets
+    tickets = SupportTicket.query.filter_by(user_id=user.id).order_by(SupportTicket.updated_at.desc()).all()
+    
+    return render_template('user/help.html', 
+                         user=user, 
+                         categories=categories, 
+                         tickets=tickets,
+                         search_query=search_query)
 
+@user_bp.route('/help/vote', methods=['POST'])
+@login_required
+def help_vote():
+    data = request.get_json()
+    faq_id = data.get('faq_id')
+    vote = data.get('vote') # 'yes' or 'no'
+    
+    faq = FAQ.query.get_or_404(faq_id)
+    if vote == 'yes':
+        faq.helpful_yes += 1
+    elif vote == 'no':
+        faq.helpful_no += 1
+    
+    db.session.commit()
+    return jsonify({'success': True})
 
+@user_bp.route('/support/create', methods=['GET', 'POST'])
+@login_required
+def ticket_create():
+    user = User.query.get(session['user_id'])
+    
+    if request.method == 'POST':
+        subject = request.form.get('subject')
+        category = request.form.get('category')
+        message_text = request.form.get('message')
+        attachment = request.files.get('attachment')
+        
+        if not subject or not category or not message_text:
+            flash('All fields are required.', 'error')
+            return redirect(url_for('user.ticket_create'))
+        
+        # Generate ticket number
+        ticket_number = f"TICK-{int(time.time())}-{random.randint(1000, 9999)}"
+        
+        ticket = SupportTicket(
+            user_id=user.id,
+            subject=subject,
+            category=category,
+            ticket_number=ticket_number,
+            status='open'
+        )
+        
+        db.session.add(ticket)
+        db.session.flush() # Get ticket.id
+        
+        # Save attachment if exists
+        attachment_url = None
+        if attachment and attachment.filename != '':
+            # Reuse allowed_file from app.py logic or define it locally
+            def is_allowed(filename):
+                return '.' in filename and filename.rsplit('.', 1)[1].lower() in {'png', 'jpg', 'jpeg', 'pdf'}
+            
+            if is_allowed(attachment.filename):
+                filename = secure_filename(f"{ticket_number}_{attachment.filename}")
+                upload_dir = os.path.join('static', 'uploads', 'tickets')
+                os.makedirs(upload_dir, exist_ok=True)
+                attachment.save(os.path.join(upload_dir, filename))
+                attachment_url = f"uploads/tickets/{filename}"
+        
+        # Create initial message
+        message = TicketMessage(
+            ticket_id=ticket.id,
+            sender_id=user.id,
+            message=message_text,
+            is_admin_reply=False,
+            attachment_url=attachment_url
+        )
+        
+        db.session.add(message)
+        db.session.commit()
+        
+        flash('Support ticket created successfully!', 'success')
+        return redirect(url_for('user.help'))
+    
+    return render_template('user/ticket_create.html', user=user)
+
+@user_bp.route('/support/ticket/<string:ticket_number>')
+@login_required
+def ticket_chat(ticket_number):
+    user = User.query.get(session['user_id'])
+    ticket = SupportTicket.query.filter_by(ticket_number=ticket_number, user_id=user.id).first_or_404()
+    
+    # Mark as read by user
+    ticket.last_user_read_at = datetime.now(timezone.utc)
+    db.session.commit()
+    
+    messages = ticket.messages.order_by(TicketMessage.created_at.asc()).all()
+    
+    return render_template('user/ticket_chat.html', user=user, ticket=ticket, messages=messages)
+
+@user_bp.route('/support/ticket/<string:ticket_number>/reply', methods=['POST'])
+@login_required
+def ticket_reply(ticket_number):
+    user = User.query.get(session['user_id'])
+    ticket = SupportTicket.query.filter_by(ticket_number=ticket_number, user_id=user.id).first_or_404()
+    
+    message_text = request.form.get('message')
+    attachment = request.files.get('attachment')
+    
+    if not message_text and not attachment:
+        flash('Message cannot be empty.', 'error')
+        return redirect(url_for('user.ticket_chat', ticket_number=ticket_number))
+    
+    # Save attachment if exists
+    attachment_url = None
+    if attachment and attachment.filename != '':
+        def is_allowed(filename):
+            return '.' in filename and filename.rsplit('.', 1)[1].lower() in {'png', 'jpg', 'jpeg', 'pdf'}
+        
+        if is_allowed(attachment.filename):
+            filename = secure_filename(f"{ticket_number}_reply_{int(time.time())}_{attachment.filename}")
+            upload_dir = os.path.join('static', 'uploads', 'tickets')
+            os.makedirs(upload_dir, exist_ok=True)
+            attachment.save(os.path.join(upload_dir, filename))
+            attachment_url = f"uploads/tickets/{filename}"
+    
+    message = TicketMessage(
+        ticket_id=ticket.id,
+        sender_id=user.id,
+        message=message_text or "Sent an attachment",
+        is_admin_reply=False,
+        attachment_url=attachment_url
+    )
+    
+    # Update ticket status if it was resolved
+    if ticket.status == 'resolved':
+        ticket.status = 'open'
+    
+    ticket.updated_at = datetime.now(timezone.utc)
+    
+    db.session.add(message)
+    db.session.commit()
+    
+    return redirect(url_for('user.ticket_chat', ticket_number=ticket_number))

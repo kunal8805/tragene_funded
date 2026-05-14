@@ -1,0 +1,69 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Manage FAQs - Admin Panel{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="flex justify-between items-center">
+        <h2 class="text-2xl font-bold text-gray-800">Knowledge Base Management</h2>
+        <a href="{{ url_for('admin.admin_faq_create') }}" class="bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700 transition">
+            <i class="fas fa-plus mr-2"></i>Add New FAQ
+        </a>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+        <table class="w-full">
+            <thead class="bg-gray-50 border-b border-gray-100">
+                <tr>
+                    <th class="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Question</th>
+                    <th class="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Category</th>
+                    <th class="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Pinned</th>
+                    <th class="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Feedback</th>
+                    <th class="px-6 py-4 text-right text-xs font-bold text-gray-400 uppercase tracking-wider">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+                {% for faq in faqs %}
+                <tr class="hover:bg-gray-50 transition">
+                    <td class="px-6 py-4">
+                        <p class="font-semibold text-gray-800">{{ faq.question }}</p>
+                        <p class="text-xs text-gray-400 mt-1 truncate max-w-md">{{ faq.answer | striptags }}</p>
+                    </td>
+                    <td class="px-6 py-4">
+                        <span class="text-sm bg-blue-50 text-blue-700 px-3 py-1 rounded-full">{{ faq.category }}</span>
+                    </td>
+                    <td class="px-6 py-4">
+                        {% if faq.is_pinned %}
+                        <span class="text-blue-600"><i class="fas fa-thumbtack"></i></span>
+                        {% else %}
+                        <span class="text-gray-300"><i class="fas fa-thumbtack"></i></span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4">
+                        <div class="flex items-center gap-4 text-xs">
+                            <span class="text-green-600"><i class="fas fa-thumbs-up mr-1"></i> {{ faq.helpful_yes }}</span>
+                            <span class="text-red-600"><i class="fas fa-thumbs-down mr-1"></i> {{ faq.helpful_no }}</span>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 text-right space-x-2">
+                        <a href="{{ url_for('admin.admin_faq_edit', faq_id=faq.id) }}" class="text-blue-600 hover:text-blue-800">
+                            <i class="fas fa-edit"></i>
+                        </a>
+                        <a href="{{ url_for('admin.admin_faq_delete', faq_id=faq.id) }}" class="text-red-600 hover:text-red-800" onclick="return confirm('Are you sure you want to delete this FAQ?')">
+                            <i class="fas fa-trash"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+                {% if not faqs %}
+                <tr>
+                    <td colspan="5" class="px-6 py-12 text-center text-gray-400">
+                        No FAQs found. Add your first one!
+                    </td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

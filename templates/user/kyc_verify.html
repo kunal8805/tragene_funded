@@ -23,14 +23,12 @@
             id="sendEmailBtn">
             <i class="fas fa-paper-plane mr-1"></i>Send Verification Email
         </a>
-        <br>
-        <a href="{{ url_for('auth.auto_verify_email') }}"
-            class="text-green-600 dark:text-green-400 text-sm hover:text-green-700 dark:hover:text-green-300 mt-1 inline-block">
-            <i class="fas fa-bolt mr-1"></i>Auto-Verify Instantly
-        </a>
+        <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">
+            Verification link will be sent to your registered email.
+        </p>
         {% else %}
         <p class="text-green-600 dark:text-green-400 text-sm mt-2">
-            <i class="fas fa-check mr-1"></i>Verified
+            <i class="fas fa-check-circle mr-1"></i>Email Verified
         </p>
         {% endif %}
     </div>
@@ -45,15 +43,21 @@
             Phone
             Verification</p>
         {% if not user.phone_verified %}
-        <a href="{{ url_for('auth.verify_phone_otp') }}"
-            class="text-blue-600 dark:text-blue-400 text-sm hover:text-blue-700 dark:hover:text-blue-300 mt-2 inline-block">
-            <i class="fas fa-shield-alt mr-1"></i>Verify with OTP
+        <p class="text-gray-500 dark:text-gray-400 text-xs mt-2 mb-3">
+            <i class="fas fa-info-circle mr-1"></i>Manual verification may be required later
+        </p>
+        <a href="{{ url_for('user.phone_verification') }}" 
+           class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition inline-flex items-center shadow-sm">
+            <i class="fas fa-shield-alt mr-2"></i>Verification Info
         </a>
         {% else %}
+
         <p class="text-green-600 dark:text-green-400 text-sm mt-2">
-            <i class="fas fa-check mr-1"></i>Verified
+            <i class="fas fa-check mr-1"></i>Verified by Admin
         </p>
         {% endif %}
+
+
     </div>
 
     <!-- ID Verification -->
@@ -92,32 +96,37 @@
     </h3>
 
     <!-- Verification Reminder -->
-    {% if not user.email_verified or not user.phone_verified %}
+    {% if not user.email_verified %}
     <div class="bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mb-6">
         <div class="flex items-start">
             <i class="fas fa-info-circle text-yellow-500 text-xl mr-3 mt-1"></i>
             <div>
-                <h4 class="font-medium text-yellow-800 dark:text-yellow-300 mb-2">Complete Verification First</h4>
-                <p class="text-yellow-700 dark:text-yellow-400 text-sm mb-3">Verify email and phone before submitting ID
-                    documents.</p>
+                <h4 class="font-medium text-yellow-800 dark:text-yellow-300 mb-2">Complete Email Verification First</h4>
+                <p class="text-yellow-700 dark:text-yellow-400 text-sm mb-3">Please verify your email address before submitting ID documents.</p>
                 <div class="flex flex-wrap gap-4">
-                    {% if not user.email_verified %}
-                    <a href="{{ url_for('auth.auto_verify_email') }}"
+                    <a href="{{ url_for('auth.send_verification_email') }}"
                         class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition inline-flex items-center">
-                        <i class="fas fa-bolt mr-2"></i>Auto-Verify Email
+                        <i class="fas fa-envelope mr-2"></i>Verify Email
                     </a>
-                    {% endif %}
-                    {% if not user.phone_verified %}
-                    <a href="{{ url_for('auth.verify_phone_otp') }}"
-                        class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition inline-flex items-center">
-                        <i class="fas fa-phone mr-2"></i>Verify Phone
-                    </a>
-                    {% endif %}
                 </div>
             </div>
         </div>
     </div>
     {% endif %}
+
+    {% if not user.phone_verified %}
+    <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/50 rounded-lg p-4 mb-6">
+        <div class="flex items-start">
+            <i class="fas fa-phone text-blue-500 text-lg mr-3 mt-1"></i>
+            <div>
+                <p class="text-blue-800 dark:text-blue-300 text-sm">
+                    <strong>Note:</strong> Phone verification may be required later during payouts or account review.
+                </p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
 
     <!-- WORKING FORM - NO DISABLED ATTRIBUTES -->
     <form method="POST" action="{{ url_for('user.kyc_verification') }}" enctype="multipart/form-data" id="kycForm">
