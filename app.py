@@ -388,7 +388,7 @@ def create_cashfree_order():
         )
         
         # Create order in Cashfree
-        api_response = Cashfree(Cashfree.PRODUCTION).PGCreateOrder(x_api_version="2025-01-01", create_order_request=create_order_request)
+        api_response = Cashfree().PGCreateOrder(x_api_version="2025-01-01", create_order_request=create_order_request)
         order_response = api_response.data
         
         if DEV_MODE:
@@ -432,7 +432,7 @@ def cashfree_webhook():
         timestamp = request.headers.get('x-webhook-timestamp')
         
         if not signature or not timestamp:
-            return jsonify({'status': 'missing headers'}), 400
+            return jsonify({'status': 'ok'}), 200
             
         if not verify_cashfree_webhook_signature(payload, signature, timestamp):
             return jsonify({'status': 'invalid signature'}), 401
@@ -489,7 +489,7 @@ def cashfree_webhook():
                 
             # Double check with Cashfree API
             try:
-                api_response = Cashfree(Cashfree.PRODUCTION).PGOrderFetchPayments(x_api_version="2025-01-01", order_id=order_id)
+                api_response = Cashfree().PGOrderFetchPayments(x_api_version="2025-01-01", order_id=order_id)
                 payments_list = api_response.data
                 
                 is_actually_paid = False
