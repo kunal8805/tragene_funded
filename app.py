@@ -247,6 +247,12 @@ def provision_challenge(payment, user, challenge_template_id):
     if not challenge:
         return False, "Challenge template not found"
         
+    # Idempotency check: Don't create if already provisioned for this payment
+    if payment.challenge_purchase_id:
+        if DEV_MODE:
+            print(f"⚠️ Payment {payment.id} already has a challenge assigned: {payment.challenge_purchase_id}")
+        return True, payment.challenge_purchase_id
+        
     purchase = ChallengePurchase(
         user_id=user.id,
         challenge_template_id=challenge.id,
@@ -459,7 +465,7 @@ def cashfree_webhook():
             paid_amount = float(payment_info.get('payment_amount', 0))
             payment_currency = payment_info.get('payment_currency')
             
-            payment = Payment.query.filter_by(payment_id=order_id).first()
+            payment = Payment.query.with_for_update().filter_by(payment_id=order_id).first()
             if not payment:
                 webhook_log.status = 'failed'
                 webhook_log.error_message = 'Payment record not found'
