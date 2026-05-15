@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-8SBBXX72M7"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag() { dataLayer.push(arguments); }
+        gtag('js', new Date());
+        gtag('config', 'G-8SBBXX72M7');
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Refund & Cancellation Policy | Tragene Funded</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #10b981;
+            --primary-glow: rgba(16, 185, 129, 0.2);
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --bg: #050505;
+            --card-bg: rgba(255, 255, 255, 0.03);
+            --border: rgba(255, 255, 255, 0.08);
+        }
+
+        body {
+            background-color: var(--bg);
+            color: #d1d5db;
+            font-family: 'Outfit', sans-serif;
+            scroll-behavior: smooth;
+        }
+
+        .premium-gradient {
+            background: radial-gradient(circle at 50% -20%, #111827 0%, #050505 100%);
+        }
+
+        .glass-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .glass-card:hover {
+            border-color: rgba(255, 255, 255, 0.15);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .nav-blur {
+            background: rgba(5, 5, 5, 0.85);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .text-gradient {
+            background: linear-gradient(135deg, #10b981, #3b82f6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .toc-link {
+            transition: all 0.2s ease;
+            position: relative;
+            padding-left: 1.5rem;
+        }
+
+        .toc-link::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background: #4b5563;
+            transition: all 0.2s ease;
+        }
+
+        .toc-link:hover {
+            color: var(--primary);
+            padding-left: 1.75rem;
+        }
+
+        .toc-link:hover::before {
+            background: var(--primary);
+            box-shadow: 0 0 8px var(--primary);
+        }
+
+        .section-anchor {
+            scroll-margin-top: 120px;
+        }
+
+        .highlight-box {
+            border-left: 4px solid var(--primary);
+            background: rgba(16, 185, 129, 0.05);
+        }
+
+        .warning-box {
+            border-left: 4px solid var(--warning);
+            background: rgba(245, 158, 11, 0.05);
+        }
+
+        .danger-box {
+            border-left: 4px solid var(--danger);
+            background: rgba(239, 68, 68, 0.05);
+        }
+
+        .icon-wrapper {
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            font-size: 1.25rem;
+        }
+
+        .grid-bg {
+            position: absolute;
+            inset: 0;
+            background-image: radial-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .sticky-sidebar {
+            position: sticky;
+            top: 120px;
+            max-height: calc(100vh - 160px);
+            overflow-y: auto;
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+    </style>
+</head>
+
+<body class="premium-gradient min-h-screen">
+    <div class="grid-bg"></div>
+
+    <!-- Navigation -->
+    <nav class="nav-blur sticky top-0 z-50 py-4">
+        <div class="max-w-7xl mx-auto px-6 flex justify-between items-center">
+            <a href="{{ url_for('home') }}" class="flex items-center gap-3 group">
+                <div class="bg-emerald-500/10 p-2 rounded-lg group-hover:bg-emerald-500/20 transition">
+                    <i class="fas fa-chart-line text-emerald-400"></i>
+                </div>
+                <span class="text-white font-bold text-xl tracking-tight">Tragene Funded</span>
+            </a>
+            <div class="flex items-center gap-6">
+                <a href="{{ url_for('faq') }}" class="text-sm text-gray-400 hover:text-white transition">FAQ</a>
+                <a href="{{ url_for('home') }}" class="bg-white/5 hover:bg-white/10 text-white px-4 py-2 rounded-xl text-sm font-medium transition flex items-center gap-2">
+                    <i class="fas fa-arrow-left text-xs"></i> Back Home
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Header -->
+    <header class="py-24 px-6 text-center relative overflow-hidden">
+        <div class="max-w-4xl mx-auto relative z-10">
+            <div class="inline-flex items-center gap-2 bg-emerald-500/10 text-emerald-400 px-4 py-2 rounded-full text-xs font-bold tracking-widest uppercase mb-6">
+                <i class="fas fa-shield-alt"></i> Compliance Verified
+            </div>
+            <h1 class="text-4xl md:text-6xl font-bold text-white mb-6 tracking-tight">
+                Refund & <span class="text-gradient">Cancellation Policy</span>
+            </h1>
+            <p class="text-gray-400 text-lg md:text-xl max-w-2xl mx-auto leading-relaxed">
+                Clear information regarding refunds, cancellations, payment disputes, and challenge delivery.
+            </p>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="max-w-7xl mx-auto px-6 pb-32">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-12">
+            
+            <!-- Sidebar: Table of Contents -->
+            <aside class="hidden lg:block lg:col-span-3">
+                <div class="sticky-sidebar">
+                    <h3 class="text-white font-bold text-sm uppercase tracking-widest mb-6 opacity-50">Contents</h3>
+                    <nav class="flex flex-col gap-4 text-gray-400 text-sm font-medium">
+                        <a href="#nature" class="toc-link">1. Nature of Services</a>
+                        <a href="#general" class="toc-link">2. General Refund Policy</a>
+                        <a href="#eligible" class="toc-link">3. Eligible Scenarios</a>
+                        <a href="#prevention" class="toc-link">4. Fraud Prevention</a>
+                        <a href="#non-eligible" class="toc-link">5. Non-Eligible Cases</a>
+                        <a href="#disputes" class="toc-link">6. Payment Disputes</a>
+                        <a href="#window" class="toc-link">7. Refund Window</a>
+                        <a href="#support" class="toc-link">8. Contact Support</a>
+                    </nav>
+                </div>
+            </aside>
+
+            <!-- Content Area -->
+            <main class="lg:col-span-9 space-y-20">
+                
+                <!-- 1. Nature of Services -->
+                <section id="nature" class="section-anchor">
+                    <div class="flex items-center gap-4 mb-8">
+                        <div class="icon-wrapper text-emerald-400"><i class="fas fa-cube"></i></div>
+                        <h2 class="text-3xl font-bold text-white">1. Nature of Services</h2>
+                    </div>
+                    <div class="glass-card p-8 md:p-10">
+                        <p class="text-gray-300 text-lg leading-relaxed">
+                            Tragene Funded provides digital trading evaluation and challenge services designed to assess trading skills in a simulated environment. We do <strong>not</strong> provide physical products, investment advice, portfolio management, or real capital investment products. All purchases are for the right to participate in an evaluation program.
+                        </p>
+                    </div>
+                </section>
+
+                <!-- 2. General Refund Policy -->
+                <section id="general" class="section-anchor">
+                    <div class="flex items-center gap-4 mb-8">
+                        <div class="icon-wrapper text-blue-400"><i class="fas fa-undo"></i></div>
+                        <h2 class="text-3xl font-bold text-white">2. General Refund Policy</h2>
+                    </div>
+                    <div class="glass-card p-8 md:p-10">
+                        <p class="text-gray-300 text-lg leading-relaxed mb-8">
+                            Challenge purchases are digital evaluation services. Due to the immediate allocation of resources and infrastructure upon purchase, all transactions are generally <strong>non-refundable</strong>. Refunds are considered only in limited and exceptional circumstances as outlined in this policy.
+                        </p>
+                        <div class="highlight-box p-6 rounded-2xl flex gap-4 items-start">
+                            <i class="fas fa-info-circle text-emerald-400 mt-1"></i>
+                            <p class="text-emerald-50 text-sm font-medium">
+                                "Purchasing a challenge does not automatically create a right to a refund."
+                            </p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 3. Eligible Refund Scenarios -->
+                <section id="eligible" class="section-anchor">
+                    <div class="flex items-center gap-4 mb-8">
+                        <div class="icon-wrapper text-emerald-400"><i class="fas fa-check-double"></i></div>
+                        <h2 class="text-3xl font-bold text-white">3. Eligible Refund Scenarios</h2>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                        <div class="glass-card p-8">
+                            <i class="fas fa-copy text-2xl text-emerald-400 mb-4"></i>
+                            <h3 class="text-white font-bold mb-2">Duplicate Payments</h3>
+                            <p class="text-gray-400 text-sm">Accidental multiple payments for the same challenge purchase.</p>
+                        </div>
+                        <div class="glass-card p-8">
+                            <i class="fas fa-truck-loading text-2xl text-emerald-400 mb-4"></i>
+                            <h3 class="text-white font-bold mb-2">Non-Delivery</h3>
+                            <p class="text-gray-400 text-sm">Payment deducted but challenge credentials not delivered within 48 hours.</p>
+                        </div>
+                        <div class="glass-card p-8">
+                            <i class="fas fa-microchip text-2xl text-emerald-400 mb-4"></i>
+                            <h3 class="text-white font-bold mb-2">Technical Failures</h3>
+                            <p class="text-gray-400 text-sm">Platform-side critical failures preventing service delivery or account access.</p>
+                        </div>
+                        <div class="glass-card p-8">
+                            <i class="fas fa-exchange-alt text-2xl text-emerald-400 mb-4"></i>
+                            <h3 class="text-white font-bold mb-2">Transaction Errors</h3>
+                            <p class="text-gray-400 text-sm">Duplicate transaction processing issues identified by our payment processor.</p>
+                        </div>
+                    </div>
+                    <div class="highlight-box p-6 rounded-2xl flex gap-4 items-start">
+                        <i class="fas fa-lightbulb text-emerald-400 mt-1"></i>
+                        <p class="text-emerald-50 text-sm">
+                            <strong>Note:</strong> In some situations, challenge delivery or account replacement may be provided instead of a monetary refund.
+                        </p>
+                    </div>
+                </section>
+
+                <!-- 4. Fraud Prevention -->
+                <section id="prevention" class="section-anchor">
+                    <div class="flex items-center gap-4 mb-8">
+                        <div class="icon-wrapper text-amber-400"><i class="fas fa-user-shield"></i></div>
+                        <h2 class="text-3xl font-bold text-white">4. Fraud Prevention & Investigation</h2>
+                    </div>
+                    <div class="glass-card p-8 md:p-10">
+                        <p class="text-gray-300 text-lg leading-relaxed mb-8">
+                            To protect our platform and community, all refund requests are subject to rigorous review. Possible triggers for deep investigation include:
+                        </p>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-4 mb-10">
+                            <div class="flex items-center gap-3 text-sm text-gray-400">
+                                <i class="fas fa-minus text-amber-500/50"></i> Suspicious payment activity
+                            </div>
+                            <div class="flex items-center gap-3 text-sm text-gray-400">
+                                <i class="fas fa-minus text-amber-500/50"></i> Fraud indicators
+                            </div>
+                            <div class="flex items-center gap-3 text-sm text-gray-400">
+                                <i class="fas fa-minus text-amber-500/50"></i> Multiple account misuse
+                            </div>
+                            <div class="flex items-center gap-3 text-sm text-gray-400">
+                                <i class="fas fa-minus text-amber-500/50"></i> Chargeback abuse history
+                            </div>
+                            <div class="flex items-center gap-3 text-sm text-gray-400">
+                                <i class="fas fa-minus text-amber-500/50"></i> Identity inconsistencies
+                            </div>
+                            <div class="flex items-center gap-3 text-sm text-gray-400">
+                                <i class="fas fa-minus text-amber-500/50"></i> Platform exploitation attempts
+                            </div>
+                        </div>
+                        <div class="warning-box p-6 rounded-2xl flex gap-4 items-center">
+                            <i class="fas fa-exclamation-triangle text-amber-400"></i>
+                            <p class="text-amber-50 text-sm font-semibold uppercase tracking-wide">
+                                "Refund requests may be delayed or denied while investigations are ongoing."
+                            </p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 5. Non-Eligible Refund Cases -->
+                <section id="non-eligible" class="section-anchor">
+                    <div class="flex items-center gap-4 mb-8">
+                        <div class="icon-wrapper text-danger"><i class="fas fa-times-circle"></i></div>
+                        <h2 class="text-3xl font-bold text-white">5. Non-Eligible Refund Cases</h2>
+                    </div>
+                    <div class="glass-card overflow-hidden">
+                        <div class="grid grid-cols-1 md:grid-cols-2">
+                            <div class="p-8 border-b md:border-b-0 md:border-r border-white/5">
+                                <div class="flex items-center gap-3 text-danger mb-4">
+                                    <i class="fas fa-ban"></i>
+                                    <span class="font-bold uppercase text-xs tracking-widest">Strictly No Refund</span>
+                                </div>
+                                <ul class="space-y-4">
+                                    <li class="flex items-start gap-3">
+                                        <i class="fas fa-times text-danger mt-1"></i>
+                                        <span class="text-sm text-gray-300">Challenge credentials delivered successfully</span>
+                                    </li>
+                                    <li class="flex items-start gap-3">
+                                        <i class="fas fa-times text-danger mt-1"></i>
+                                        <span class="text-sm text-gray-300">Failure to pass the challenge evaluation</span>
+                                    </li>
+                                    <li class="flex items-start gap-3">
+                                        <i class="fas fa-times text-danger mt-1"></i>
+                                        <span class="text-sm text-gray-300">Account termination due to rule violations</span>
+                                    </li>
+                                </ul>
+                            </div>
+                            <div class="p-8">
+                                <div class="flex items-center gap-3 text-danger mb-4">
+                                    <i class="fas fa-ban"></i>
+                                    <span class="font-bold uppercase text-xs tracking-widest">User Error Cases</span>
+                                </div>
+                                <ul class="space-y-4">
+                                    <li class="flex items-start gap-3">
+                                        <i class="fas fa-times text-danger mt-1"></i>
+                                        <span class="text-sm text-gray-300">Intentional misuse or platform abuse</span>
+                                    </li>
+                                    <li class="flex items-start gap-3">
+                                        <i class="fas fa-times text-danger mt-1"></i>
+                                        <span class="text-sm text-gray-300">Incorrect challenge size or type purchased</span>
+                                    </li>
+                                    <li class="flex items-start gap-3">
+                                        <i class="fas fa-times text-danger mt-1"></i>
+                                        <span class="text-sm text-gray-300">Failure to review challenge rules/requirements</span>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 6. Payment Disputes & Chargebacks -->
+                <section id="disputes" class="section-anchor">
+                    <div class="flex items-center gap-4 mb-8">
+                        <div class="icon-wrapper text-blue-400"><i class="fas fa-gavel"></i></div>
+                        <h2 class="text-3xl font-bold text-white">6. Payment Disputes & Chargebacks</h2>
+                    </div>
+                    <div class="glass-card p-8 md:p-10">
+                        <p class="text-gray-300 text-lg leading-relaxed mb-10">
+                            Initiating a chargeback or payment dispute with your bank or payment provider is considered a material breach of our Terms. Any such action will lead to:
+                        </p>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="bg-black/40 p-5 rounded-xl border border-white/5 flex gap-4 items-center">
+                                <div class="w-10 h-10 rounded-lg bg-danger/10 text-danger flex items-center justify-center shrink-0">
+                                    <i class="fas fa-lock"></i>
+                                </div>
+                                <span class="text-sm font-medium">Immediate account suspension</span>
+                            </div>
+                            <div class="bg-black/40 p-5 rounded-xl border border-white/5 flex gap-4 items-center">
+                                <div class="w-10 h-10 rounded-lg bg-danger/10 text-danger flex items-center justify-center shrink-0">
+                                    <i class="fas fa-trash-alt"></i>
+                                </div>
+                                <span class="text-sm font-medium">Challenge cancellation</span>
+                            </div>
+                            <div class="bg-black/40 p-5 rounded-xl border border-white/5 flex gap-4 items-center">
+                                <div class="w-10 h-10 rounded-lg bg-danger/10 text-danger flex items-center justify-center shrink-0">
+                                    <i class="fas fa-search"></i>
+                                </div>
+                                <span class="text-sm font-medium">Internal investigation report</span>
+                            </div>
+                            <div class="bg-black/40 p-5 rounded-xl border border-white/5 flex gap-4 items-center">
+                                <div class="w-10 h-10 rounded-lg bg-danger/10 text-danger flex items-center justify-center shrink-0">
+                                    <i class="fas fa-user-slash"></i>
+                                </div>
+                                <span class="text-sm font-medium">Permanent platform ban</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 7. Refund Request Window -->
+                <section id="window" class="section-anchor text-center">
+                    <div class="glass-card p-12 border-dashed border-emerald-500/30">
+                        <h2 class="text-2xl font-bold text-white mb-4">7. Refund Request Window</h2>
+                        <div class="text-4xl md:text-5xl font-black text-emerald-400 mb-6">7 DAYS</div>
+                        <p class="text-gray-400 max-w-xl mx-auto">
+                            All eligible refund requests must be submitted within <strong>7 days</strong> of the original payment date. Requests received after this window will not be considered.
+                        </p>
+                    </div>
+                </section>
+
+                <!-- 8. Contact Support -->
+                <section id="support" class="section-anchor">
+                    <div class="flex items-center gap-4 mb-8">
+                        <div class="icon-wrapper text-blue-400"><i class="fas fa-envelope"></i></div>
+                        <h2 class="text-3xl font-bold text-white">8. Contact Support</h2>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div class="glass-card p-8">
+                            <h4 class="text-gray-500 text-xs font-bold uppercase tracking-widest mb-4">Primary Channel</h4>
+                            <a href="mailto:support@tragenefunded.com" class="text-xl font-bold text-emerald-400 hover:underline">support@tragenefunded.com</a>
+                        </div>
+                        <div class="glass-card p-8">
+                            <h4 class="text-gray-500 text-xs font-bold uppercase tracking-widest mb-4">Alternative Email</h4>
+                            <a href="mailto:tragene.co@gmail.com" class="text-xl font-bold text-blue-400 hover:underline">tragene.co@gmail.com</a>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-12 glass-card p-10 bg-gradient-to-br from-emerald-500/10 to-blue-500/10 border-emerald-500/20">
+                        <div class="flex flex-col md:flex-row gap-8 items-center">
+                            <div class="shrink-0 w-16 h-16 bg-emerald-500 text-black rounded-2xl flex items-center justify-center text-2xl shadow-[0_0_30px_rgba(16,185,129,0.3)]">
+                                <i class="fas fa-bolt"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-xl font-bold text-white mb-2">Fastest Support Channel</h3>
+                                <p class="text-gray-400 text-sm leading-relaxed mb-6">
+                                    For the fastest response times, use the built-in Help Center available inside your Tragene Funded dashboard. Registered users can access our comprehensive FAQ, open support tickets, and use our real-time ticket chat system.
+                                </p>
+                                <a href="/login" class="inline-flex items-center gap-2 bg-white text-black font-bold px-6 py-3 rounded-xl hover:bg-gray-200 transition">
+                                    Go to Dashboard <i class="fas fa-arrow-right text-xs"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+            </main>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="py-16 border-t border-white/5">
+        <div class="max-w-7xl mx-auto px-6 text-center">
+            <div class="flex flex-wrap justify-center gap-6 md:gap-12 mb-10 text-sm font-medium">
+                <a href="{{ url_for('home') }}" class="text-gray-400 hover:text-white transition">Home</a>
+                <a href="{{ url_for('faq') }}" class="text-gray-400 hover:text-white transition">FAQ</a>
+                <a href="{{ url_for('help_center') }}" class="text-gray-400 hover:text-white transition">Help Center</a>
+                <a href="{{ url_for('contact') }}" class="text-gray-400 hover:text-white transition">Contact</a>
+                <a href="{{ url_for('terms') }}" class="text-gray-400 hover:text-white transition">Terms</a>
+                <a href="{{ url_for('privacy') }}" class="text-gray-400 hover:text-white transition">Privacy Policy</a>
+            </div>
+            <p class="text-gray-500 text-xs tracking-widest uppercase">&copy; 2024 Tragene Funded. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script>
+        // Smooth scrolling for sidebar links
+        document.querySelectorAll('.toc-link').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const targetId = this.getAttribute('href');
+                document.querySelector(targetId).scrollIntoView({
+                    behavior: 'smooth'
+                });
+            });
+        });
+    </script>
+</body>
+
+</html>

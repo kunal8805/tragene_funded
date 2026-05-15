@@ -69,6 +69,11 @@ class User(db.Model):
     last_balance_check = db.Column(db.DateTime(timezone=True), default=None)
     balance_check_hash = db.Column(db.String(64), default='')  # For detecting balance changes
     
+    # Personalization & Levels
+    trading_alias = db.Column(db.String(50), default='')
+    trader_level = db.Column(db.String(50), default='Starter')  # Starter, Consistent, Funded Partner
+    is_compact_view = db.Column(db.Boolean, default=False)
+
     # Relationships
     challenge_purchases = db.relationship('ChallengePurchase', backref='user', lazy=True, cascade='all, delete-orphan')
     payouts = db.relationship('Payout', backref='user', lazy=True, cascade='all, delete-orphan')

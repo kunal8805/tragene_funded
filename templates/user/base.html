@@ -105,6 +105,32 @@
             background-color: #1e293b;
         }
 
+        /* Compact View Styles */
+        .compact-view .glass-card {
+            padding: 1rem !important;
+            border-radius: 8px !important;
+        }
+        .compact-view .stats-grid {
+            gap: 1rem !important;
+        }
+        .compact-view h3 {
+            font-size: 1rem !important;
+        }
+        .compact-view .icon-wrapper {
+            width: 32px !important;
+            height: 32px !important;
+            font-size: 0.875rem !important;
+        }
+        .compact-view .text-2xl, .compact-view .text-3xl {
+            font-size: 1.25rem !important;
+        }
+        .compact-view .mb-6, .compact-view .mb-8 {
+            margin-bottom: 1rem !important;
+        }
+        .compact-view .p-10, .compact-view .p-16 {
+            padding: 1.5rem !important;
+        }
+
         .dark .bg-gray-50 {
             background-color: #0f172a;
         }
@@ -420,7 +446,7 @@
     {% block head %}{% endblock %}
 </head>
 
-<body class="bg-professional text-gray-800 min-h-screen">
+<body class="bg-professional text-gray-800 min-h-screen {{ 'compact-view' if user.is_compact_view else '' }}">
     <!-- Dark Mode Init Script -->
     <script>
         if (localStorage.getItem('color-theme') === 'dark' || (!('color-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
@@ -459,7 +485,10 @@
                 </button>
                 <div class="text-right hidden sm:block">
                     <p class="text-sm text-gray-600 dark:text-gray-400">Welcome</p>
-                    <p class="font-semibold text-sm text-gray-900 dark:text-white">{{ user.first_name }}</p>
+                    <div class="flex items-center gap-2">
+                        <p class="font-semibold text-sm text-gray-900 dark:text-white">{{ user.trading_alias if user.trading_alias else user.first_name }}</p>
+                        <span class="bg-emerald-500 text-white text-[8px] font-black uppercase px-1.5 py-0.5 rounded shadow-sm">{{ user.trader_level }}</span>
+                    </div>
                 </div>
                 <a href="/logout"
                     class="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg text-sm font-medium transition">
@@ -661,8 +690,10 @@
                 <div class="flex items-center space-x-4">
                     <div class="text-right">
                         <p class="text-sm text-gray-600 dark:text-gray-400">Welcome back</p>
-                        <p class="font-semibold text-gray-900 dark:text-white">{{ user.first_name }} {{ user.last_name
-                            }}</p>
+                        <div class="flex items-center gap-2">
+                            <p class="font-semibold text-gray-900 dark:text-white">{{ user.trading_alias if user.trading_alias else user.get_full_name() }}</p>
+                            <span class="bg-emerald-500 text-white text-[10px] font-black uppercase px-2 py-1 rounded shadow-md border-2 border-white dark:border-black">{{ user.trader_level }}</span>
+                        </div>
                     </div>
                     <a href="/logout"
                         class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-medium transition">

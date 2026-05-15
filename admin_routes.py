@@ -714,61 +714,6 @@ def admin_challenge_detail(challenge_id):
     return render_template('admin/challenge_detail.html', 
                          challenge=challenge)
 
-# ===== WAITLIST MANAGEMENT ROUTES =====
-@admin_bp.route('/waitlist')
-@admin_required
-def admin_waitlist():
-    from models import WaitlistLead
-    
-    # Filtering
-    plan_filter = request.args.get('plan', 'all')
-    experience_filter = request.args.get('experience', 'all')
-    status_filter = request.args.get('status', 'all')
-    early_access_filter = request.args.get('early_access', 'all')
-    
-    query = WaitlistLead.query
-    
-    if plan_filter != 'all':
-        query = query.filter(WaitlistLead.plan_interest == plan_filter)
-    if experience_filter != 'all':
-        query = query.filter(WaitlistLead.experience == experience_filter)
-    if status_filter != 'all':
-        query = query.filter(WaitlistLead.status == status_filter)
-    if early_access_filter == 'yes':
-        query = query.filter(WaitlistLead.early_access == True)
-    elif early_access_filter == 'no':
-        query = query.filter(WaitlistLead.early_access == False)
-        
-    leads = query.order_by(WaitlistLead.created_at.desc()).all()
-    
-    return render_template('admin/waitlist_list.html', leads=leads, 
-                           plan_filter=plan_filter, 
-                           experience_filter=experience_filter, 
-                           status_filter=status_filter, 
-                           early_access_filter=early_access_filter)
-
-@admin_bp.route('/waitlist/<int:lead_id>')
-@admin_required
-def admin_waitlist_detail(lead_id):
-    from models import WaitlistLead
-    lead = WaitlistLead.query.get_or_404(lead_id)
-    return render_template('admin/waitlist_detail.html', lead=lead)
-
-@admin_bp.route('/waitlist/<int:lead_id>/update-status', methods=['POST'])
-@admin_required
-def admin_waitlist_update_status(lead_id):
-    from models import WaitlistLead
-    lead = WaitlistLead.query.get_or_404(lead_id)
-    new_status = request.form.get('status')
-    
-    if new_status in ['new', 'contacted', 'interested', 'converted']:
-        lead.status = new_status
-        db.session.commit()
-        flash(f'Waitlist lead status updated to {new_status}.', 'success')
-    else:
-        flash('Invalid status.', 'error')
-        
-    return redirect(url_for('admin.admin_waitlist_detail', lead_id=lead_id))
 # ===== ADMIN FAQ MANAGEMENT =====
 @admin_bp.route('/faq')
 @admin_required

@@ -483,6 +483,29 @@ def settings():
     user = User.query.get(session['user_id'])
     return render_template('user/settings.html', user=user)
 
+@user_bp.route('/settings/update', methods=['POST'])
+@login_required
+def update_settings():
+    try:
+        user = User.query.get(session['user_id'])
+        
+        # Update Trading Alias
+        if 'trading_alias' in request.form:
+            user.trading_alias = request.form.get('trading_alias', '').strip()
+            
+        # Update Compact View
+        if 'is_compact_view' in request.form:
+            user.is_compact_view = request.form.get('is_compact_view') == 'true'
+            
+        db.session.commit()
+        flash('Settings updated successfully!', 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        flash('Error updating settings.', 'error')
+    
+    return redirect(url_for('user.settings'))
+
 @user_bp.route('/change-password', methods=['POST'])
 @login_required
 def change_password():

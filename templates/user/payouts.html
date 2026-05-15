@@ -1,0 +1,62 @@
+{% extends "user/base.html" %}
+
+{% block title %}Payouts - Tragene Funded{% endblock %}
+
+{% block header_title %}Payouts{% endblock %}
+{% block header_subtitle %}Manage your earnings and withdrawals{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <div class="glass-card p-10 lg:p-16 border dark:border-dark-border text-center relative overflow-hidden" data-aos="zoom-in">
+        <!-- Decorative Background Element -->
+        <div class="absolute -top-10 -right-10 w-40 h-40 bg-green-500/10 rounded-full blur-3xl"></div>
+        <div class="absolute -bottom-10 -left-10 w-40 h-40 bg-blue-500/10 rounded-full blur-3xl"></div>
+
+        <div class="relative z-10">
+            <div class="w-24 h-24 bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center mx-auto mb-8 shadow-inner">
+                <i class="fas fa-wallet text-green-600 dark:text-green-400 text-4xl"></i>
+            </div>
+            
+            <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-6">Payout Information</h2>
+            
+            <div class="bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30 p-8 rounded-3xl mb-10">
+                <p class="text-xl text-blue-800 dark:text-blue-300 font-medium leading-relaxed">
+                    "When you are applicable for payout you will get updated on this page. We will update."
+                </p>
+            </div>
+
+            <p class="text-gray-500 dark:text-gray-400 max-w-xl mx-auto mb-10">
+                Our team regularly reviews accounts for payout eligibility based on challenge completion and rule adherence. Please continue your trading journey, and we will notify you here once you are eligible for your first withdrawal.
+            </p>
+
+            <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                <a href="{{ url_for('user.dashboard') }}" class="bg-gray-900 dark:bg-white text-white dark:text-black px-8 py-4 rounded-2xl font-bold transition hover:opacity-90">
+                    Return to Dashboard
+                </a>
+                <a href="{{ url_for('user.help') }}" class="bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white px-8 py-4 rounded-2xl font-bold transition hover:bg-gray-200 dark:hover:bg-gray-700">
+                    Support Center
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payout Requirements Card -->
+    <div class="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="glass-card p-6 border dark:border-dark-border" data-aos="fade-up" style="animation-delay: 0.1s;">
+            <div class="text-blue-500 mb-4 text-xl"><i class="fas fa-check-circle"></i></div>
+            <h4 class="font-bold text-gray-900 dark:text-white mb-2">KYC Approved</h4>
+            <p class="text-xs text-gray-500 dark:text-gray-400">Identity verification must be completed and approved before any payout request.</p>
+        </div>
+        <div class="glass-card p-6 border dark:border-dark-border" data-aos="fade-up" style="animation-delay: 0.2s;">
+            <div class="text-green-500 mb-4 text-xl"><i class="fas fa-bullseye"></i></div>
+            <h4 class="font-bold text-gray-900 dark:text-white mb-2">Profit Target</h4>
+            <p class="text-xs text-gray-500 dark:text-gray-400">Ensure you have reached the minimum profit share requirements for your challenge phase.</p>
+        </div>
+        <div class="glass-card p-6 border dark:border-dark-border" data-aos="fade-up" style="animation-delay: 0.3s;">
+            <div class="text-amber-500 mb-4 text-xl"><i class="fas fa-shield-alt"></i></div>
+            <h4 class="font-bold text-gray-900 dark:text-white mb-2">Rule Compliance</h4>
+            <p class="text-xs text-gray-500 dark:text-gray-400">All trading rules and risk management parameters must be maintained throughout the session.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

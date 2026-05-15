@@ -26,7 +26,7 @@ load_dotenv()
 
 # ===== APP CONFIG FROM ENV =====
 DEV_MODE = os.getenv("DEV_MODE", "false").lower() == "true"
-PRELAUNCH_MODE = os.getenv("PRELAUNCH_MODE", "true").lower() == "true"
+PRELAUNCH_MODE = False
 
 # ===== CASHFREE CONFIGURATION =====
 CASHFREE_APP_ID = os.getenv('CASHFREE_APP_ID')
@@ -99,7 +99,7 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'pdf'}
 
 # ===== INITIALIZE DATABASE & MIGRATE =====
-from models import db, User, ChallengeTemplate, Payment, ChallengePurchase, WaitlistLead, WebhookLog
+from models import db, User, ChallengeTemplate, Payment, ChallengePurchase, WebhookLog, FAQ
 
 db.init_app(app)
 migrate = Migrate(app, db)
@@ -606,39 +606,39 @@ def home():
     return render_template('index.html')
 
 
-@app.route('/legal')
-def legal():
-    return render_template('legal.html')
 
-@app.route('/waitlist', methods=['GET'])
-def waitlist():
-    return render_template('waitlist/waitlist_form.html')
+@app.route('/terms')
+def terms():
+    return render_template('terms.html')
 
-@app.route('/submit-waitlist', methods=['POST'])
-def submit_waitlist():
-    try:
-        new_lead = WaitlistLead(
-            name=request.form.get('name'),
-            email=request.form.get('email'),
-            phone=request.form.get('phone'),
-            experience=request.form.get('experience'),
-            platform=request.form.get('platform'),
-            plan_interest=request.form.get('plan_interest'),
-            problem=request.form.get('problem'),
-            feedback=request.form.get('feedback'),
-            early_access=request.form.get('early_access') == 'yes'
-        )
-        db.session.add(new_lead)
-        db.session.commit()
-        return redirect(url_for('waitlist_success'))
-    except Exception as e:
-        db.session.rollback()
-        flash('Error joining waitlist. Please try again.', 'error')
-        return redirect(url_for('waitlist'))
+@app.route('/privacy')
+def privacy():
+    return render_template('privacy.html')
 
-@app.route('/waitlist-success', methods=['GET'])
-def waitlist_success():
-    return render_template('waitlist/waitlist_success.html')
+@app.route('/contact')
+def contact():
+    return render_template('contact.html')
+
+@app.route('/faq')
+def faq():
+    # Query all FAQs grouped by category
+    faqs = FAQ.query.order_by(FAQ.is_pinned.desc(), FAQ.created_at.desc()).all()
+    categories = {}
+    for faq in faqs:
+        if faq.category not in categories:
+            categories[faq.category] = []
+        categories[faq.category].append(faq)
+    return render_template('faq.html', categories=categories)
+
+@app.route('/help')
+def help_center():
+    # Public help route redirects to login since Help Center is inside dashboard
+    flash('Please login to access the Help Center and Ticket system.', 'info')
+    return redirect(url_for('auth.login'))
+
+@app.route('/refund-policy')
+def refund_policy():
+    return render_template('refund.html')
 
 # ===== MAIN =====
 if __name__ == '__main__':

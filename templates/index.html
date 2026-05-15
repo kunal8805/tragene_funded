@@ -592,14 +592,25 @@
 
                 <!-- Buttons -->
                 <div class="flex items-center space-x-2">
+                    {% if session.get('user_id') %}
+                    <a href="{{ url_for('user.dashboard') }}"
+                        class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition duration-300">
+                        Dashboard
+                    </a>
+                    <a href="/logout"
+                        class="bg-gray-800 hover:bg-gray-700 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition duration-300">
+                        Logout
+                    </a>
+                    {% else %}
                     <a href="/login"
-                        class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm font-medium transition duration-300">
+                        class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition duration-300">
                         Login
                     </a>
-                    <a href="{{ '/waitlist' if PRELAUNCH_MODE else '/register' }}"
-                        class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm font-medium transition duration-300">
+                    <a href="/register"
+                        class="bg-green-600 hover:bg-green-700 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition duration-300">
                         Get Started
                     </a>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -635,7 +646,7 @@
 
                 <div class="flex flex-col sm:flex-row gap-4 justify-center items-center" data-aos="fade-up"
                     data-aos-delay="200">
-                    <a href="{{ '/waitlist' if PRELAUNCH_MODE else '/register' }}"
+                    <a href="{{ url_for('user.challenges') if session.get('user_id') else url_for('auth.login') }}"
                         class="group bg-gradient-to-r from-green-500 to-emerald-600 text-white px-8 py-4 rounded-xl text-lg font-semibold hover:from-green-600 hover:to-emerald-700 transition-all duration-300 transform hover:scale-105 shadow-2xl hover:shadow-3xl flex items-center pulse-glow">
                         <span>Start Challenge </span>
                         <i class="fas fa-arrow-right ml-2 group-hover:translate-x-1 transition-transform"></i>
@@ -651,7 +662,7 @@
                     data-aos-delay="300">
                     <div class="text-center liquid-glass p-4 rounded-2xl">
                         <div class="text-2xl font-bold text-white">200+</div>
-                        <div class="text-gray-400 text-sm">waitlist forms</div>
+                        <div class="text-gray-400 text-sm">Active Traders</div>
                     </div>
                     <div class="text-center liquid-glass p-4 rounded-2xl">
                         <div class="text-2xl font-bold text-white">₹199</div>
@@ -770,7 +781,7 @@
                                 <li class="flex items-center"><i class="fas fa-check text-green-400 mr-3"></i><span
                                         class="text-white">2 phase challenge</span></li>
                             </ul>
-                            <a href="{{ '/waitlist' if PRELAUNCH_MODE else '/register' }}"
+                            <a href="{{ url_for('user.challenges') if session.get('user_id') else url_for('auth.login') }}"
                                 class="block w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white text-center py-3 rounded-xl font-semibold hover:from-blue-700 hover:to-blue-800 transition duration-300">
                                 Start This Challenge
                             </a>
@@ -810,7 +821,7 @@
                                 <li class="flex items-center"><i class="fas fa-check text-green-400 mr-3"></i><span
                                         class="text-white">2 phase challenge</span></li>
                             </ul>
-                            <a href="{{ '/waitlist' if PRELAUNCH_MODE else '/register' }}"
+                            <a href="{{ url_for('user.challenges') if session.get('user_id') else url_for('auth.login') }}"
                                 class="block w-full bg-gradient-to-r from-green-600 to-green-700 text-white text-center py-3 rounded-xl font-semibold hover:from-green-700 hover:to-green-800 transition duration-300">
                                 Start This Challenge
                             </a>
@@ -845,7 +856,7 @@
                                 <li class="flex items-center"><i class="fas fa-check text-green-400 mr-3"></i><span
                                         class="text-white">2 phase challenge</span></li>
                             </ul>
-                            <a href="{{ '/waitlist' if PRELAUNCH_MODE else '/register' }}"
+                            <a href="{{ url_for('user.challenges') if session.get('user_id') else url_for('auth.login') }}"
                                 class="block w-full bg-gradient-to-r from-purple-600 to-purple-700 text-white text-center py-3 rounded-xl font-semibold hover:from-purple-700 hover:to-purple-800 transition duration-300">
                                 Start This Challenge
                             </a>
@@ -1107,7 +1118,7 @@
 
                 <!-- Bottom CTA inside the section -->
                 <div class="text-center mt-16" data-aos="fade-up">
-                    <a href="{{ '/waitlist' if PRELAUNCH_MODE else '/register' }}"
+                    <a href="{{ url_for('user.challenges') if session.get('user_id') else url_for('auth.login') }}"
                         class="group inline-flex items-center gap-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white px-10 py-4 rounded-2xl text-lg font-semibold hover:from-green-600 hover:to-emerald-700 transition-all duration-300 transform hover:scale-105 shadow-2xl">
                         <i class="fas fa-rocket group-hover:translate-y-[-2px] transition-transform"></i>
                         Get Access to Your Dashboard
@@ -1218,8 +1229,8 @@
                 <div class="text-center mt-12" data-aos="fade-up">
                     <div class="liquid-glass rounded-2xl p-8 text-white border border-gray-700">
                         <h3 class="text-2xl md:text-3xl font-bold mb-4">Ready to Start Your Trading Journey?</h3>
-                        <p class="text-gray-300 text-xl mb-6">Join thousands of traders who started with just ₹99</p>
-                        <a href="{{ '/waitlist' if PRELAUNCH_MODE else '/register' }}"
+                        <p class="text-gray-300 text-xl mb-6">Join thousands of traders who started with just ₹199</p>
+                        <a href="{{ url_for('user.challenges') if session.get('user_id') else url_for('auth.login') }}"
                             class="inline-flex items-center bg-gradient-to-r from-green-500 to-emerald-600 text-white px-8 py-4 rounded-xl text-lg font-semibold hover:from-green-600 hover:to-emerald-700 transition duration-300 transform hover:scale-105 shadow-lg">
                             <span>Start Your Challenge Now</span>
                             <i class="fas fa-arrow-right ml-2"></i>
@@ -1257,22 +1268,26 @@
                 <div>
                     <h4 class="font-semibold mb-4">Support</h4>
                     <ul class="space-y-2 text-gray-400">
-                        <li><a href="#" class="hover:text-white transition">Help Center</a></li>
-                        <li><a href="#" class="hover:text-white transition">Contact Us</a></li>
-                        <li><a href="#" class="hover:text-white transition">FAQ</a></li>
+                        <li><a href="{{ url_for('help_center') }}" class="hover:text-white transition">Help Center</a>
+                        </li>
+                        <li><a href="{{ url_for('contact') }}" class="hover:text-white transition">Contact Us</a></li>
+                        <li><a href="{{ url_for('faq') }}" class="hover:text-white transition">FAQ</a></li>
                     </ul>
                 </div>
                 <div>
                     <h4 class="font-semibold mb-4">Legal</h4>
                     <ul class="space-y-2 text-gray-400">
-                        <li><a href="/legal#privacy" class="hover:text-white transition">Privacy Policy</a></li>
-                        <li><a href="/legal#terms" class="hover:text-white transition">Terms of Service</a></li>
-                        <li><a href="/legal#refund" class="hover:text-white transition">Risk Disclosure</a></li>
+                        <li><a href="{{ url_for('privacy') }}" class="hover:text-white transition">Privacy Policy</a>
+                        </li>
+                        <li><a href="{{ url_for('terms') }}" class="hover:text-white transition">Terms & Conditions</a>
+                        </li>
+                        <li><a href="{{ url_for('refund_policy') }}" class="hover:text-white transition">Refund
+                                Policy</a></li>
                     </ul>
                 </div>
             </div>
             <div class="border-t border-gray-700 mt-8 pt-8 text-center text-gray-400">
-                <p>&copy; 2024 Tragene Funded. All rights reserved.</p>
+                <p>&copy; 2026 Tragene Funded. All rights reserved.</p>
             </div>
         </div>
     </footer>

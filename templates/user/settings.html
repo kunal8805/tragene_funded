@@ -1,0 +1,166 @@
+{% extends "user/base.html" %}
+
+{% block title %}Settings - Tragene Funded{% endblock %}
+
+{% block header_title %}Account Settings{% endblock %}
+{% block header_subtitle %}Manage your personal information and preferences{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto space-y-6 lg:space-y-8">
+    
+    <!-- Profile & Level Overview Card -->
+    <div class="glass-card p-6 lg:p-10 border dark:border-dark-border" data-aos="fade-up">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8 pb-6 border-b dark:border-dark-border">
+            <div class="flex items-center gap-4">
+                <div class="w-20 h-20 bg-blue-100 dark:bg-blue-900/30 rounded-2xl flex items-center justify-center relative">
+                    <i class="fas fa-user-circle text-blue-600 dark:text-blue-400 text-4xl"></i>
+                    <!-- Level Badge -->
+                    <div class="absolute -bottom-2 -right-2 bg-emerald-500 text-white text-[10px] font-black uppercase px-2 py-1 rounded-lg border-2 border-white dark:border-black shadow-lg">
+                        {{ user.trader_level }}
+                    </div>
+                </div>
+                <div>
+                    <h3 class="text-2xl font-bold text-gray-900 dark:text-white">{{ user.trading_alias if user.trading_alias else user.get_full_name() }}</h3>
+                    <p class="text-gray-500 dark:text-gray-400 text-sm">Level: <span class="text-emerald-500 font-bold uppercase tracking-wider">{{ user.trader_level }}</span></p>
+                </div>
+            </div>
+            <div class="flex gap-2">
+                <span class="inline-flex items-center gap-2 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest">
+                    ID: #{{ user.id }}
+                </span>
+            </div>
+        </div>
+
+        <form action="{{ url_for('user.update_settings') }}" method="POST" class="space-y-8">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <!-- Trading Alias -->
+                <div class="space-y-2">
+                    <label for="trading_alias" class="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-500">Trading Name / Alias</label>
+                    <div class="relative">
+                        <i class="fas fa-user-tag absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                        <input type="text" name="trading_alias" id="trading_alias" value="{{ user.trading_alias }}" 
+                            class="w-full bg-gray-50 dark:bg-black/40 border dark:border-dark-border rounded-xl py-3 pl-12 pr-4 text-gray-900 dark:text-white focus:border-blue-500 outline-none transition" 
+                            placeholder="Set your display name">
+                    </div>
+                    <p class="text-[10px] text-gray-500">This name will appear on your dashboard instead of your real name.</p>
+                </div>
+
+                <!-- Full Name (Read-only) -->
+                <div class="space-y-2">
+                    <label class="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-500">Legal Name (KYC)</label>
+                    <p class="bg-gray-100 dark:bg-gray-900/40 rounded-xl py-3 px-4 text-gray-500 dark:text-gray-500 font-medium">
+                        {{ user.first_name }} {{ user.last_name }}
+                    </p>
+                </div>
+
+                <!-- Email Address -->
+                <div class="space-y-2">
+                    <label class="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-500">Email Address</label>
+                    <p class="bg-gray-100 dark:bg-gray-900/40 rounded-xl py-3 px-4 text-gray-500 dark:text-gray-500 font-medium">
+                        {{ user.email }}
+                    </p>
+                </div>
+
+                <!-- Mobile Number -->
+                <div class="space-y-2">
+                    <label class="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-500">Mobile Number</label>
+                    <p class="bg-gray-100 dark:bg-gray-900/40 rounded-xl py-3 px-4 text-gray-500 dark:text-gray-500 font-medium">
+                        {{ user.phone or 'Not Provided' }}
+                    </p>
+                </div>
+            </div>
+
+            <div class="pt-6 border-t dark:border-dark-border flex justify-end">
+                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl font-bold transition shadow-lg shadow-blue-600/20">
+                    Save Changes
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Appearance & Interface Settings -->
+    <div class="glass-card p-6 lg:p-10 border dark:border-dark-border" data-aos="fade-up" style="animation-delay: 0.1s;">
+        <div class="flex items-center gap-4 mb-8 pb-6 border-b dark:border-dark-border">
+            <div class="w-16 h-16 bg-purple-100 dark:bg-purple-900/30 rounded-2xl flex items-center justify-center">
+                <i class="fas fa-palette text-purple-600 dark:text-purple-400 text-3xl"></i>
+            </div>
+            <div>
+                <h3 class="text-xl font-bold text-gray-900 dark:text-white">Interface Customization</h3>
+                <p class="text-gray-500 dark:text-gray-400 text-sm">Personalize your trading dashboard experience</p>
+            </div>
+        </div>
+
+        <div class="space-y-8">
+            <!-- Theme Mode -->
+            <div class="flex items-center justify-between gap-4">
+                <div>
+                    <h4 class="text-lg font-semibold text-gray-900 dark:text-white">Theme Mode</h4>
+                    <p class="text-gray-500 dark:text-gray-400 text-sm">Toggle between light and dark visual styles</p>
+                </div>
+                <button id="theme-toggle-settings" class="bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-900 dark:text-white px-6 py-3 rounded-xl font-bold transition flex items-center gap-3">
+                    <i class="fas fa-moon dark:hidden"></i>
+                    <i class="fas fa-sun hidden dark:block text-yellow-400"></i>
+                    <span class="dark:hidden">Dark</span>
+                    <span class="hidden dark:block">Light</span>
+                </button>
+            </div>
+
+            <!-- Compact View -->
+            <div class="flex items-center justify-between gap-4 pt-8 border-t dark:border-dark-border">
+                <div>
+                    <h4 class="text-lg font-semibold text-gray-900 dark:text-white">Compact Interface</h4>
+                    <p class="text-gray-500 dark:text-gray-400 text-sm">Reduce spacing and hide larger elements for a data-focused view</p>
+                </div>
+                <form action="{{ url_for('user.update_settings') }}" method="POST" id="compact-view-form">
+                    <input type="hidden" name="is_compact_view" value="{{ 'false' if user.is_compact_view else 'true' }}">
+                    <button type="submit" class="relative inline-flex h-8 w-14 items-center rounded-full transition-colors focus:outline-none {{ 'bg-blue-600' if user.is_compact_view else 'bg-gray-300 dark:bg-gray-700' }}">
+                        <span class="inline-block h-6 w-6 transform rounded-full bg-white transition-transform {{ 'translate-x-7' if user.is_compact_view else 'translate-x-1' }}"></span>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- KYC Status Verification Box -->
+    <div class="glass-card p-6 lg:p-10 border dark:border-dark-border" data-aos="fade-up" style="animation-delay: 0.2s;">
+        <div class="flex flex-col md:flex-row items-center justify-between gap-6">
+            <div class="flex items-center gap-4 text-center md:text-left">
+                <div class="w-16 h-16 bg-emerald-100 dark:bg-emerald-900/30 rounded-2xl flex items-center justify-center">
+                    <i class="fas fa-shield-check text-emerald-600 dark:text-emerald-400 text-3xl"></i>
+                </div>
+                <div>
+                    <h3 class="text-xl font-bold text-gray-900 dark:text-white">KYC Verification</h3>
+                    <p class="text-gray-500 dark:text-gray-400 text-sm">Current Status: 
+                        <span class="font-bold uppercase {{ 'text-emerald-500' if user.kyc_status == 'approved' else 'text-amber-500' }}">
+                            {{ user.kyc_status|title }}
+                        </span>
+                    </p>
+                </div>
+            </div>
+            {% if user.kyc_status != 'approved' %}
+            <a href="{{ url_for('user.kyc') }}" class="bg-emerald-500 hover:bg-emerald-600 text-white px-8 py-3 rounded-xl font-bold transition">
+                Continue Verification
+            </a>
+            {% else %}
+            <div class="text-emerald-500 flex items-center gap-2 font-bold">
+                <i class="fas fa-check-circle"></i> Verified Account
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const settingsThemeBtn = document.getElementById('theme-toggle-settings');
+    if (settingsThemeBtn) {
+        settingsThemeBtn.addEventListener('click', function() {
+            if (typeof toggleTheme === 'function') {
+                toggleTheme();
+            }
+        });
+    }
+</script>
+{% endblock %}
