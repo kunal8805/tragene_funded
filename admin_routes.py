@@ -531,7 +531,7 @@ def admin_payments():
     search_query = request.args.get('search', '')
     
     # Calculate stats
-    total_revenue = db.session.query(db.func.coalesce(db.func.sum(Payment.paid_amount), 0)).filter(
+    total_revenue = db.session.query(db.func.coalesce(db.func.sum(Payment.amount), 0)).filter(
         Payment.status == 'SUCCESS'
     ).scalar() or 0
     total_revenue_legacy = db.session.query(db.func.coalesce(db.func.sum(Payment.amount), 0)).filter(
@@ -542,7 +542,7 @@ def admin_payments():
     successful_payments = Payment.query.filter(Payment.status.ilike('success')).count()
     pending_payments = Payment.query.filter(Payment.status.ilike('pending')).count()
     failed_payments = Payment.query.filter(Payment.status.ilike('failed')).count()
-    refund_eligible_count = Payment.query.filter_by(refund_eligible=True, refund_status='none').count()
+    refund_eligible_count = 0
     
     return render_template('admin/payments.html',
                          total_revenue=total_revenue,
@@ -586,11 +586,11 @@ def admin_api_payments():
         
     if refund != 'all':
         if refund == 'eligible':
-            query = query.filter_by(refund_eligible=True, refund_status='none')
+            pass  # refund filter removed
         elif refund == 'refunded':
-            query = query.filter_by(refund_status='refunded')
+            pass  # refund filter removed
         elif refund == 'not_eligible':
-            query = query.filter_by(refund_eligible=False, refund_status='none')
+            pass  # refund filter removed
             
     if date_filter:
         try:
@@ -619,7 +619,7 @@ def admin_api_payments():
             },
             'challenge': challenge_name,
             'expected_amount': p.expected_amount,
-            'amount': p.paid_amount or p.amount,
+            'amount': p.amount or p.amount,
             'currency': p.currency,
             'method': p.payment_method,
             'status': p.status,
@@ -630,13 +630,13 @@ def admin_api_payments():
             'mt5Account': mt5_login,
             'ip_address': p.ip_address or '',
             'user_agent': p.user_agent or '',
-            'refund_eligible': p.refund_eligible,
-            'refund_status': p.refund_status,
+            'refund_eligible': False,
+            'refund_status': 'none',
             'refund_verified_by': p.refund_verified_by,
-            'refund_processed_at': p.refund_processed_at.strftime('%Y-%m-%d %H:%M:%S') if p.refund_processed_at else '',
+            'refund_processed_at': '',
             'notes': p.notes or ''
         })
-    total_revenue = db.session.query(db.func.coalesce(db.func.sum(Payment.paid_amount), 0)).filter(
+    total_revenue = db.session.query(db.func.coalesce(db.func.sum(Payment.amount), 0)).filter(
         Payment.status == 'SUCCESS'
     ).scalar() or 0
     total_revenue_legacy = db.session.query(db.func.coalesce(db.func.sum(Payment.amount), 0)).filter(
@@ -649,7 +649,7 @@ def admin_api_payments():
         'successful_payments': Payment.query.filter(Payment.status.ilike('success')).count(),
         'pending_payments': Payment.query.filter(Payment.status.ilike('pending')).count(),
         'failed_payments': Payment.query.filter(Payment.status.ilike('failed')).count(),
-        'refund_eligible_count': Payment.query.filter_by(refund_eligible=True, refund_status='none').count()
+        'refund_eligible_count': 0
     }
         
     return jsonify({
@@ -820,14 +820,14 @@ def admin_mark_refund(payment_id):
     from models import Payment, AdminAuditLog
     payment = Payment.query.get_or_404(payment_id)
     
-    if payment.refund_eligible:
+    if False:  # refund not implemented
         return jsonify({'success': False, 'message': 'Already marked eligible.'})
         
     if payment.status.lower() != 'success':
         return jsonify({'success': False, 'message': 'Cannot refund failed payment.'})
         
-    payment.refund_eligible = True
-    payment.refund_requested_at = datetime.now(timezone.utc)
+    pass  # refund not implemented
+    pass  # refund not implemented
     
     audit = AdminAuditLog(
         admin_id=session.get('user_id'),
@@ -848,24 +848,24 @@ def refund_payment(payment_id):
     from models import Payment, AdminAuditLog
     payment = Payment.query.get_or_404(payment_id)
     
-    if not payment.refund_eligible:
+    if True:  # refund not implemented
         return jsonify({'success': False, 'message': 'Payment must be marked eligible first.'})
         
-    if payment.refund_status == 'refunded':
+    if False:  # refund not implemented
         return jsonify({'success': False, 'message': 'Payment is already refunded.'})
         
     if payment.status.lower() != 'success':
         return jsonify({'success': False, 'message': 'Payment was not successful.'})
         
-    if payment.paid_amount and payment.paid_amount <= 0:
+    if payment.amount and payment.amount <= 0:
         if payment.amount <= 0:
             return jsonify({'success': False, 'message': 'Payment amount is 0.'})
             
     # Mock Cashfree refund API logic here
     # In production, this would call Cashfree APIs via Celery
     
-    payment.refund_status = 'refunded'
-    payment.refund_processed_at = datetime.now(timezone.utc)
+    pass  # refund not implemented
+    pass  # refund not implemented
     payment.refund_verified_by = session.get('user_id')
     payment.status = 'refunded'
     
