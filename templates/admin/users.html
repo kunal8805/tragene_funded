@@ -9,81 +9,59 @@
 <!-- Notification Container -->
 <div id="notificationContainer" class="fixed top-4 right-4 z-50 space-y-2 max-w-sm"></div>
 
-<!-- Search and Stats -->
+<!-- Search and Advanced Filters -->
 <div class="glass-card p-6 mb-6" data-aos="fade-up">
-    <div class="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4 mb-4">
-        <!-- Real-time Search -->
-        <div class="flex flex-col sm:flex-row gap-2 w-full lg:w-auto">
-            <div class="relative">
-                <input type="text" id="searchInput" placeholder="Search by name or email..."
-                    class="bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 w-full lg:w-64 pl-10 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 transition-colors">
-                <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
-            </div>
-            {% if request.args.get('search') %}
-            <a href="{{ url_for('admin_users') }}"
-                class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg font-semibold transition flex items-center justify-center">
-                <i class="fas fa-times mr-2"></i>Clear
-            </a>
-            {% endif %}
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <!-- Search Bar -->
+        <div class="lg:col-span-2 relative">
+            <input type="text" id="searchInput" placeholder="Search by name, email, phone, MT5 ID, Tx ID..."
+                class="bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 w-full pl-10 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 transition-colors">
+            <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
         </div>
 
-        <!-- Quick Stats -->
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <div class="text-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                <div class="text-lg font-bold text-blue-600 dark:text-blue-400">{{ users|length }}</div>
-                <div class="text-sm text-gray-600 dark:text-gray-400">Total Users</div>
-            </div>
-            <div class="text-center p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                <div class="text-lg font-bold text-green-600 dark:text-green-400">{{
-                    users|selectattr('is_admin')|list|length }}</div>
-                <div class="text-sm text-gray-600 dark:text-gray-400">Admins</div>
-            </div>
-            <div class="text-center p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
-                <div class="text-lg font-bold text-purple-600 dark:text-purple-400">{{
-                    users|rejectattr('is_admin')|list|length }}</div>
-                <div class="text-sm text-gray-600 dark:text-gray-400">Traders</div>
-            </div>
-            <div class="text-center p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
-                <div class="text-lg font-bold text-orange-600 dark:text-orange-400">{{
-                    users|selectattr('is_banned')|list|length }}</div>
-                <div class="text-sm text-gray-600 dark:text-gray-400">Banned</div>
-            </div>
+        <!-- Account Filter -->
+        <div>
+            <select id="accountFilter" class="bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 w-full text-gray-900 dark:text-gray-100">
+                <option value="all">All Accounts</option>
+                <option value="active">Active Users</option>
+                <option value="suspended">Suspended</option>
+                <option value="banned">Banned</option>
+                <option value="new">New (Last 7d)</option>
+            </select>
+        </div>
+
+        <!-- KYC Filter -->
+        <div>
+            <select id="kycFilter" class="bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 w-full text-gray-900 dark:text-gray-100">
+                <option value="all">All KYC Status</option>
+                <option value="approved">KYC Approved</option>
+                <option value="submitted">KYC Pending</option>
+                <option value="rejected">KYC Rejected</option>
+                <option value="none">KYC Not Submitted</option>
+            </select>
+        </div>
+
+        <!-- Sort Filter -->
+        <div>
+            <select id="sortFilter" class="bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 w-full text-gray-900 dark:text-gray-100">
+                <option value="newest">Newest First</option>
+                <option value="oldest">Oldest First</option>
+                <option value="spending">Highest Spending</option>
+                <option value="challenges">Most Challenges</option>
+            </select>
+        </div>
+        
+        <!-- Refresh / Reset -->
+        <div class="flex gap-2">
+            <button onclick="fetchUsers(1)" class="bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700 transition flex-1">
+                Apply Filters
+            </button>
+            <button onclick="resetFilters()" class="bg-gray-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-gray-600 transition flex-1">
+                Reset
+            </button>
         </div>
     </div>
 </div>
-
-<!-- Bulk Actions Form -->
-<form id="bulkActionForm" method="POST" action="{{ url_for('admin.admin_bulk_action') }}">
-    <!-- Bulk Actions Toolbar -->
-    <div class="mb-4 glass-card p-4" id="bulkActionsToolbar" style="display: none;">
-        <div class="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
-            <div class="text-center lg:text-left">
-                <span id="selectedCount" class="font-semibold text-blue-600 dark:text-blue-400 text-lg">0 users
-                    selected</span>
-            </div>
-
-            <div class="flex flex-col sm:flex-row gap-2 w-full lg:w-auto">
-                <select name="action" id="bulkActionSelect"
-                    class="w-full bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-gray-100">
-                    <option value="">Choose Action...</option>
-                    <option value="ban">Ban Selected Users</option>
-                    <option value="unban">Unban Selected Users</option>
-                    <option value="delete">Delete Selected Users</option>
-                </select>
-
-                <div class="flex gap-2">
-                    <button type="submit"
-                        class="bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700 transition flex-1">
-                        Apply Action
-                    </button>
-                    <button type="button" onclick="clearSelection()"
-                        class="bg-gray-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-gray-600 transition flex-1">
-                        Clear
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
 
     <!-- Users Table -->
     <div class="glass-card overflow-hidden">
@@ -239,168 +217,111 @@
 {% endif %}
 
 <script>
-    // Notification system with auto-disappear
-    function showNotification(message, type = 'info', duration = 10000) {
-        const notificationContainer = document.getElementById('notificationContainer');
+    let currentPage = 1;
+    const notificationContainer = document.getElementById('notificationContainer');
+
+    function showNotification(message, type = 'info') {
         const notification = document.createElement('div');
-        const bgColor = type === 'success' ? 'bg-green-500' :
-            type === 'error' ? 'bg-red-500' :
-                type === 'warning' ? 'bg-yellow-500' : 'bg-blue-500';
-
-        notification.className = `${bgColor} text-white p-4 rounded-lg shadow-lg transform transition-all duration-300 ease-in-out`;
-        notification.innerHTML = `
-        <div class="flex items-center justify-between">
-            <div class="flex items-center">
-                <i class="fas ${type === 'success' ? 'fa-check-circle' :
-                type === 'error' ? 'fa-exclamation-circle' :
-                    type === 'warning' ? 'fa-exclamation-triangle' : 'fa-info-circle'} mr-2"></i>
-                <span>${message}</span>
-            </div>
-            <button onclick="this.parentElement.parentElement.remove()" class="ml-4 text-white hover:text-gray-200">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-    `;
-
+        const bgColor = type === 'success' ? 'bg-green-500' : type === 'error' ? 'bg-red-500' : 'bg-blue-500';
+        notification.className = `${bgColor} text-white p-4 rounded-lg shadow-lg mb-2 transform transition-all duration-300`;
+        notification.innerHTML = `<div class="flex justify-between"><span>${message}</span><button onclick="this.parentElement.parentElement.remove()">×</button></div>`;
         notificationContainer.appendChild(notification);
-
-        // Auto remove after duration
-        setTimeout(() => {
-            if (notification.parentElement) {
-                notification.style.opacity = '0';
-                notification.style.transform = 'translateX(100%)';
-                setTimeout(() => {
-                    if (notification.parentElement) {
-                        notification.remove();
-                    }
-                }, 300);
-            }
-        }, duration);
+        setTimeout(() => notification.remove(), 5000);
     }
 
-    // Real-time search functionality
-    function debounce(func, wait) {
-        let timeout;
-        return function executedFunction(...args) {
-            const later = () => {
-                clearTimeout(timeout);
-                func(...args);
-            };
-            clearTimeout(timeout);
-            timeout = setTimeout(later, wait);
-        };
-    }
+    async function fetchUsers(page = 1) {
+        currentPage = page;
+        const search = document.getElementById('searchInput').value;
+        const account = document.getElementById('accountFilter').value;
+        const kyc = document.getElementById('kycFilter').value;
+        const sort = document.getElementById('sortFilter').value;
 
-    function filterUsers() {
-        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-        const rows = document.querySelectorAll('.user-row');
-        let visibleCount = 0;
+        const tableBody = document.getElementById('usersTableBody');
+        tableBody.innerHTML = '<tr><td colspan="7" class="text-center py-10"><i class="fas fa-spinner fa-spin mr-2"></i>Loading...</td></tr>';
 
-        rows.forEach(row => {
-            const userName = row.querySelector('.text-sm.font-medium').textContent.toLowerCase();
-            const userEmail = row.querySelector('.text-sm.text-gray-900').textContent ? row.querySelector('.text-sm.text-gray-900').textContent.toLowerCase() : '';
-            const userId = row.querySelector('.text-xs.text-gray-500').textContent.toLowerCase();
+        try {
+            const params = new URLSearchParams({
+                page, search, account_status: account, kyc_status: kyc, sort
+            });
+            const response = await fetch(`/admin/api/users?${params.toString()}`);
+            const data = await response.json();
 
-            const matches = userName.includes(searchTerm) ||
-                userEmail.includes(searchTerm) ||
-                userId.includes(searchTerm);
-
-            if (matches || searchTerm === '') {
-                row.style.display = '';
-                visibleCount++;
+            if (data.success) {
+                renderUsers(data.users);
+                // Simple pagination UI could be added here
             } else {
-                row.style.display = 'none';
+                showNotification('Error loading users', 'error');
             }
-        });
-
-        // Update stats to show filtered count
-        const statsCount = document.querySelector('.text-blue-600');
-        if (statsCount) statsCount.textContent = visibleCount;
-    }
-
-    // Initialize real-time search
-    document.addEventListener('DOMContentLoaded', function () {
-        const searchInput = document.getElementById('searchInput');
-        searchInput.addEventListener('input', debounce(filterUsers, 300));
-
-        // Show welcome notification
-        setTimeout(() => {
-            showNotification('Welcome back, Tragene!', 'success', 10000);
-        }, 1000);
-    });
-
-    // Bulk selection functionality
-    function toggleSelectAll(checkbox) {
-        const checkboxes = document.querySelectorAll('.user-checkbox');
-        checkboxes.forEach(cb => {
-            cb.checked = checkbox.checked;
-        });
-        updateBulkActions();
-    }
-
-    function updateBulkActions() {
-        const checkboxes = document.querySelectorAll('.user-checkbox');
-        const selectedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
-        const toolbar = document.getElementById('bulkActionsToolbar');
-        const selectedCountElement = document.getElementById('selectedCount');
-
-        if (selectedCount > 0) {
-            toolbar.style.display = 'block';
-            selectedCountElement.textContent = `${selectedCount} user${selectedCount !== 1 ? 's' : ''} selected`;
-        } else {
-            toolbar.style.display = 'none';
+        } catch (error) {
+            console.error(error);
+            showNotification('Network error', 'error');
         }
-
-        // Update select all checkbox
-        const selectAll = document.getElementById('selectAll');
-        selectAll.checked = selectedCount === checkboxes.length && checkboxes.length > 0;
-        selectAll.indeterminate = selectedCount > 0 && selectedCount < checkboxes.length;
     }
 
-    function clearSelection() {
-        const checkboxes = document.querySelectorAll('.user-checkbox');
-        checkboxes.forEach(cb => {
-            cb.checked = false;
-        });
-        updateBulkActions();
-        showNotification('Selection cleared', 'info');
-    }
+    function renderUsers(users) {
+        const tableBody = document.getElementById('usersTableBody');
+        tableBody.innerHTML = '';
 
-    // Form submission confirmation
-    document.getElementById('bulkActionForm').addEventListener('submit', function (e) {
-        const actionSelect = document.getElementById('bulkActionSelect');
-        const action = actionSelect.value;
-        const selectedCount = document.querySelectorAll('.user-checkbox:checked').length;
-
-        if (!action) {
-            e.preventDefault();
-            showNotification('Please select an action to perform.', 'warning');
+        if (users.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="7" class="text-center py-10">No users found.</td></tr>';
             return;
         }
 
-        let message = '';
-        switch (action) {
-            case 'ban':
-                message = `Are you sure you want to ban ${selectedCount} user${selectedCount !== 1 ? 's' : ''}?`;
-                break;
-            case 'unban':
-                message = `Are you sure you want to unban ${selectedCount} user${selectedCount !== 1 ? 's' : ''}?`;
-                break;
-            case 'delete':
-                message = `⚠️ WARNING: This will permanently delete ${selectedCount} user${selectedCount !== 1 ? 's' : ''} and ALL their data! This cannot be undone! Are you sure?`;
-                break;
-        }
+        users.forEach(user => {
+            const row = document.createElement('tr');
+            row.className = `hover:bg-gray-50 dark:hover:bg-gray-800/50 transition`;
+            row.innerHTML = `
+                <td class="px-6 py-4"><input type="checkbox" name="user_ids" value="${user.id}" class="user-checkbox rounded"></td>
+                <td class="px-6 py-4">
+                    <div class="flex items-center">
+                        <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
+                            <span class="text-blue-600 text-xs font-bold">${user.first_name[0]}${user.last_name[0]}</span>
+                        </div>
+                        <div>
+                            <div class="text-sm font-medium text-gray-900 dark:text-white">${user.first_name} ${user.last_name}</div>
+                            <div class="text-xs text-gray-500">ID: ${user.id}</div>
+                        </div>
+                    </div>
+                </td>
+                <td class="px-6 py-4">
+                    <div class="text-sm text-gray-900 dark:text-white">${user.email}</div>
+                    <div class="text-xs text-gray-500">${user.phone}</div>
+                </td>
+                <td class="px-6 py-4"><div class="text-sm text-gray-900 dark:text-white">${user.country}</div></td>
+                <td class="px-6 py-4"><div class="text-sm text-gray-500">${new Date(user.created_at).toLocaleDateString()}</div></td>
+                <td class="px-6 py-4">
+                    <span class="px-2 py-1 text-xs rounded-full ${user.status === 'banned' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}">
+                        ${user.status}
+                    </span>
+                </td>
+                <td class="px-6 py-4">
+                    <a href="/admin/user/${user.id}" class="text-blue-600 hover:underline text-sm font-medium">View Details</a>
+                </td>
+            `;
+            tableBody.appendChild(row);
+        });
+    }
 
-        if (!confirm(message)) {
-            e.preventDefault();
-        } else {
-            showNotification(`Action "${action}" applied to ${selectedCount} user${selectedCount !== 1 ? 's' : ''}`, 'success');
-        }
-    });
+    function debounce(func, wait) {
+        let timeout;
+        return function(...args) {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => func.apply(this, args), wait);
+        };
+    }
 
-    // Initialize
-    document.addEventListener('DOMContentLoaded', function () {
-        updateBulkActions();
+    function resetFilters() {
+        document.getElementById('searchInput').value = '';
+        document.getElementById('accountFilter').value = 'all';
+        document.getElementById('kycFilter').value = 'all';
+        document.getElementById('sortFilter').value = 'newest';
+        fetchUsers(1);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const searchInput = document.getElementById('searchInput');
+        searchInput.addEventListener('input', debounce(() => fetchUsers(1), 300));
+        fetchUsers(1);
     });
 </script>
 {% endblock %}

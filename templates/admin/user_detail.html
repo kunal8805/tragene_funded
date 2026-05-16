@@ -1,0 +1,359 @@
+{% extends "admin/base.html" %}
+
+{% block title %}User Details - {{ user.first_name }} {{ user.last_name }}{% endblock %}
+
+{% block header_title %}User Analytics{% endblock %}
+{% block header_subtitle %}Deep dive into user performance and identity{% endblock %}
+
+{% block content %}
+<div class="space-y-8 pb-12">
+    <!-- Sticky Top Actions Bar -->
+    <div class="sticky top-[80px] z-30 bg-white/80 dark:bg-dark-bg/80 backdrop-blur-md p-4 rounded-2xl shadow-sm border border-gray-200 dark:border-dark-border mb-6">
+        <div class="flex flex-wrap items-center justify-between gap-4">
+            <div class="flex items-center gap-4">
+                <a href="{{ url_for('admin.admin_users') }}" class="p-2 bg-gray-100 dark:bg-gray-800 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition">
+                    <i class="fas fa-arrow-left text-gray-600 dark:text-gray-400"></i>
+                </a>
+                <div>
+                    <h2 class="text-xl font-bold text-gray-900 dark:text-white">{{ user.first_name }} {{ user.last_name }}</h2>
+                    <div class="flex items-center gap-2 mt-1">
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase {{ 'bg-red-100 text-red-700' if user.is_banned else 'bg-green-100 text-green-700' }}">
+                            {{ 'Banned' if user.is_banned else 'Active' }}
+                        </span>
+                        <span class="text-xs text-gray-500 font-mono">UID: #{{ user.id }}</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex flex-wrap gap-2">
+                <button onclick="confirmAction('reset_password')" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition flex items-center">
+                    <i class="fas fa-key mr-2"></i> Reset Password
+                </button>
+                {% if not user.is_admin %}
+                    {% if not user.is_banned %}
+                    <a href="{{ url_for('admin.admin_ban_user', user_id=user.id) }}" onclick="return confirm('DANGER: This will prevent the user from logging in. Continue?')" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition flex items-center">
+                        <i class="fas fa-ban mr-2"></i> Ban User
+                    </a>
+                    {% else %}
+                    <a href="{{ url_for('admin.admin_unban_user', user_id=user.id) }}" onclick="return confirm('Restore user access?')" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition flex items-center">
+                        <i class="fas fa-check mr-2"></i> Unban User
+                    </a>
+                    {% endif %}
+                {% else %}
+                    <span class="bg-gray-100 dark:bg-gray-800 text-gray-500 px-4 py-2 rounded-lg text-sm font-semibold flex items-center">
+                        <i class="fas fa-shield-alt mr-2"></i> System Admin
+                    </span>
+                {% endif %}
+                <button onclick="confirmAction('delete_user')" class="bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-500 hover:text-white transition">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid lg:grid-cols-3 gap-8">
+        <!-- LEFT COLUMN: Profile & Stats -->
+        <div class="lg:col-span-1 space-y-8">
+            <!-- Profile Card -->
+            <div class="glass-card p-6" data-aos="fade-up">
+                <div class="flex flex-col items-center text-center mb-6">
+                    <div class="w-24 h-24 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mb-4 border-4 border-white dark:border-gray-800 shadow-md">
+                        <span class="text-4xl font-bold text-blue-600 dark:text-blue-400">{{ user.first_name[0] }}{{ user.last_name[0] }}</span>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-900 dark:text-white">{{ user.first_name }} {{ user.last_name }}</h3>
+                    <p class="text-gray-500 dark:text-gray-400 text-sm">{{ user.email }}</p>
+                </div>
+                
+                <div class="space-y-4 border-t border-gray-100 dark:border-dark-border pt-4">
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm text-gray-500 dark:text-gray-400">Phone</span>
+                        <span class="text-sm font-semibold text-gray-900 dark:text-white">{{ user.phone }}</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm text-gray-500 dark:text-gray-400">Country</span>
+                        <span class="text-sm font-semibold text-gray-900 dark:text-white">{{ user.country }}</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm text-gray-500 dark:text-gray-400">Joined</span>
+                        <span class="text-sm font-semibold text-gray-900 dark:text-white">{{ user.created_at.strftime('%d %b, %Y') if user.created_at else 'N/A' }}</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm text-gray-500 dark:text-gray-400">Level</span>
+                        <span class="px-2 py-0.5 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 text-[10px] font-bold uppercase">
+                            {{ user.trader_level or 'Starter' }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- KYC Verification Card -->
+            <div class="glass-card p-6" data-aos="fade-up" data-aos-delay="100">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-lg font-bold text-gray-900 dark:text-white">KYC Verification</h3>
+                    <span class="px-2 py-1 rounded-full text-[10px] font-bold uppercase 
+                        {% if user.kyc_status == 'approved' %}bg-green-100 text-green-700
+                        {% elif user.kyc_status == 'submitted' %}bg-yellow-100 text-yellow-700
+                        {% else %}bg-gray-100 text-gray-700{% endif %}">
+                        {{ user.kyc_status|upper if user.kyc_status else 'PENDING' }}
+                    </span>
+                </div>
+
+                {% if user.id_front_url or user.id_back_url %}
+                <div class="space-y-4">
+                    <div class="bg-gray-50 dark:bg-gray-800/50 p-3 rounded-xl border border-gray-100 dark:border-gray-700">
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mb-2">Document Details</p>
+                        <p class="text-sm font-semibold text-gray-900 dark:text-white">{{ user.document_type|upper or 'ID' }}: {{ user.document_number or 'N/A' }}</p>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-3">
+                        {% if user.id_front_url %}
+                        <div class="space-y-1">
+                            <p class="text-[10px] text-gray-500 dark:text-gray-400 uppercase font-bold">Front Image</p>
+                            <div class="relative group aspect-[3/2] rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-700 bg-black cursor-pointer shadow-sm hover:shadow-md transition" onclick="viewImage('{{ url_for('static', filename=user.id_front_url) }}')">
+                                <img src="{{ url_for('static', filename=user.id_front_url) }}" class="w-full h-full object-cover transition duration-500 group-hover:scale-110 opacity-90 group-hover:opacity-100" alt="Front ID">
+                                <div class="absolute inset-0 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition duration-300 bg-black/50">
+                                    <i class="fas fa-expand text-white text-2xl mb-2"></i>
+                                    <span class="text-white text-[10px] font-bold uppercase tracking-wider">Click to Enlarge</span>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if user.id_back_url %}
+                        <div class="space-y-1">
+                            <p class="text-[10px] text-gray-500 dark:text-gray-400 uppercase font-bold">Back Image</p>
+                            <div class="relative group aspect-[3/2] rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-700 bg-black cursor-pointer shadow-sm hover:shadow-md transition" onclick="viewImage('{{ url_for('static', filename=user.id_back_url) }}')">
+                                <img src="{{ url_for('static', filename=user.id_back_url) }}" class="w-full h-full object-cover transition duration-500 group-hover:scale-110 opacity-90 group-hover:opacity-100" alt="Back ID">
+                                <div class="absolute inset-0 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition duration-300 bg-black/50">
+                                    <i class="fas fa-expand text-white text-2xl mb-2"></i>
+                                    <span class="text-white text-[10px] font-bold uppercase tracking-wider">Click to Enlarge</span>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    {% if user.kyc_status == 'submitted' %}
+                    <div class="flex gap-2 pt-2">
+                        <a href="/admin/kyc/{{ user.id }}/approve" class="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg text-sm font-bold text-center transition" onclick="return confirm('Approve KYC?')">Approve</a>
+                        <button onclick="showRejectModal()" class="flex-1 bg-red-100 dark:bg-red-900/30 text-red-700 py-2 rounded-lg text-sm font-bold transition">Reject</button>
+                    </div>
+                    {% endif %}
+                </div>
+                {% else %}
+                <div class="text-center py-8 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-2xl">
+                    <i class="fas fa-cloud-upload-alt text-gray-300 dark:text-gray-600 text-3xl mb-3"></i>
+                    <p class="text-gray-500 dark:text-gray-400 text-sm">No documents uploaded</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- RIGHT COLUMN: Activity, Payments, Challenges -->
+        <div class="lg:col-span-2 space-y-8">
+            <!-- Financial Performance -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6" data-aos="fade-up">
+                <div class="glass-card p-6 bg-gradient-to-br from-blue-600 to-blue-700 text-white border-0 shadow-lg">
+                    <p class="text-xs font-bold text-blue-100 uppercase opacity-80">Total Spent</p>
+                    <p class="text-3xl font-bold mt-1">₹{{ total_spent|round(2) }}</p>
+                </div>
+                <div class="glass-card p-6 bg-gradient-to-br from-green-600 to-green-700 text-white border-0 shadow-lg">
+                    <p class="text-xs font-bold text-green-100 uppercase opacity-80">Total Payouts</p>
+                    <p class="text-3xl font-bold mt-1">₹{{ total_payouts|round(2) }}</p>
+                </div>
+                <div class="glass-card p-6 bg-gradient-to-br from-indigo-600 to-indigo-700 text-white border-0 shadow-lg">
+                    <p class="text-xs font-bold text-indigo-100 uppercase opacity-80">Total Purchases</p>
+                    <p class="text-3xl font-bold mt-1">{{ total_purchases }}</p>
+                </div>
+            </div>
+
+            <!-- Challenges Section -->
+            <div class="glass-card overflow-hidden" data-aos="fade-up">
+                <div class="p-6 border-b border-gray-100 dark:border-dark-border flex justify-between items-center">
+                    <h3 class="text-lg font-bold text-gray-900 dark:text-white">Challenge Accounts</h3>
+                    <span class="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-3 py-1 rounded-full text-xs font-bold">{{ challenges|length }} Total</span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left">
+                        <thead class="bg-gray-50 dark:bg-gray-800/50">
+                            <tr>
+                                <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase">Challenge</th>
+                                <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase">MT5 Login</th>
+                                <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase">Equity</th>
+                                <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase">Status</th>
+                                <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase text-right">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+                            {% for c in challenges %}
+                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition">
+                                <td class="px-6 py-4">
+                                    <div class="text-sm font-bold text-gray-900 dark:text-white">{{ c.challenge_template.name or 'Basic' }}</div>
+                                    <div class="text-[10px] text-gray-500">{{ c.purchase_date.strftime('%d %b, %Y') if c.purchase_date else 'N/A' }}</div>
+                                </td>
+                                <td class="px-6 py-4 font-mono text-sm text-blue-600 dark:text-blue-400">{{ c.mt5_login or 'PENDING' }}</td>
+                                <td class="px-6 py-4 text-sm font-semibold">₹{{ c.current_equity or 0 }}</td>
+                                <td class="px-6 py-4">
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase
+                                        {% if c.status == 'active' %}bg-green-100 text-green-700
+                                        {% elif c.status == 'failed' %}bg-red-100 text-red-700
+                                        {% else %}bg-gray-100 text-gray-700{% endif %}">
+                                        {{ c.status|upper }}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 text-right">
+                                    <a href="/admin/challenges/{{ c.id }}" class="text-blue-600 hover:text-blue-800 transition"><i class="fas fa-external-link-alt"></i></a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                            {% if not challenges %}
+                            <tr>
+                                <td colspan="5" class="px-6 py-12 text-center text-gray-400 italic">No challenge accounts found.</td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-8">
+                <!-- Recent Payments -->
+                <div class="glass-card overflow-hidden" data-aos="fade-up">
+                    <div class="p-6 border-b border-gray-100 dark:border-dark-border">
+                        <h3 class="text-lg font-bold text-gray-900 dark:text-white">Payment History</h3>
+                    </div>
+                    <div class="p-0">
+                        {% for p in payments[:5] %}
+                        <div class="flex items-center justify-between p-4 border-b border-gray-50 dark:border-gray-800 last:border-0">
+                            <div>
+                                <div class="text-sm font-bold text-gray-900 dark:text-white">₹{{ p.amount }}</div>
+                                <div class="text-[10px] text-gray-500 uppercase">{{ p.payment_method }} • {{ p.created_at.strftime('%d %b') if p.created_at else 'N/A' }}</div>
+                            </div>
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase 
+                                {{ 'bg-green-100 text-green-700' if p.status == 'SUCCESS' else 'bg-red-100 text-red-700' }}">
+                                {{ p.status }}
+                            </span>
+                        </div>
+                        {% endfor %}
+                        {% if not payments %}
+                        <div class="p-6 text-center text-gray-400 italic text-sm">No payment history.</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Support Tickets -->
+                <div class="glass-card overflow-hidden" data-aos="fade-up">
+                    <div class="p-6 border-b border-gray-100 dark:border-dark-border">
+                        <h3 class="text-lg font-bold text-gray-900 dark:text-white">Support Tickets</h3>
+                    </div>
+                    <div class="p-0">
+                        {% for t in support_tickets[:5] %}
+                        <a href="{{ url_for('admin.admin_ticket_detail', ticket_number=t.ticket_number) }}" class="flex items-center justify-between p-4 border-b border-gray-50 dark:border-gray-800 last:border-0 hover:bg-gray-50 dark:hover:bg-gray-800 transition">
+                            <div class="min-w-0 flex-1">
+                                <div class="text-sm font-bold text-gray-900 dark:text-white truncate">{{ t.subject }}</div>
+                                <div class="text-[10px] text-gray-500 uppercase">#{{ t.ticket_number }} • {{ t.category }}</div>
+                            </div>
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase 
+                                {% if t.status == 'open' %}bg-green-100 text-green-700
+                                {% elif t.status == 'resolved' %}bg-gray-100 text-gray-700
+                                {% else %}bg-blue-100 text-blue-700{% endif %} ml-3">
+                                {{ t.status }}
+                            </span>
+                        </a>
+                        {% endfor %}
+                        {% if not support_tickets %}
+                        <div class="p-6 text-center text-gray-400 italic text-sm">No support tickets.</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Image Lightbox Modal -->
+<div id="imageLightbox" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4 md:p-8">
+    <div class="absolute inset-0 bg-black/95 backdrop-blur-md" onclick="closeLightbox()"></div>
+    <div class="relative max-w-full max-h-full flex flex-col items-center">
+        <!-- Close Button -->
+        <button onclick="closeLightbox()" class="absolute -top-12 right-0 md:-right-12 text-white text-4xl hover:text-red-500 transition duration-300 z-[110]">
+            <i class="fas fa-times-circle"></i>
+        </button>
+        
+        <!-- Image Container -->
+        <div class="relative overflow-hidden rounded-lg shadow-2xl border border-white/20 bg-gray-900 flex items-center justify-center">
+            <img id="lightboxImg" src="" class="max-w-full max-h-[85vh] object-contain" alt="Full Preview">
+        </div>
+        
+        <!-- Footer / Instructions -->
+        <div class="mt-4 px-6 py-2 bg-white/10 backdrop-blur-md rounded-full text-white text-xs font-bold uppercase tracking-widest flex items-center gap-3">
+            <i class="fas fa-search-plus"></i>
+            <span>Full Resolution Preview</span>
+            <span class="opacity-40">|</span>
+            <button onclick="closeLightbox()" class="hover:text-red-400 transition">Close (ESC)</button>
+        </div>
+    </div>
+</div>
+
+<!-- Rejection Modal -->
+<div id="rejectModal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="hideRejectModal()"></div>
+    <div class="relative bg-white dark:bg-gray-900 rounded-2xl p-8 max-w-md w-full shadow-2xl">
+        <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Reject KYC Application</h3>
+        <p class="text-gray-500 dark:text-gray-400 text-sm mb-6">Please provide a reason for rejection. This will be visible to the user.</p>
+        
+        <form action="/admin/kyc/{{ user.id }}/reject" method="POST">
+            <textarea name="rejection_reason" class="w-full h-32 p-4 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:ring-2 focus:ring-red-500 outline-none transition" placeholder="e.g. Identity document is unclear or expired..."></textarea>
+            <div class="flex gap-3 mt-6">
+                <button type="button" onclick="hideRejectModal()" class="flex-1 py-3 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-xl font-bold">Cancel</button>
+                <button type="submit" class="flex-1 py-3 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition">Reject Now</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function viewImage(src) {
+        if(!src || src.includes('undefined')) return;
+        const lightbox = document.getElementById('imageLightbox');
+        const img = document.getElementById('lightboxImg');
+        img.src = src;
+        lightbox.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeLightbox() {
+        document.getElementById('imageLightbox').classList.add('hidden');
+        document.body.style.overflow = 'auto';
+    }
+
+    // Close lightbox on ESC key
+    window.addEventListener('keydown', function(e) {
+        if (e.key === "Escape") {
+            closeLightbox();
+            hideRejectModal();
+        }
+    });
+
+    function showRejectModal() {
+        document.getElementById('rejectModal').classList.remove('hidden');
+    }
+
+    function hideRejectModal() {
+        document.getElementById('rejectModal').classList.add('hidden');
+    }
+
+    function confirmAction(action) {
+        let msg = "";
+        switch(action) {
+            case 'reset_password': msg = "Are you sure you want to send a password reset email?"; break;
+            case 'ban_user': msg = "DANGER: This will prevent the user from logging in. Continue?"; break;
+            case 'unban_user': msg = "Restore user access?"; break;
+            case 'delete_user': msg = "CRITICAL: This will permanently delete this user and all their data. This cannot be undone!"; break;
+        }
+        if(confirm(msg)) {
+            alert("Action '" + action + "' triggered. (Backend connection pending)");
+        }
+    }
+</script>
+{% endblock %}

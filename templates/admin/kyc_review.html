@@ -16,9 +16,12 @@
 
 <!-- User Info Card -->
 <div class="glass-card p-6 mb-6" data-aos="fade-up">
-    <h3
-        class="text-xl font-semibold text-gray-900 dark:text-white mb-4 border-b border-gray-100 dark:border-gray-700 pb-2">
-        User Information</h3>
+    <div class="flex justify-between items-center mb-4 border-b border-gray-100 dark:border-gray-700 pb-2">
+        <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-0">User Information</h3>
+        <a href="/admin/user/{{ user.id }}" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition shadow-sm flex items-center">
+            <i class="fas fa-user-circle mr-2"></i> View Full Profile
+        </a>
+    </div>
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <div>
             <p class="text-sm text-gray-500 dark:text-gray-400">Full Name</p>

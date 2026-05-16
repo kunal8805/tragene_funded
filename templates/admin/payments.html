@@ -27,19 +27,19 @@
 </div>
 
 <!-- Payment Stats -->
-<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+<div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6 mb-8">
     <div class="glass-card p-6 text-center" data-aos="fade-up" data-aos-delay="0">
         <div class="flex items-center justify-between mb-4">
             <div class="text-left">
                 <p class="text-sm text-gray-600 dark:text-gray-400">Total Revenue</p>
-                <p class="text-2xl font-bold text-gray-900 dark:text-white">₹84,250</p>
+                <p id="statTotalRevenue" class="text-2xl font-bold text-gray-900 dark:text-white">₹{{ '{:,.0f}'.format(total_revenue) }}</p>
             </div>
             <div class="bg-green-100 dark:bg-green-900/20 p-3 rounded-full">
                 <i class="fas fa-rupee-sign text-green-600 dark:text-green-400 text-xl"></i>
             </div>
         </div>
         <div class="text-left">
-            <span class="text-green-600 dark:text-green-400 text-sm font-medium">+15% this month</span>
+            <span class="text-green-600 dark:text-green-400 text-sm font-medium">All successful payments</span>
         </div>
     </div>
 
@@ -47,14 +47,14 @@
         <div class="flex items-center justify-between mb-4">
             <div class="text-left">
                 <p class="text-sm text-gray-600 dark:text-gray-400">Successful</p>
-                <p class="text-2xl font-bold text-gray-900 dark:text-white">851</p>
+                <p id="statSuccessful" class="text-2xl font-bold text-gray-900 dark:text-white">{{ successful_payments }}</p>
             </div>
             <div class="bg-blue-100 dark:bg-blue-900/20 p-3 rounded-full">
                 <i class="fas fa-check-circle text-blue-600 dark:text-blue-400 text-xl"></i>
             </div>
         </div>
         <div class="text-left">
-            <span class="text-blue-600 dark:text-blue-400 text-sm font-medium">98.5% success rate</span>
+            <span class="text-blue-600 dark:text-blue-400 text-sm font-medium">Completed orders</span>
         </div>
     </div>
 
@@ -62,14 +62,14 @@
         <div class="flex items-center justify-between mb-4">
             <div class="text-left">
                 <p class="text-sm text-gray-600 dark:text-gray-400">Pending</p>
-                <p class="text-2xl font-bold text-gray-900 dark:text-white">12</p>
+                <p id="statPending" class="text-2xl font-bold text-gray-900 dark:text-white">{{ pending_payments }}</p>
             </div>
             <div class="bg-yellow-100 dark:bg-yellow-900/20 p-3 rounded-full">
                 <i class="fas fa-clock text-yellow-600 dark:text-yellow-400 text-xl"></i>
             </div>
         </div>
         <div class="text-left">
-            <span class="text-yellow-600 dark:text-yellow-400 text-sm font-medium">Need attention</span>
+            <span class="text-yellow-600 dark:text-yellow-400 text-sm font-medium">Awaiting response</span>
         </div>
     </div>
 
@@ -77,7 +77,7 @@
         <div class="flex items-center justify-between mb-4">
             <div class="text-left">
                 <p class="text-sm text-gray-600 dark:text-gray-400">Failed</p>
-                <p class="text-2xl font-bold text-gray-900 dark:text-white">5</p>
+                <p id="statFailed" class="text-2xl font-bold text-gray-900 dark:text-white">{{ failed_payments }}</p>
             </div>
             <div class="bg-red-100 dark:bg-red-900/20 p-3 rounded-full">
                 <i class="fas fa-times-circle text-red-600 dark:text-red-400 text-xl"></i>
@@ -85,6 +85,21 @@
         </div>
         <div class="text-left">
             <span class="text-red-600 dark:text-red-400 text-sm font-medium">Requires review</span>
+        </div>
+    </div>
+
+    <div class="glass-card p-6 text-center" data-aos="fade-up" data-aos-delay="400">
+        <div class="flex items-center justify-between mb-4">
+            <div class="text-left">
+                <p class="text-sm text-gray-600 dark:text-gray-400">Refund Review</p>
+                <p id="statRefund" class="text-2xl font-bold text-purple-600 dark:text-purple-400">{{ refund_eligible_count }}</p>
+            </div>
+            <div class="bg-purple-100 dark:bg-purple-900/20 p-3 rounded-full">
+                <i class="fas fa-undo-alt text-purple-600 dark:text-purple-400 text-xl"></i>
+            </div>
+        </div>
+        <div class="text-left">
+            <span class="text-purple-600 dark:text-purple-400 text-sm font-medium">Pending action</span>
         </div>
     </div>
 </div>
@@ -288,35 +303,6 @@
 
 {% block scripts %}
 <script>
-    // Sample data (Kept from original)
-    const paymentsData = [
-        {
-            id: "PAY_001", user: { name: "Rahul Sharma", email: "rahul@example.com" },
-            challenge: "Starter Challenge", amount: 99, method: "upi", status: "success",
-            date: "2023-11-15 14:30:22", gatewayId: "UPI123456789", mt5Account: "TRG_Rahul_001"
-        },
-        {
-            id: "PAY_002", user: { name: "Priya Patel", email: "priya@example.com" },
-            challenge: "Advanced Challenge", amount: 199, method: "card", status: "success",
-            date: "2023-11-15 13:45:10", gatewayId: "CARD987654321", mt5Account: "TRG_Priya_002"
-        },
-        {
-            id: "PAY_003", user: { name: "Amit Kumar", email: "amit@example.com" },
-            challenge: "Starter Challenge", amount: 99, method: "upi", status: "pending",
-            date: "2023-11-15 12:15:05", gatewayId: "UPI555666777", mt5Account: "TRG_Amit_003"
-        },
-        {
-            id: "PAY_004", user: { name: "Sneha Gupta", email: "sneha@example.com" },
-            challenge: "Pro Challenge", amount: 299, method: "netbanking", status: "failed",
-            date: "2023-11-15 11:20:33", gatewayId: "NB123456789", mt5Account: "TRG_Sneha_004"
-        },
-        {
-            id: "PAY_005", user: { name: "Vikram Singh", email: "vikram@example.com" },
-            challenge: "Starter Challenge", amount: 99, method: "upi", status: "success",
-            date: "2023-11-14 16:45:18", gatewayId: "UPI888999000", mt5Account: "TRG_Vikram_005"
-        }
-    ];
-
     // DOM Elements
     const paymentsTableBody = document.getElementById('paymentsTableBody');
     const searchInput = document.getElementById('searchInput');
@@ -330,7 +316,7 @@
     const closeModal = document.getElementById('closeModal');
     const closeModalBtn = document.getElementById('closeModalBtn');
     const modalContent = document.getElementById('modalContent');
-    const refundBtn = document.getElementById('refundBtn');
+    const refundBtn = document.getElementById('refundBtn'); // in modal
     const prevPage = document.getElementById('prevPage');
     const nextPage = document.getElementById('nextPage');
     const paginationStart = document.getElementById('paginationStart');
@@ -342,7 +328,9 @@
     const bulkActionForm = document.getElementById('bulkActionForm');
 
     let currentPage = 1;
-    const itemsPerPage = 10;
+    let itemsPerPage = 20;
+    let currentPayments = []; 
+    let currentModalPayment = null; 
 
     document.addEventListener('DOMContentLoaded', function () {
         loadPaymentsTable();
@@ -350,52 +338,38 @@
     });
 
     function setupEventListeners() {
-        searchInput.addEventListener('input', filterPayments);
-        statusFilter.addEventListener('change', filterPayments);
-        methodFilter.addEventListener('change', filterPayments);
-        dateFilter.addEventListener('change', filterPayments);
+        let searchTimeout;
+        searchInput.addEventListener('input', () => {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => { currentPage = 1; loadPaymentsTable(); }, 500);
+        });
+        
+        statusFilter.addEventListener('change', () => { currentPage = 1; loadPaymentsTable(); });
+        methodFilter.addEventListener('change', () => { currentPage = 1; loadPaymentsTable(); });
+        dateFilter.addEventListener('change', () => { currentPage = 1; loadPaymentsTable(); });
+        
         refreshBtn.addEventListener('click', refreshData);
         refreshPaymentsBtn.addEventListener('click', refreshData);
         exportBtn.addEventListener('click', exportToCSV);
         closeModal.addEventListener('click', closePaymentModal);
         closeModalBtn.addEventListener('click', closePaymentModal);
-        refundBtn.addEventListener('click', processRefund);
+        refundBtn.addEventListener('click', () => processRefundModal(currentModalPayment));
         prevPage.addEventListener('click', goToPrevPage);
         nextPage.addEventListener('click', goToNextPage);
 
-        // Bulk actions form
         bulkActionForm.addEventListener('submit', function (e) {
             const action = bulkActionSelect.value;
             const selectedCount = document.querySelectorAll('.payment-checkbox:checked').length;
-
             if (!action) {
                 e.preventDefault();
                 alert('Please select an action to perform.');
                 return;
             }
-
-            let message = '';
-            switch (action) {
-                case 'refund':
-                    message = `Are you sure you want to refund ${selectedCount} payment(s)? This will process refunds through the payment gateway.`;
-                    break;
-                case 'delete':
-                    message = `⚠️ WARNING: This will permanently delete ${selectedCount} payment record(s)! This action cannot be undone. Are you sure?`;
-                    break;
-                case 'mark_success':
-                    message = `Mark ${selectedCount} payment(s) as successful?`;
-                    break;
-                case 'mark_failed':
-                    message = `Mark ${selectedCount} payment(s) as failed?`;
-                    break;
-            }
-
-            if (!confirm(message)) {
+            if (!confirm(`Are you sure you want to apply ${action} to ${selectedCount} selected payment(s)?`)) {
                 e.preventDefault();
             }
         });
 
-        // Close modal on outside click
         window.addEventListener('click', function (event) {
             if (event.target === paymentModal) {
                 closePaymentModal();
@@ -403,48 +377,58 @@
         });
     }
 
-    // Helper functions
-    function formatDate(dateString) {
-        const date = new Date(dateString);
-        return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    }
+    async function loadPaymentsTable() {
+        paymentsTableBody.innerHTML = '<tr><td colspan="9" class="px-6 py-8 text-center text-gray-500"><i class="fas fa-spinner fa-spin mr-2 text-xl"></i> Loading payments...</td></tr>';
+        
+        const payload = {
+            search: searchInput.value,
+            status: statusFilter.value,
+            method: methodFilter.value,
+            date: dateFilter.value,
+            page: currentPage,
+            per_page: itemsPerPage
+        };
 
-    function toggleSelectAll(checkbox) {
-        const checkboxes = document.querySelectorAll('.payment-checkbox');
-        checkboxes.forEach(cb => { cb.checked = checkbox.checked; });
-        updateBulkActions();
-    }
-
-    function updateBulkActions() {
-        const checkboxes = document.querySelectorAll('.payment-checkbox');
-        const selectedCountValue = Array.from(checkboxes).filter(cb => cb.checked).length;
-
-        if (selectedCountValue > 0) {
-            bulkActionsToolbar.style.display = 'block';
-            selectedCount.textContent = `${selectedCountValue} payment${selectedCountValue !== 1 ? 's' : ''} selected`;
-        } else {
-            bulkActionsToolbar.style.display = 'none';
+        try {
+            const response = await fetch('/admin/api/payments', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            });
+            const data = await response.json();
+            
+            if (data.success) {
+                currentPayments = data.payments;
+                renderTable(data.payments);
+                updatePaginationInfo(data.total, data.pages);
+                
+                // Update top stats dynamically
+                if (data.stats) {
+                    document.getElementById('statTotalRevenue').innerText = '₹' + data.stats.total_revenue.toLocaleString('en-IN', { maximumFractionDigits: 0 });
+                    document.getElementById('statSuccessful').innerText = data.stats.successful_payments;
+                    document.getElementById('statPending').innerText = data.stats.pending_payments;
+                    document.getElementById('statFailed').innerText = data.stats.failed_payments;
+                    document.getElementById('statRefund').innerText = data.stats.refund_eligible_count;
+                }
+                
+                // Update Last Updated timestamp
+                const now = new Date();
+                document.getElementById('lastUpdated').innerText = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            } else {
+                paymentsTableBody.innerHTML = '<tr><td colspan="9" class="text-center text-red-500 py-8">Failed to load payments.</td></tr>';
+            }
+        } catch (error) {
+            console.error('Error fetching payments:', error);
+            paymentsTableBody.innerHTML = '<tr><td colspan="9" class="text-center text-red-500 py-8">Network error. Please try again.</td></tr>';
         }
-
-        const selectAll = document.getElementById('selectAll');
-        if (selectAll) {
-            selectAll.checked = selectedCountValue === checkboxes.length && checkboxes.length > 0;
-            selectAll.indeterminate = selectedCountValue > 0 && selectedCountValue < checkboxes.length;
-        }
     }
 
-    function clearSelection() {
-        const checkboxes = document.querySelectorAll('.payment-checkbox');
-        checkboxes.forEach(cb => { cb.checked = false; });
-        updateBulkActions();
-    }
-
-    function loadPaymentsTable() {
+    function renderTable(payments) {
         paymentsTableBody.innerHTML = '';
-        const filteredPayments = getFilteredPayments();
-        const paginatedPayments = paginateData(filteredPayments);
-
-        if (paginatedPayments.length === 0) {
+        
+        if (payments.length === 0) {
             paymentsTableBody.innerHTML = `
                 <tr>
                     <td colspan="9" class="px-6 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
@@ -454,50 +438,40 @@
                         </div>
                     </td>
                 </tr>`;
-            updatePaginationInfo(0);
             return;
         }
 
-        paginatedPayments.forEach(payment => {
+        payments.forEach(payment => {
             const row = document.createElement('tr');
             row.className = 'hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors';
 
-            // Status Styling
             let statusClass, statusText;
-            switch (payment.status) {
-                case 'success':
-                    statusClass = 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400';
-                    statusText = 'Success';
-                    break;
-                case 'pending':
-                    statusClass = 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400';
-                    statusText = 'Pending';
-                    break;
-                case 'failed':
-                    statusClass = 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400';
-                    statusText = 'Failed';
-                    break;
-                case 'refunded':
-                    statusClass = 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400';
-                    statusText = 'Refunded';
-                    break;
-                default:
-                    statusClass = 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300';
-                    statusText = 'Unknown';
+            switch (payment.status.toLowerCase()) {
+                case 'success': statusClass = 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400'; statusText = 'Success'; break;
+                case 'pending': statusClass = 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400'; statusText = 'Pending'; break;
+                case 'failed': statusClass = 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400'; statusText = 'Failed'; break;
+                case 'refunded': statusClass = 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-400'; statusText = 'Refunded'; break;
+                default: statusClass = 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300'; statusText = payment.status;
             }
 
-            // Method Icon
-            let methodIcon, methodText;
-            switch (payment.method) {
-                case 'upi': methodIcon = 'fa-mobile-alt'; methodText = 'UPI'; break;
-                case 'card': methodIcon = 'fa-credit-card'; methodText = 'Card'; break;
-                case 'netbanking': methodIcon = 'fa-university'; methodText = 'Net Banking'; break;
-                default: methodIcon = 'fa-money-bill-wave'; methodText = 'Other';
+            let methodIcon = 'fa-money-bill-wave';
+            let methodStr = payment.method ? payment.method.toLowerCase() : '';
+            if (methodStr.includes('upi')) methodIcon = 'fa-mobile-alt';
+            else if (methodStr.includes('card')) methodIcon = 'fa-credit-card';
+            else if (methodStr.includes('netbanking')) methodIcon = 'fa-university';
+
+            let actionBtnHtml = '';
+            if (payment.status.toLowerCase() === 'success' && payment.refund_status !== 'refunded') {
+                if (payment.refund_eligible) {
+                    actionBtnHtml = `<a href="javascript:void(0)" class="text-purple-600 hover:text-purple-900 dark:text-purple-400 dark:hover:text-purple-300 mr-3 execute-refund" data-id="${payment.db_id}">Execute Refund</a>`;
+                } else {
+                    actionBtnHtml = `<a href="javascript:void(0)" class="text-yellow-600 hover:text-yellow-900 dark:text-yellow-400 dark:hover:text-yellow-300 mr-3 mark-refund" data-id="${payment.db_id}">Mark Refund</a>`;
+                }
             }
 
             row.innerHTML = `
                 <td class="px-6 py-4 whitespace-nowrap">
-                    <input type="checkbox" name="payment_ids" value="${payment.id}" 
+                    <input type="checkbox" name="payment_ids" value="${payment.db_id}" 
                            class="payment-checkbox rounded border-gray-300 text-blue-600 focus:ring-blue-500" onchange="updateBulkActions()">
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">${payment.id}</td>
@@ -508,104 +482,93 @@
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">${payment.challenge}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">₹${payment.amount}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                    <i class="fas ${methodIcon} mr-1 text-blue-500"></i> ${methodText}
+                    <i class="fas ${methodIcon} mr-1 text-blue-500"></i> ${payment.method}
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap">
                     <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusClass}">
                         ${statusText}
                     </span>
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">${formatDate(payment.date)}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">${payment.date}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <a href="javascript:void(0)" class="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 mr-3 view-payment" data-id="${payment.id}">View</a>
-                    <a href="javascript:void(0)" class="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 refund-payment" data-id="${payment.id}">Refund</a>
+                    <a href="javascript:void(0)" class="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 mr-3 view-payment" data-id="${payment.db_id}">View</a>
+                    <a href="/admin/user/${payment.user_id}" class="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300 mr-3">User</a>
+                    ${actionBtnHtml}
                 </td>
             `;
 
             paymentsTableBody.appendChild(row);
         });
 
-        updatePaginationInfo(filteredPayments.length);
-
-        // Dynamic listeners for new rows
-        document.querySelectorAll('.view-payment').forEach(button => {
-            button.addEventListener('click', (e) => {
+        document.querySelectorAll('.view-payment').forEach(btn => {
+            btn.addEventListener('click', (e) => {
                 e.preventDefault(); e.stopPropagation();
-                const paymentId = button.getAttribute('data-id');
-                const payment = paymentsData.find(p => p.id === paymentId);
-                if (payment) openPaymentModal(payment);
+                const pId = parseInt(btn.getAttribute('data-id'));
+                const p = currentPayments.find(x => x.db_id === pId);
+                if (p) openPaymentModal(p);
+            });
+        });
+        document.querySelectorAll('.mark-refund').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault(); e.stopPropagation();
+                markRefundEligible(btn.getAttribute('data-id'));
+            });
+        });
+        document.querySelectorAll('.execute-refund').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault(); e.stopPropagation();
+                executeRefund(btn.getAttribute('data-id'));
             });
         });
 
-        document.querySelectorAll('.refund-payment').forEach(button => {
-            button.addEventListener('click', (e) => {
-                e.preventDefault(); e.stopPropagation();
-                const paymentId = button.getAttribute('data-id');
-                alert(`Refund process initiated for payment ${paymentId}`);
-            });
-        });
         updateBulkActions();
     }
 
-    function filterPayments() {
-        currentPage = 1;
-        loadPaymentsTable();
-    }
-
-    function getFilteredPayments() {
-        let filtered = [...paymentsData];
-        const searchTerm = searchInput.value.toLowerCase();
-
-        if (searchTerm) {
-            filtered = filtered.filter(payment =>
-                payment.user.name.toLowerCase().includes(searchTerm) ||
-                payment.user.email.toLowerCase().includes(searchTerm) ||
-                payment.id.toLowerCase().includes(searchTerm)
-            );
-        }
-
-        if (statusFilter.value !== 'all') {
-            filtered = filtered.filter(payment => payment.status === statusFilter.value);
-        }
-
-        if (methodFilter.value !== 'all') {
-            filtered = filtered.filter(payment => payment.method === methodFilter.value);
-        }
-
-        if (dateFilter.value) {
-            filtered = filtered.filter(payment => {
-                const paymentDate = new Date(payment.date).toISOString().split('T')[0];
-                return paymentDate === dateFilter.value;
+    async function markRefundEligible(dbId) {
+        if(!confirm('Are you sure you want to mark this payment as eligible for a refund?')) return;
+        try {
+            const res = await fetch(`/admin/payment/${dbId}/mark-refund`, {
+                method: 'POST'
             });
-        }
-        return filtered;
+            const data = await res.json();
+            if(data.success) {
+                alert('Marked as refund eligible.');
+                loadPaymentsTable();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        } catch(e) { console.error(e); alert('Network error'); }
     }
 
-    function paginateData(data) {
-        const startIndex = (currentPage - 1) * itemsPerPage;
-        const endIndex = startIndex + itemsPerPage;
-        return data.slice(startIndex, endIndex);
+    async function executeRefund(dbId) {
+        if(!confirm('DANGER: This will execute the refund and send money back to the user. Are you sure?')) return;
+        try {
+            const res = await fetch(`/admin/payments/${dbId}/refund`, {
+                method: 'POST'
+            });
+            const data = await res.json();
+            if(data.success) {
+                alert('Refund executed successfully.');
+                loadPaymentsTable();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        } catch(e) { console.error(e); alert('Network error'); }
     }
 
-    function updatePaginationInfo(totalItems) {
+    function updatePaginationInfo(totalItems, totalPages) {
         const start = totalItems === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1;
         const end = Math.min(currentPage * itemsPerPage, totalItems);
 
-        const startEl = document.getElementById('paginationStart');
-        const endEl = document.getElementById('paginationEnd');
-        const totalEl = document.getElementById('paginationTotal');
-
-        if (startEl) startEl.textContent = start;
-        if (endEl) endEl.textContent = end;
-        if (totalEl) totalEl.textContent = totalItems;
+        if (paginationStart) paginationStart.textContent = start;
+        if (paginationEnd) paginationEnd.textContent = end;
+        if (paginationTotal) paginationTotal.textContent = totalItems;
 
         if (prevPage) {
             prevPage.disabled = currentPage === 1;
             prevPage.className = `relative inline-flex items-center px-4 py-2 rounded-l-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium ${currentPage === 1 ? 'text-gray-300 dark:text-gray-600 cursor-not-allowed' : 'text-gray-500 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600'}`;
         }
-
         if (nextPage) {
-            const totalPages = Math.ceil(totalItems / itemsPerPage);
             nextPage.disabled = currentPage >= totalPages || totalItems === 0;
             nextPage.className = `relative inline-flex items-center px-4 py-2 rounded-r-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium ${nextPage.disabled ? 'text-gray-300 dark:text-gray-600 cursor-not-allowed' : 'text-gray-500 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600'}`;
         }
@@ -619,9 +582,7 @@
     }
 
     function goToNextPage() {
-        const filteredPayments = getFilteredPayments();
-        const totalPages = Math.ceil(filteredPayments.length / itemsPerPage);
-        if (currentPage < totalPages) {
+        if (!nextPage.disabled) {
             currentPage++;
             loadPaymentsTable();
         }
@@ -631,8 +592,7 @@
         loadPaymentsTable();
         const lastUpdated = document.getElementById('lastUpdated');
         if (lastUpdated) lastUpdated.textContent = new Date().toLocaleTimeString();
-
-        // Button feedback
+        
         const btn = document.getElementById('refreshBtn');
         const originalContent = btn.innerHTML;
         btn.innerHTML = '<i class="fas fa-check mr-2"></i>Refreshed';
@@ -644,45 +604,88 @@
     }
 
     function exportToCSV() {
-        alert('CSV export functionality would be implemented here.');
+        window.location.href = '/admin/payments/export';
     }
 
     function openPaymentModal(payment) {
-        // Status Colors logic repeated for modal
-        let statusClass, statusText;
-        switch (payment.status) {
-            case 'success': statusClass = 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400'; statusText = 'Success'; break;
-            case 'pending': statusClass = 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400'; statusText = 'Pending'; break;
-            case 'failed': statusClass = 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400'; statusText = 'Failed'; break;
-            default: statusClass = 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300'; statusText = payment.status;
+        currentModalPayment = payment;
+        
+        if (payment.status.toLowerCase() === 'success' && payment.refund_status !== 'refunded') {
+            refundBtn.style.display = 'flex';
+            if (payment.refund_eligible) {
+                refundBtn.innerHTML = '<i class="fas fa-exclamation-triangle mr-2"></i>Execute Refund';
+                refundBtn.className = 'bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-semibold flex items-center transition';
+            } else {
+                refundBtn.innerHTML = '<i class="fas fa-undo mr-2"></i>Mark Refund Eligible';
+                refundBtn.className = 'bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg font-semibold flex items-center transition';
+            }
+        } else {
+            refundBtn.style.display = 'none';
         }
 
         modalContent.innerHTML = `
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div class="space-y-1">
-                    <h4 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Payment ID</h4>
-                    <p class="text-lg font-medium text-gray-900 dark:text-white font-mono">${payment.id}</p>
+            <div class="space-y-6">
+                <!-- User Section -->
+                <div>
+                    <h3 class="text-lg font-bold border-b border-gray-200 dark:border-gray-700 pb-2 mb-3 text-gray-800 dark:text-gray-200">User Information</h3>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div><p class="text-sm text-gray-500 dark:text-gray-400">Name</p><p class="font-medium text-gray-900 dark:text-white">${payment.user.name}</p></div>
+                        <div><p class="text-sm text-gray-500 dark:text-gray-400">Email</p><p class="font-medium text-gray-900 dark:text-white">${payment.user.email}</p></div>
+                        <div><p class="text-sm text-gray-500 dark:text-gray-400">User ID</p><p class="font-medium text-gray-900 dark:text-white">#${payment.user.id}</p></div>
+                    </div>
                 </div>
-                <div class="space-y-1">
-                    <h4 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Gateway ID</h4>
-                    <p class="text-lg font-medium text-gray-900 dark:text-white font-mono">${payment.gatewayId}</p>
+                
+                <!-- Challenge Section -->
+                <div>
+                    <h3 class="text-lg font-bold border-b border-gray-200 dark:border-gray-700 pb-2 mb-3 text-gray-800 dark:text-gray-200">Challenge Details</h3>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div><p class="text-sm text-gray-500 dark:text-gray-400">Challenge Type</p><p class="font-medium text-gray-900 dark:text-white">${payment.challenge}</p></div>
+                        <div><p class="text-sm text-gray-500 dark:text-gray-400">MT5 Login</p><p class="font-medium text-gray-900 dark:text-white">${payment.mt5Account}</p></div>
+                        <div><p class="text-sm text-gray-500 dark:text-gray-400">Expected Amount</p><p class="font-medium text-gray-900 dark:text-white">₹${payment.expected_amount}</p></div>
+                        <div><p class="text-sm text-gray-500 dark:text-gray-400">Actual Amount</p><p class="font-medium text-gray-900 dark:text-white">₹${payment.amount}</p></div>
+                    </div>
                 </div>
-                <div class="space-y-1">
-                    <h4 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">User Info</h4>
-                    <p class="text-lg font-medium text-gray-900 dark:text-white">${payment.user.name}</p>
-                    <p class="text-sm text-gray-600 dark:text-gray-400">${payment.user.email}</p>
+
+                <!-- Gateway Section -->
+                <div>
+                    <h3 class="text-lg font-bold border-b border-gray-200 dark:border-gray-700 pb-2 mb-3 text-gray-800 dark:text-gray-200">Gateway Data</h3>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div><p class="text-sm text-gray-500 dark:text-gray-400">Order ID</p><p class="font-medium text-gray-900 dark:text-white font-mono break-all">${payment.cf_order_id}</p></div>
+                        <div><p class="text-sm text-gray-500 dark:text-gray-400">Payment ID</p><p class="font-medium text-gray-900 dark:text-white font-mono break-all">${payment.cf_payment_id}</p></div>
+                        <div><p class="text-sm text-gray-500 dark:text-gray-400">Gateway Status</p><p class="font-medium text-gray-900 dark:text-white">${payment.gateway_status}</p></div>
+                        <div><p class="text-sm text-gray-500 dark:text-gray-400">Method</p><p class="font-medium text-gray-900 dark:text-white">${payment.method}</p></div>
+                        <div class="col-span-2"><p class="text-sm text-gray-500 dark:text-gray-400">Response Message</p><p class="font-medium text-gray-900 dark:text-white text-sm">${payment.gateway_message}</p></div>
+                    </div>
                 </div>
-                <div class="space-y-1">
-                    <h4 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Amount</h4>
-                    <p class="text-2xl font-bold text-gray-900 dark:text-white">₹${payment.amount}</p>
+
+                <!-- Device Section -->
+                <div>
+                    <h3 class="text-lg font-bold border-b border-gray-200 dark:border-gray-700 pb-2 mb-3 text-gray-800 dark:text-gray-200">Device & Security</h3>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div><p class="text-sm text-gray-500 dark:text-gray-400">IP Address</p><p class="font-medium text-gray-900 dark:text-white">${payment.ip_address}</p></div>
+                        <div class="col-span-2"><p class="text-sm text-gray-500 dark:text-gray-400">User Agent</p><p class="font-medium text-gray-900 dark:text-white text-xs">${payment.user_agent}</p></div>
+                    </div>
                 </div>
-                <div class="space-y-1">
-                    <h4 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</h4>
-                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${statusClass}">
-                        ${statusText}
-                    </span>
+
+                <!-- Timing Section -->
+                <div>
+                    <h3 class="text-lg font-bold border-b border-gray-200 dark:border-gray-700 pb-2 mb-3 text-gray-800 dark:text-gray-200">Timing</h3>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div><p class="text-sm text-gray-500 dark:text-gray-400">Created At</p><p class="font-medium text-gray-900 dark:text-white">${payment.date}</p></div>
+                        <div><p class="text-sm text-gray-500 dark:text-gray-400">Updated At</p><p class="font-medium text-gray-900 dark:text-white">${payment.updated_at}</p></div>
+                    </div>
                 </div>
-                <!-- More fields as needed -->
+                
+                <!-- Refund Section -->
+                <div>
+                    <h3 class="text-lg font-bold border-b border-gray-200 dark:border-gray-700 pb-2 mb-3 text-gray-800 dark:text-gray-200">Refund Status</h3>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div><p class="text-sm text-gray-500 dark:text-gray-400">Status</p><p class="font-medium text-gray-900 dark:text-white uppercase">${payment.refund_status}</p></div>
+                        <div><p class="text-sm text-gray-500 dark:text-gray-400">Eligible</p><p class="font-medium text-gray-900 dark:text-white">${payment.refund_eligible ? 'Yes' : 'No'}</p></div>
+                        <div><p class="text-sm text-gray-500 dark:text-gray-400">Verified By (Admin ID)</p><p class="font-medium text-gray-900 dark:text-white">${payment.refund_verified_by || 'N/A'}</p></div>
+                        <div><p class="text-sm text-gray-500 dark:text-gray-400">Processed Time</p><p class="font-medium text-gray-900 dark:text-white">${payment.refund_processed_at || 'N/A'}</p></div>
+                    </div>
+                </div>
             </div>
         `;
         paymentModal.classList.remove('hidden');
@@ -690,11 +693,35 @@
 
     function closePaymentModal() {
         paymentModal.classList.add('hidden');
+        currentModalPayment = null;
     }
 
-    function processRefund() {
-        alert('Refund logic here');
+    function processRefundModal(payment) {
+        if (!payment) return;
+        if (payment.refund_eligible) {
+            executeRefund(payment.db_id).then(() => closePaymentModal());
+        } else {
+            markRefundEligible(payment.db_id).then(() => closePaymentModal());
+        }
     }
 
+    function toggleSelectAll(checkbox) {
+        document.querySelectorAll('.payment-checkbox').forEach(cb => { cb.checked = checkbox.checked; });
+        updateBulkActions();
+    }
+    function updateBulkActions() {
+        const checkboxes = document.querySelectorAll('.payment-checkbox');
+        const selectedCountValue = Array.from(checkboxes).filter(cb => cb.checked).length;
+        if (selectedCountValue > 0) {
+            bulkActionsToolbar.style.display = 'block';
+            selectedCount.textContent = `${selectedCountValue} payment${selectedCountValue !== 1 ? 's' : ''} selected`;
+        } else {
+            bulkActionsToolbar.style.display = 'none';
+        }
+    }
+    function clearSelection() {
+        document.querySelectorAll('.payment-checkbox').forEach(cb => { cb.checked = false; });
+        updateBulkActions();
+    }
 </script>
 {% endblock %}

@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify, abort
 from functools import wraps
 from models import db, User, ChallengeTemplate, ChallengePurchase, Payout, FAQ, SupportTicket, TicketMessage
 from datetime import datetime, timedelta, timezone
@@ -472,7 +472,7 @@ def admin_ban_user(user_id):
         flash(f'User {user.email} has been banned.', 'success')
     else:
         flash('Cannot ban admin users.', 'error')
-    return redirect(url_for('admin.admin_users'))
+    return redirect(request.referrer or url_for('admin.admin_users'))
 
 @admin_bp.route('/unban_user/<int:user_id>')
 @admin_required
@@ -484,7 +484,7 @@ def admin_unban_user(user_id):
         flash(f'User {user.email} has been unbanned.', 'success')
     else:
         flash('Cannot modify admin users.', 'error')
-    return redirect(url_for('admin.admin_users'))
+    return redirect(request.referrer or url_for('admin.admin_users'))
 
 @admin_bp.route('/verify_phone/<int:user_id>')
 @admin_required
@@ -529,50 +529,137 @@ def admin_payments():
     
     status_filter = request.args.get('status', 'all')
     search_query = request.args.get('search', '')
-    page = request.args.get('page', 1, type=int)
-    per_page = 20
-    
-    # Build query
-    query = Payment.query.join(User)
-    
-    # Apply status filter
-    if status_filter != 'all':
-        query = query.filter(Payment.status == status_filter)
-    
-    # Apply search filter
-    if search_query:
-        query = query.filter(
-            (User.first_name.ilike(f'%{search_query}%')) |
-            (User.last_name.ilike(f'%{search_query}%')) |
-            (User.email.ilike(f'%{search_query}%')) |
-            (Payment.payment_id.ilike(f'%{search_query}%')) |
-            (Payment.gateway_id.ilike(f'%{search_query}%'))
-        )
-    
-    # Get paginated results
-    payments = query.order_by(Payment.created_at.desc()).paginate(
-        page=page, per_page=per_page, error_out=False
-    )
     
     # Calculate stats
-    total_revenue = db.session.query(db.func.sum(Payment.amount)).filter(
+    total_revenue = db.session.query(db.func.coalesce(db.func.sum(Payment.paid_amount), 0)).filter(
+        Payment.status == 'SUCCESS'
+    ).scalar() or 0
+    total_revenue_legacy = db.session.query(db.func.coalesce(db.func.sum(Payment.amount), 0)).filter(
         Payment.status == 'success'
     ).scalar() or 0
+    total_revenue += total_revenue_legacy
     
-    successful_payments = Payment.query.filter_by(status='success').count()
-    pending_payments = Payment.query.filter_by(status='pending').count()
-    failed_payments = Payment.query.filter_by(status='failed').count()
-    refunded_payments = Payment.query.filter_by(status='refunded').count()
+    successful_payments = Payment.query.filter(Payment.status.ilike('success')).count()
+    pending_payments = Payment.query.filter(Payment.status.ilike('pending')).count()
+    failed_payments = Payment.query.filter(Payment.status.ilike('failed')).count()
+    refund_eligible_count = Payment.query.filter_by(refund_eligible=True, refund_status='none').count()
     
     return render_template('admin/payments.html',
-                         payments=payments,
                          total_revenue=total_revenue,
                          successful_payments=successful_payments,
                          pending_payments=pending_payments,
                          failed_payments=failed_payments,
-                         refunded_payments=refunded_payments,
+                         refund_eligible_count=refund_eligible_count,
                          status_filter=status_filter,
                          search_query=search_query)
+
+@admin_bp.route('/api/payments', methods=['POST'])
+@admin_required
+def admin_api_payments():
+    from models import Payment, User
+    
+    data = request.get_json() or {}
+    search = data.get('search', '').strip()
+    status = data.get('status', 'all')
+    method = data.get('method', 'all')
+    refund = data.get('refund', 'all')
+    date_filter = data.get('date', '')
+    page = max(1, int(data.get('page', 1)))
+    per_page = min(100, int(data.get('per_page', 20)))
+    
+    query = Payment.query.join(User)
+    
+    if search:
+        query = query.filter(
+            (User.first_name.ilike(f'%{search}%')) |
+            (User.last_name.ilike(f'%{search}%')) |
+            (User.email.ilike(f'%{search}%')) |
+            (Payment.payment_id.ilike(f'%{search}%')) |
+            (Payment.cf_order_id.ilike(f'%{search}%'))
+        )
+    
+    if status != 'all':
+        query = query.filter(Payment.status.ilike(status))
+        
+    if method != 'all':
+        query = query.filter(Payment.payment_method.ilike(f'%{method}%'))
+        
+    if refund != 'all':
+        if refund == 'eligible':
+            query = query.filter_by(refund_eligible=True, refund_status='none')
+        elif refund == 'refunded':
+            query = query.filter_by(refund_status='refunded')
+        elif refund == 'not_eligible':
+            query = query.filter_by(refund_eligible=False, refund_status='none')
+            
+    if date_filter:
+        try:
+            target_date = datetime.strptime(date_filter, '%Y-%m-%d').date()
+            query = query.filter(db.func.date(Payment.created_at) == target_date)
+        except ValueError:
+            pass
+            
+    pagination = query.order_by(Payment.created_at.desc()).paginate(
+        page=page, per_page=per_page, error_out=False
+    )
+    
+    results = []
+    for p in pagination.items:
+        challenge_name = p.challenge_purchase.challenge_template.name if p.challenge_purchase and p.challenge_purchase.challenge_template else "N/A"
+        mt5_login = p.challenge_purchase.mt5_login if p.challenge_purchase else "N/A"
+        results.append({
+            'db_id': p.id,
+            'id': p.payment_id,
+            'cf_order_id': p.cf_order_id or '',
+            'cf_payment_id': p.cf_payment_id or '',
+            'user': {
+                'id': p.user.id if p.user else '',
+                'name': p.user.get_full_name() if p.user else "Deleted User",
+                'email': p.user.email if p.user else ""
+            },
+            'challenge': challenge_name,
+            'expected_amount': p.expected_amount,
+            'amount': p.paid_amount or p.amount,
+            'currency': p.currency,
+            'method': p.payment_method,
+            'status': p.status,
+            'gateway_status': p.gateway_status or '',
+            'gateway_message': p.gateway_message or '',
+            'date': p.created_at.strftime('%Y-%m-%d %H:%M:%S') if p.created_at else '',
+            'updated_at': p.updated_at.strftime('%Y-%m-%d %H:%M:%S') if p.updated_at else '',
+            'mt5Account': mt5_login,
+            'ip_address': p.ip_address or '',
+            'user_agent': p.user_agent or '',
+            'refund_eligible': p.refund_eligible,
+            'refund_status': p.refund_status,
+            'refund_verified_by': p.refund_verified_by,
+            'refund_processed_at': p.refund_processed_at.strftime('%Y-%m-%d %H:%M:%S') if p.refund_processed_at else '',
+            'notes': p.notes or ''
+        })
+    total_revenue = db.session.query(db.func.coalesce(db.func.sum(Payment.paid_amount), 0)).filter(
+        Payment.status == 'SUCCESS'
+    ).scalar() or 0
+    total_revenue_legacy = db.session.query(db.func.coalesce(db.func.sum(Payment.amount), 0)).filter(
+        Payment.status == 'success'
+    ).scalar() or 0
+    total_revenue += total_revenue_legacy
+    
+    stats = {
+        'total_revenue': total_revenue,
+        'successful_payments': Payment.query.filter(Payment.status.ilike('success')).count(),
+        'pending_payments': Payment.query.filter(Payment.status.ilike('pending')).count(),
+        'failed_payments': Payment.query.filter(Payment.status.ilike('failed')).count(),
+        'refund_eligible_count': Payment.query.filter_by(refund_eligible=True, refund_status='none').count()
+    }
+        
+    return jsonify({
+        'success': True,
+        'payments': results,
+        'total': pagination.total,
+        'pages': pagination.pages,
+        'current_page': page,
+        'stats': stats
+    })
 
 @admin_bp.route('/activity')
 @admin_required
@@ -584,11 +671,111 @@ def admin_activity():
 def admin_settings():
     return render_template('admin/settings.html')
 
+@admin_bp.route('/api/users')
+@admin_required
+def api_users():
+    """Return paginated JSON for admin users list with filters."""
+    # Pagination params
+    try:
+        page = max(int(request.args.get('page', 1)), 1)
+    except (ValueError, TypeError):
+        page = 1
+    
+    try:
+        per_page = min(max(int(request.args.get('per_page', 20)), 10), 100)
+    except (ValueError, TypeError):
+        per_page = 20
+        
+    search = request.args.get('search', '').strip()
+    # Base query
+    query = User.query
+    # Search across multiple fields if provided
+    if search:
+        like = f"%{search}%"
+        # Safe fallback if attributes don't exist
+        query = query.filter(
+            (User.first_name.ilike(like)) |
+            (User.last_name.ilike(like)) |
+            (User.email.ilike(like)) |
+            (User.phone.ilike(like))
+        )
+    # Account status filter
+    account_status = request.args.get('account_status', 'all')
+    if account_status != 'all':
+        if account_status == 'active':
+            query = query.filter(User.is_active == True)
+        elif account_status == 'banned':
+            query = query.filter(User.is_banned == True)
+        elif account_status == 'new':
+            week_ago = datetime.now(timezone.utc) - timedelta(days=7)
+            query = query.filter(User.created_at >= week_ago)
+    # KYC status filter
+    kyc_status = request.args.get('kyc_status', 'all')
+    if kyc_status != 'all':
+        query = query.filter(User.kyc_status == kyc_status)
+        
+    # Sorting
+    sort = request.args.get('sort', 'newest')
+    if sort == 'oldest':
+        query = query.order_by(User.created_at.asc())
+    else:  # newest (default)
+        query = query.order_by(User.created_at.desc())
+        
+    # Pagination
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    users_data = []
+    for u in pagination.items:
+        users_data.append({
+            'id': u.id,
+            'first_name': u.first_name,
+            'last_name': u.last_name,
+            'email': u.email,
+            'phone': u.phone or 'N/A',
+            'city': getattr(u, 'city', 'N/A'),
+            'state': getattr(u, 'state', 'N/A'),
+            'country': getattr(u, 'country', 'N/A'),
+            'status': 'banned' if u.is_banned else 'active',
+            'created_at': u.created_at.isoformat() if u.created_at else None,
+            'kyc_status': getattr(u, 'kyc_status', 'N/A'),
+        })
+    return jsonify({
+        'success': True,
+        'users': users_data,
+        'total': pagination.total,
+        'pages': pagination.pages,
+        'current_page': pagination.page,
+    })
+
+
+# Admin 404 error handler
+@admin_bp.errorhandler(404)
+def admin_404(error):
+    return render_template('admin/404.html'), 404
+
+
 @admin_bp.route('/user/<int:user_id>')
 @admin_required
 def admin_user_detail(user_id):
-    user = User.query.get_or_404(user_id)
-    return render_template('admin/user_detail.html', user=user)
+    user = User.query.get(user_id)
+    if not user:
+        abort(404)
+    # Safely fetch related data using hasattr or getattr
+    challenges = getattr(user, 'challenge_purchases', []) if hasattr(user, 'challenge_purchases') else []
+    payments = getattr(user, 'payments', []) if hasattr(user, 'payments') else []
+    support_tickets = getattr(user, 'support_tickets', []) if hasattr(user, 'support_tickets') else []
+    payouts = getattr(user, 'payouts', []) if hasattr(user, 'payouts') else []
+    
+    # Calculate financial stats
+    total_spent = sum(p.amount for p in payments if p.status.upper() == 'SUCCESS')
+    total_purchases = len([p for p in payments if p.status.upper() == 'SUCCESS'])
+    total_payouts = sum(p.amount for p in payouts if p.status.upper() == 'SUCCESS' or p.status.upper() == 'PAID')
+    
+    referrals = []  # Placeholder; will be populated if referral system exists
+    return render_template('admin/user_detail.html', user=user,
+                           challenges=challenges, payments=payments,
+                           support_tickets=support_tickets, referrals=referrals,
+                           total_spent=total_spent, total_purchases=total_purchases,
+                           total_payouts=total_payouts)
 
 
 # Helper function for challenges dashboard
@@ -627,26 +814,73 @@ def get_challenges_dashboard_data():
         'payout_eligible': payout_eligible
     }
 
-@admin_bp.route('/payments/<int:payment_id>/refund')
+@admin_bp.route('/payment/<int:payment_id>/mark-refund', methods=['POST'])
 @admin_required
-def refund_payment(payment_id):
-    from models import Payment
-    
+def admin_mark_refund(payment_id):
+    from models import Payment, AdminAuditLog
     payment = Payment.query.get_or_404(payment_id)
     
-    if payment.status != 'success':
-        flash('Can only refund successful payments.', 'error')
-        return redirect(url_for('admin.admin_payments'))
+    if payment.refund_eligible:
+        return jsonify({'success': False, 'message': 'Already marked eligible.'})
+        
+    if payment.status.lower() != 'success':
+        return jsonify({'success': False, 'message': 'Cannot refund failed payment.'})
+        
+    payment.refund_eligible = True
+    payment.refund_requested_at = datetime.now(timezone.utc)
     
-    try:
-        payment.status = 'refunded'
-        db.session.commit()
-        flash(f'Payment {payment.payment_id} has been refunded.', 'success')
-    except Exception as e:
-        db.session.rollback()
-        flash('Error refunding payment.', 'error')
+    audit = AdminAuditLog(
+        admin_id=session.get('user_id'),
+        action='marked_refund_eligible',
+        payment_id=payment.id,
+        old_value='False',
+        new_value='True',
+        ip_address=request.remote_addr
+    )
+    db.session.add(audit)
+    db.session.commit()
     
-    return redirect(url_for('admin.admin_payments'))
+    return jsonify({'success': True, 'message': 'Payment marked as refund eligible.'})
+
+@admin_bp.route('/payments/<int:payment_id>/refund', methods=['POST'])
+@admin_required
+def refund_payment(payment_id):
+    from models import Payment, AdminAuditLog
+    payment = Payment.query.get_or_404(payment_id)
+    
+    if not payment.refund_eligible:
+        return jsonify({'success': False, 'message': 'Payment must be marked eligible first.'})
+        
+    if payment.refund_status == 'refunded':
+        return jsonify({'success': False, 'message': 'Payment is already refunded.'})
+        
+    if payment.status.lower() != 'success':
+        return jsonify({'success': False, 'message': 'Payment was not successful.'})
+        
+    if payment.paid_amount and payment.paid_amount <= 0:
+        if payment.amount <= 0:
+            return jsonify({'success': False, 'message': 'Payment amount is 0.'})
+            
+    # Mock Cashfree refund API logic here
+    # In production, this would call Cashfree APIs via Celery
+    
+    payment.refund_status = 'refunded'
+    payment.refund_processed_at = datetime.now(timezone.utc)
+    payment.refund_verified_by = session.get('user_id')
+    payment.status = 'refunded'
+    
+    audit = AdminAuditLog(
+        admin_id=session.get('user_id'),
+        action='executed_refund',
+        payment_id=payment.id,
+        old_value='none',
+        new_value='refunded',
+        ip_address=request.remote_addr
+    )
+    db.session.add(audit)
+    db.session.commit()
+    
+    return jsonify({'success': True, 'message': f'Payment {payment.payment_id} successfully refunded.'})
 
 @admin_bp.route('/payments/<int:payment_id>/update-status', methods=['POST'])
 @admin_required
