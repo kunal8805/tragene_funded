@@ -1247,3 +1247,23 @@ def admin_ticket_note(ticket_number):
     db.session.commit()
     flash('Admin note updated.', 'success')
     return redirect(url_for('admin.admin_ticket_detail', ticket_number=ticket_number))
+
+@admin_bp.route('/user/<int:user_id>/reset-password', methods=['POST'])
+def admin_reset_user_password(user_id):
+    from models import User
+    import secrets, string
+    user = User.query.get_or_404(user_id)
+    new_password = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(12))
+    user.password = generate_password_hash(new_password)
+    db.session.commit()
+    flash(f'Password reset to: {new_password}', 'success')
+    flash(f'Password reset to: {new_password}', 'success')
+    return redirect(url_for('admin.admin_user_detail', user_id=user_id))
+
+@admin_bp.route('/user/<int:user_id>/delete', methods=['POST'])
+def admin_delete_user(user_id):
+    user = User.query.get_or_404(user_id)
+    db.session.delete(user)
+    db.session.commit()
+    flash('User deleted successfully.', 'success')
+    return redirect(url_for('admin.admin_users'))
