@@ -93,72 +93,96 @@
 
         <!-- Challenges Grid -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
-            <!-- Basic Challenge -->
-            {% for challenge in challenges if challenge.phase == 1 %}
-            <div class="bg-white rounded-2xl shadow-lg border-2 border-blue-200 hover:border-blue-400 transition-all duration-300 transform hover:-translate-y-1">
+            <style>
+                .badge-one-phase { background-color: #2563eb; color: white; }
+                .badge-two-phase { background-color: #7c3aed; color: white; }
+                .badge-instant { background-color: #059669; color: white; }
+            </style>
+            {% for challenge in challenges %}
+            <div class="bg-white rounded-2xl shadow-lg border-2 hover:border-blue-400 transition-all duration-300 transform hover:-translate-y-1 relative
+                {% if challenge.challenge_type == 'one_phase' %}border-blue-200
+                {% elif challenge.challenge_type == 'two_phase' %}border-purple-200
+                {% else %}border-emerald-200{% endif %}">
+                
+                <!-- Badge -->
+                <div class="absolute -top-4 right-4 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide shadow-sm
+                    {% if challenge.challenge_type == 'one_phase' %}badge-one-phase
+                    {% elif challenge.challenge_type == 'two_phase' %}badge-two-phase
+                    {% else %}badge-instant{% endif %}">
+                    {% if challenge.challenge_type == 'one_phase' %}One Phase
+                    {% elif challenge.challenge_type == 'two_phase' %}Two Phase
+                    {% else %}Instant Funded{% endif %}
+                </div>
+
                 <!-- Header -->
-                <div class="bg-gradient-to-r from-blue-600 to-blue-700 rounded-t-2xl p-6 text-white text-center">
+                <div class="rounded-t-2xl p-6 text-white text-center
+                    {% if challenge.challenge_type == 'one_phase' %}bg-gradient-to-r from-blue-600 to-blue-700
+                    {% elif challenge.challenge_type == 'two_phase' %}bg-gradient-to-r from-purple-600 to-purple-700
+                    {% else %}bg-gradient-to-r from-emerald-600 to-emerald-700{% endif %}">
                     <h3 class="text-2xl font-bold mb-2">{{ challenge.name }}</h3>
                     <div class="text-4xl font-bold mb-1">₹{{ challenge.price }}</div>
-                    <div class="text-blue-100 text-sm">${{ challenge.account_size }} Demo Account</div>
+                    <div class="text-white/80 text-sm">${{ challenge.account_size }} Demo Account</div>
                 </div>
 
                 <!-- Features -->
                 <div class="p-6">
+                    {% if challenge.challenge_type == 'one_phase' %}
                     <div class="space-y-3 mb-6">
-                        <div class="flex justify-between items-center py-2 border-b">
-                            <span class="text-gray-600">Profit Target</span>
-                            <span class="font-semibold text-green-600">{{ challenge.profit_target }}%</span>
-                        </div>
-                        <div class="flex justify-between items-center py-2 border-b">
-                            <span class="text-gray-600">Max Daily Loss</span>
-                            <span class="font-semibold text-red-600">{{ challenge.max_daily_loss }}%</span>
-                        </div>
-                        <div class="flex justify-between items-center py-2 border-b">
-                            <span class="text-gray-600">Max Overall Loss</span>
-                            <span class="font-semibold text-red-600">{{ challenge.max_overall_loss }}%</span>
-                        </div>
-                        <div class="flex justify-between items-center py-2 border-b">
-                            <span class="text-gray-600">Minimum Trading Days</span>
-                            <span class="font-semibold text-blue-600">{{ challenge.min_trading_days }}</span>
-                        </div>
-                        <div class="flex justify-between items-center py-2 border-b">
-                            <span class="text-gray-600">Duration</span>
-                            <span class="font-semibold text-blue-600">{{ challenge.duration_days }} days</span>
-                        </div>
-                        <div class="flex justify-between items-center py-2 border-b">
-                            <span class="text-gray-600">Leverage</span>
-                            <span class="font-semibold text-blue-600">{{ challenge.leverage }}</span>
-                        </div>
-                        <div class="flex justify-between items-center py-2">
-                            <span class="text-gray-600">Your Profit Share</span>
-                            <span class="font-semibold text-green-600">{{ challenge.user_profit_share }}%</span>
-                        </div>
+                        <div class="flex justify-between items-center py-2 border-b"><span class="text-gray-600">Target</span><span class="font-semibold text-green-600">{{ challenge.phase1_target }}%</span></div>
+                        <div class="flex justify-between items-center py-2 border-b"><span class="text-gray-600">Daily Loss</span><span class="font-semibold text-red-600">{{ challenge.phase1_daily_loss }}%</span></div>
+                        <div class="flex justify-between items-center py-2 border-b"><span class="text-gray-600">Overall Loss</span><span class="font-semibold text-red-600">{{ challenge.phase1_overall_loss }}%</span></div>
+                        <div class="flex justify-between items-center py-2 border-b"><span class="text-gray-600">Min Days</span><span class="font-semibold text-blue-600">{{ challenge.phase1_min_days }}</span></div>
+                        <div class="flex justify-between items-center py-2 border-b"><span class="text-gray-600">Duration</span><span class="font-semibold text-blue-600">{{ challenge.phase1_duration }} days</span></div>
+                        <div class="flex justify-between items-center py-2 border-b"><span class="text-gray-600">Leverage</span><span class="font-semibold text-blue-600">{{ challenge.phase1_leverage }}</span></div>
+                        <div class="flex justify-between items-center py-2"><span class="text-gray-600">Profit Share</span><span class="font-semibold text-green-600">{{ challenge.user_profit_share }}%</span></div>
                     </div>
+                    {% elif challenge.challenge_type == 'two_phase' %}
+                    <div class="mb-6">
+                        <div class="grid grid-cols-2 gap-4 text-sm bg-gray-50 rounded-lg p-3">
+                            <div class="space-y-2 border-r border-gray-200 pr-3">
+                                <div class="font-bold text-center text-purple-600 border-b pb-1">PHASE 1</div>
+                                <div class="flex justify-between"><span>Target</span><span class="font-semibold">{{ challenge.phase1_target }}%</span></div>
+                                <div class="flex justify-between"><span>Daily Loss</span><span class="font-semibold">{{ challenge.phase1_daily_loss }}%</span></div>
+                                <div class="flex justify-between"><span>Overall Loss</span><span class="font-semibold">{{ challenge.phase1_overall_loss }}%</span></div>
+                                <div class="flex justify-between"><span>Min Days</span><span class="font-semibold">{{ challenge.phase1_min_days }}</span></div>
+                                <div class="flex justify-between"><span>Duration</span><span class="font-semibold">{{ challenge.phase1_duration }}d</span></div>
+                                <div class="flex justify-between"><span>Lev</span><span class="font-semibold">{{ challenge.phase1_leverage }}</span></div>
+                            </div>
+                            <div class="space-y-2 pl-3">
+                                <div class="font-bold text-center text-purple-600 border-b pb-1">PHASE 2</div>
+                                <div class="flex justify-between"><span>Target</span><span class="font-semibold">{{ challenge.phase2_target }}%</span></div>
+                                <div class="flex justify-between"><span>Daily Loss</span><span class="font-semibold">{{ challenge.phase2_daily_loss }}%</span></div>
+                                <div class="flex justify-between"><span>Overall Loss</span><span class="font-semibold">{{ challenge.phase2_overall_loss }}%</span></div>
+                                <div class="flex justify-between"><span>Min Days</span><span class="font-semibold">{{ challenge.phase2_min_days }}</span></div>
+                                <div class="flex justify-between"><span>Duration</span><span class="font-semibold">{{ challenge.phase2_duration }}d</span></div>
+                                <div class="flex justify-between"><span>Lev</span><span class="font-semibold">{{ challenge.phase2_leverage }}</span></div>
+                            </div>
+                        </div>
+                        <div class="flex justify-between items-center py-2 mt-2 px-2"><span class="text-gray-600">Profit Share</span><span class="font-semibold text-green-600">{{ challenge.user_profit_share }}%</span></div>
+                    </div>
+                    {% else %}
+                    <div class="space-y-3 mb-6">
+                        <div class="flex justify-between items-center py-2 border-b"><span class="text-gray-600">Daily Loss</span><span class="font-semibold text-red-600">{{ challenge.instant_daily_loss }}%</span></div>
+                        <div class="flex justify-between items-center py-2 border-b"><span class="text-gray-600">Overall Loss</span><span class="font-semibold text-red-600">{{ challenge.instant_overall_loss }}%</span></div>
+                        <div class="flex justify-between items-center py-2 border-b"><span class="text-gray-600">Min Days</span><span class="font-semibold text-emerald-600">{{ challenge.instant_min_days }}</span></div>
+                        <div class="flex justify-between items-center py-2 border-b"><span class="text-gray-600">Leverage</span><span class="font-semibold text-emerald-600">{{ challenge.instant_leverage }}</span></div>
+                        <div class="flex justify-between items-center py-2"><span class="text-gray-600">Profit Share</span><span class="font-semibold text-green-600">{{ challenge.user_profit_share }}%</span></div>
+                    </div>
+                    {% endif %}
 
                     <!-- What You Get -->
-                    <div class="bg-blue-50 rounded-lg p-4 mb-6">
-                        <h4 class="font-semibold text-blue-900 mb-2 flex items-center">
-                            <i class="fas fa-gift mr-2"></i>
-                            What You Get:
+                    <div class="rounded-lg p-4 mb-6 
+                        {% if challenge.challenge_type == 'one_phase' %}bg-blue-50 text-blue-800
+                        {% elif challenge.challenge_type == 'two_phase' %}bg-purple-50 text-purple-800
+                        {% else %}bg-emerald-50 text-emerald-800{% endif %}">
+                        <h4 class="font-semibold mb-2 flex items-center">
+                            <i class="fas fa-gift mr-2"></i> What You Get:
                         </h4>
-                        <ul class="text-sm text-blue-800 space-y-1">
-                            <li class="flex items-center">
-                                <i class="fas fa-check-circle text-green-500 mr-2 text-xs"></i>
-                                ${{ challenge.account_size }} Demo Account
-                            </li>
-                            <li class="flex items-center">
-                                <i class="fas fa-check-circle text-green-500 mr-2 text-xs"></i>
-                                Real Money Account if you pass
-                            </li>
-                            <li class="flex items-center">
-                                <i class="fas fa-check-circle text-green-500 mr-2 text-xs"></i>
-                                {{ challenge.user_profit_share }}% Profit Share
-                            </li>
-                            <li class="flex items-center">
-                                <i class="fas fa-check-circle text-green-500 mr-2 text-xs"></i>
-                                Bi-weekly Payouts
-                            </li>
+                        <ul class="text-sm space-y-1">
+                            <li class="flex items-center"><i class="fas fa-check-circle text-green-500 mr-2 text-xs"></i> ${{ challenge.account_size }} Demo Account</li>
+                            <li class="flex items-center"><i class="fas fa-check-circle text-green-500 mr-2 text-xs"></i> Real Money Account if you pass</li>
+                            <li class="flex items-center"><i class="fas fa-check-circle text-green-500 mr-2 text-xs"></i> {{ challenge.user_profit_share }}% Profit Share</li>
+                            <li class="flex items-center"><i class="fas fa-check-circle text-green-500 mr-2 text-xs"></i> {{ challenge.payout_cycle|title }} Payouts</li>
                         </ul>
                     </div>
 
@@ -166,12 +190,14 @@
                     <form action="/purchase-challenge" method="POST">
                         <input type="hidden" name="challenge_id" value="{{ challenge.id }}">
                         <button type="submit" 
-                                class="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white py-4 rounded-xl font-bold text-lg transition-all duration-300 transform hover:scale-105 shadow-lg">
-                            <i class="fas fa-bolt mr-2"></i>
-                            Buy Now - ₹{{ challenge.price }}
+                                class="w-full text-white py-4 rounded-xl font-bold text-lg transition-all duration-300 transform hover:scale-105 shadow-lg
+                                {% if challenge.challenge_type == 'one_phase' %}bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700
+                                {% elif challenge.challenge_type == 'two_phase' %}bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700
+                                {% else %}bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700{% endif %}">
+                            <i class="fas fa-bolt mr-2"></i> Buy Now - ₹{{ challenge.price }}
                         </button>
                     </form>
-
+                    
                     <!-- Popular Tag -->
                     {% if challenge.price == 99 %}
                     <div class="text-center mt-3">

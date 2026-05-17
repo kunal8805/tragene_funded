@@ -392,6 +392,13 @@
                 <span>Challenges</span>
             </a>
 
+            <a href="/admin/manage-challenges"
+                class="flex items-center space-x-3 p-3 {% if 'admin.admin_manage_challenges' in request.endpoint or 'admin.admin_edit_challenge' in request.endpoint or 'admin.admin_add_challenge' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition"
+                onclick="toggleSidebar()">
+                <i class="fas fa-tasks w-5"></i>
+                <span>Manage Challenges</span>
+            </a>
+
             <a href="/admin/payments"
                 class="flex items-center space-x-3 p-3 {% if 'admin.payments' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition"
                 onclick="toggleSidebar()">

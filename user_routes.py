@@ -9,6 +9,37 @@ from werkzeug.utils import secure_filename
 from PIL import Image
 import time
 
+def compress_and_save_ticket_attachment(attachment, ticket_number, prefix=""):
+    ext = attachment.filename.rsplit('.', 1)[1].lower() if '.' in attachment.filename else ''
+    if ext not in {'png', 'jpg', 'jpeg', 'pdf'}:
+        return None
+        
+    upload_dir = os.path.join('static', 'uploads', 'tickets')
+    os.makedirs(upload_dir, exist_ok=True)
+    
+    if ext in {'png', 'jpg', 'jpeg'}:
+        filename = secure_filename(f"{prefix}{ticket_number}_{int(time.time())}.jpg")
+        target_path = os.path.join(upload_dir, filename)
+        
+        img = Image.open(attachment)
+        if img.mode in ("RGBA", "P"):
+            img = img.convert("RGB")
+        
+        max_width = 1200
+        if img.width > max_width:
+            ratio = max_width / float(img.width)
+            height = int(float(img.height) * ratio)
+            img = img.resize((max_width, height), Image.Resampling.LANCZOS)
+        
+        img.save(target_path, "JPEG", quality=65, optimize=True)
+        return f"uploads/tickets/{filename}"
+    elif ext == 'pdf':
+        filename = secure_filename(f"{prefix}{ticket_number}_{int(time.time())}_{attachment.filename}")
+        target_path = os.path.join(upload_dir, filename)
+        attachment.save(target_path)
+        return f"uploads/tickets/{filename}"
+    return None
+
 user_bp = Blueprint('user', __name__, url_prefix='/user')
 
 def login_required(f):
@@ -495,7 +526,7 @@ def api_challenge_progress(challenge_id):
 @login_required
 def challenges():
     user = User.query.get(session['user_id'])
-    available_challenges = ChallengeTemplate.query.filter_by(is_active=True, phase=1).all()
+    available_challenges = ChallengeTemplate.query.filter_by(is_active=True).all()
     
     # ===== DEEP DEBUG =====
     print("\n🔍 DEEP CHALLENGE DATA DEBUG:")
@@ -505,12 +536,9 @@ def challenges():
         print(f"  Name: {c.name}")
         print(f"  Price: ₹{c.price}")
         print(f"  Account Size: {c.account_size} (type: {type(c.account_size)})")
-        print(f"  Profit Target: {c.profit_target}%")
-        print(f"  Max Daily Loss: {c.max_daily_loss}%")
-        print(f"  Max Overall Loss: {c.max_overall_loss}%")
-        print(f"  Min Days: {c.min_trading_days}")
-        print(f"  Duration: {c.duration_days} days")
-        print(f"  Profit Share: {c.user_profit_share}%")
+        print(f"  Type: {c.challenge_type}")
+        print(f"  Phase1 Target: {c.phase1_target}%")
+        print(f"  Phase2 Target: {c.phase2_target}%")
         print(f"  Is Active: {c.is_active}")
     # ===== END DEBUG =====
     
@@ -693,16 +721,7 @@ def ticket_create():
         # Save attachment if exists
         attachment_url = None
         if attachment and attachment.filename != '':
-            # Reuse allowed_file from app.py logic or define it locally
-            def is_allowed(filename):
-                return '.' in filename and filename.rsplit('.', 1)[1].lower() in {'png', 'jpg', 'jpeg', 'pdf'}
-            
-            if is_allowed(attachment.filename):
-                filename = secure_filename(f"{ticket_number}_{attachment.filename}")
-                upload_dir = os.path.join('static', 'uploads', 'tickets')
-                os.makedirs(upload_dir, exist_ok=True)
-                attachment.save(os.path.join(upload_dir, filename))
-                attachment_url = f"uploads/tickets/{filename}"
+            attachment_url = compress_and_save_ticket_attachment(attachment, ticket_number)
         
         # Create initial message
         message = TicketMessage(
@@ -751,15 +770,7 @@ def ticket_reply(ticket_number):
     # Save attachment if exists
     attachment_url = None
     if attachment and attachment.filename != '':
-        def is_allowed(filename):
-            return '.' in filename and filename.rsplit('.', 1)[1].lower() in {'png', 'jpg', 'jpeg', 'pdf'}
-        
-        if is_allowed(attachment.filename):
-            filename = secure_filename(f"{ticket_number}_reply_{int(time.time())}_{attachment.filename}")
-            upload_dir = os.path.join('static', 'uploads', 'tickets')
-            os.makedirs(upload_dir, exist_ok=True)
-            attachment.save(os.path.join(upload_dir, filename))
-            attachment_url = f"uploads/tickets/{filename}"
+        attachment_url = compress_and_save_ticket_attachment(attachment, ticket_number, prefix="reply_")
     
     message = TicketMessage(
         ticket_id=ticket.id,

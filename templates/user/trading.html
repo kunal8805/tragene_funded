@@ -65,20 +65,39 @@
             </div>
 
             <!-- Progress Bar -->
-            {% set target_amount = (challenge.challenge_template.account_size *
-            challenge.challenge_template.profit_target / 100) %}
-            {% set progress = (challenge.current_profit / target_amount * 100) if challenge.current_profit and
-            target_amount > 0 else 0 %}
+            {% if challenge.challenge_type == 'two_phase' and challenge.phase == 2 %}
+                {% set target_pct = challenge.challenge_template.phase2_target %}
+            {% elif challenge.challenge_type == 'instant' %}
+                {% set target_pct = 0.0 %}
+            {% else %}
+                {% set target_pct = challenge.challenge_template.phase1_target %}
+            {% endif %}
+            {% set target_pct = (target_pct or 0.0)|float %}
+            {% set account_size = (challenge.challenge_template.account_size or 0.0)|float %}
+            {% set target_amount = account_size * (target_pct / 100) %}
+            {% set progress = (challenge.current_profit / target_amount * 100) if challenge.current_profit and target_amount > 0 else 0 %}
             {% if progress > 100 %}{% set progress = 100 %}{% endif %}
 
             <div>
                 <div class="flex justify-between text-sm text-gray-600 dark:text-gray-400 mb-1">
-                    <span>Profit Target: {{ challenge.challenge_template.profit_target }}%</span>
-                    <span>{{ "%.1f"|format(progress) }}%</span>
+                    <span>
+                        {% if challenge.challenge_type == 'instant' %}
+                            Profit Target: None (Instant Funded)
+                        {% else %}
+                            Profit Target: {{ target_pct }}%
+                        {% endif %}
+                    </span>
+                    <span>
+                        {% if challenge.challenge_type == 'instant' %}
+                            Current: ₹{{ "{:,.2f}".format(challenge.current_profit or 0) }}
+                        {% else %}
+                            {{ "%.1f"|format(progress) }}%
+                        {% endif %}
+                    </span>
                 </div>
                 <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                     <div class="h-2 rounded-full {% if progress >= 70 %}bg-green-500{% elif progress >= 30 %}bg-yellow-500{% else %}bg-blue-500{% endif %}"
-                        style="width: {{ progress }}%"></div>
+                        style="width: {{ progress if challenge.challenge_type != 'instant' else 100 }}%"></div>
                 </div>
             </div>
         </div>

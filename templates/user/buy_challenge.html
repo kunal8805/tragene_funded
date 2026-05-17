@@ -227,92 +227,172 @@
                 Challenge Rules & Requirements
             </h3>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {% if challenge.challenge_type == 'one_phase' %}
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div class="space-y-4">
+                    {% set phase1_target = (challenge.phase1_target or 0.0)|float %}
+                    {% set phase1_target_amount = challenge.account_size * (phase1_target / 100) %}
                     <div class="flex items-start">
-                        <div
-                            class="w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center mr-3 mt-1">
-                            <i class="fas fa-bullseye text-green-600 dark:text-green-400"></i>
-                        </div>
+                        <div class="w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center mr-3 mt-1 text-green-600 dark:text-green-400"><i class="fas fa-bullseye"></i></div>
                         <div>
                             <h4 class="font-medium text-gray-900 dark:text-white">Profit Target</h4>
-                            <p class="text-gray-600 dark:text-gray-400">{{ challenge.profit_target }}% (${{
-                                (challenge.account_size *
-                                challenge.profit_target/100)|int }})</p>
-                            <p class="text-sm text-gray-500 dark:text-gray-500">Must reach to pass the challenge</p>
+                            <p class="text-gray-600 dark:text-gray-400">{{ phase1_target }}% (${{ "{:,.0f}".format(phase1_target_amount) }})</p>
+                            <p class="text-sm text-gray-500">Must reach to pass the challenge</p>
                         </div>
                     </div>
 
+                    {% set phase1_daily = (challenge.phase1_daily_loss or 0.0)|float %}
+                    {% set phase1_daily_amount = challenge.account_size * (phase1_daily / 100) %}
                     <div class="flex items-start">
-                        <div
-                            class="w-8 h-8 bg-red-100 dark:bg-red-900/30 rounded-lg flex items-center justify-center mr-3 mt-1">
-                            <i class="fas fa-shield-alt text-red-600 dark:text-red-400"></i>
-                        </div>
+                        <div class="w-8 h-8 bg-red-100 dark:bg-red-900/30 rounded-lg flex items-center justify-center mr-3 mt-1 text-red-600 dark:text-red-400"><i class="fas fa-shield-alt"></i></div>
                         <div>
                             <h4 class="font-medium text-gray-900 dark:text-white">Maximum Daily Loss</h4>
-                            <p class="text-gray-600 dark:text-gray-400">{{ challenge.max_daily_loss }}% (${{
-                                (challenge.account_size *
-                                challenge.max_daily_loss/100)|int }})</p>
-                            <p class="text-sm text-gray-500 dark:text-gray-500">Daily loss limit - challenge fails if
-                                exceeded</p>
+                            <p class="text-gray-600 dark:text-gray-400">{{ phase1_daily }}% (${{ "{:,.0f}".format(phase1_daily_amount) }})</p>
+                            <p class="text-sm text-gray-500">Daily loss limit - challenge fails if exceeded</p>
                         </div>
                     </div>
 
                     <div class="flex items-start">
-                        <div
-                            class="w-8 h-8 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg flex items-center justify-center mr-3 mt-1">
-                            <i class="fas fa-calendar text-yellow-600 dark:text-yellow-400"></i>
-                        </div>
+                        <div class="w-8 h-8 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg flex items-center justify-center mr-3 mt-1 text-yellow-600 dark:text-yellow-400"><i class="fas fa-calendar"></i></div>
                         <div>
                             <h4 class="font-medium text-gray-900 dark:text-white">Minimum Trading Days</h4>
-                            <p class="text-gray-600 dark:text-gray-400">{{ challenge.min_trading_days }} days</p>
-                            <p class="text-sm text-gray-500 dark:text-gray-500">Minimum days required before passing</p>
+                            <p class="text-gray-600 dark:text-gray-400">{{ challenge.phase1_min_days or 0 }} days</p>
+                            <p class="text-sm text-gray-500">Minimum days required before passing</p>
                         </div>
                     </div>
                 </div>
 
                 <div class="space-y-4">
+                    {% set phase1_overall = (challenge.phase1_overall_loss or 0.0)|float %}
+                    {% set phase1_overall_amount = challenge.account_size * (phase1_overall / 100) %}
                     <div class="flex items-start">
-                        <div
-                            class="w-8 h-8 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center mr-3 mt-1">
-                            <i class="fas fa-chart-line text-purple-600 dark:text-purple-400"></i>
-                        </div>
+                        <div class="w-8 h-8 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center mr-3 mt-1 text-purple-600 dark:text-purple-400"><i class="fas fa-chart-line"></i></div>
                         <div>
                             <h4 class="font-medium text-gray-900 dark:text-white">Maximum Overall Loss</h4>
-                            <p class="text-gray-600 dark:text-gray-400">{{ challenge.max_overall_loss }}% (${{
-                                (challenge.account_size *
-                                challenge.max_overall_loss/100)|int }})</p>
-                            <p class="text-sm text-gray-500 dark:text-gray-500">Total loss limit</p>
+                            <p class="text-gray-600 dark:text-gray-400">{{ phase1_overall }}% (${{ "{:,.0f}".format(phase1_overall_amount) }})</p>
+                            <p class="text-sm text-gray-500">Total overall loss limit</p>
                         </div>
                     </div>
 
                     <div class="flex items-start">
-                        <div
-                            class="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center mr-3 mt-1">
-                            <i class="fas fa-clock text-blue-600 dark:text-blue-400"></i>
-                        </div>
+                        <div class="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center mr-3 mt-1 text-blue-600 dark:text-blue-400"><i class="fas fa-clock"></i></div>
                         <div>
                             <h4 class="font-medium text-gray-900 dark:text-white">Time Limit</h4>
-                            <p class="text-gray-600 dark:text-gray-400">{{ challenge.duration_days }} days</p>
-                            <p class="text-sm text-gray-500 dark:text-gray-500">Complete within this timeframe</p>
+                            <p class="text-gray-600 dark:text-gray-400">{{ challenge.phase1_duration or 30 }} days</p>
+                            <p class="text-sm text-gray-500">Complete within this timeframe</p>
                         </div>
                     </div>
 
                     <div class="flex items-start">
-                        <div
-                            class="w-8 h-8 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg flex items-center justify-center mr-3 mt-1">
-                            <i class="fas fa-percentage text-indigo-600 dark:text-indigo-400"></i>
-                        </div>
+                        <div class="w-8 h-8 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg flex items-center justify-center mr-3 mt-1 text-indigo-600 dark:text-indigo-400"><i class="fas fa-percentage"></i></div>
                         <div>
                             <h4 class="font-medium text-gray-900 dark:text-white">Profit Share</h4>
-                            <p class="text-gray-600 dark:text-gray-400">{{ challenge.user_profit_share }}% for you, {{
-                                100 -
-                                challenge.user_profit_share }}% for firm</p>
-                            <p class="text-sm text-gray-500 dark:text-gray-500">Your profit split after passing</p>
+                            <p class="text-gray-600 dark:text-gray-400">{{ challenge.user_profit_share }}% for you, {{ 100 - challenge.user_profit_share }}% for firm</p>
+                            <p class="text-sm text-gray-500">Your profit split after passing</p>
                         </div>
                     </div>
                 </div>
             </div>
+            {% elif challenge.challenge_type == 'two_phase' %}
+            <div class="space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 bg-gray-50 dark:bg-gray-900/50 rounded-2xl p-4 border dark:border-gray-800">
+                    <!-- Phase 1 Box -->
+                    <div class="space-y-4 border-b md:border-b-0 md:border-r border-gray-200 dark:border-gray-700 pb-4 md:pb-0 md:pr-6">
+                        <h4 class="font-bold text-center text-lg text-purple-600 dark:text-purple-400 border-b dark:border-gray-700 pb-2 flex items-center justify-center">
+                            <i class="fas fa-arrow-circle-right mr-2"></i> PHASE 1: EVALUATION
+                        </h4>
+                        {% set p1_target = (challenge.phase1_target or 0.0)|float %}
+                        {% set p1_target_amount = challenge.account_size * (p1_target / 100) %}
+                        {% set p1_daily = (challenge.phase1_daily_loss or 0.0)|float %}
+                        {% set p1_daily_amount = challenge.account_size * (p1_daily / 100) %}
+                        {% set p1_overall = (challenge.phase1_overall_loss or 0.0)|float %}
+                        {% set p1_overall_amount = challenge.account_size * (p1_overall / 100) %}
+
+                        <div class="flex justify-between py-1 text-sm"><span class="text-gray-600 dark:text-gray-400">Profit Target</span><span class="font-semibold text-green-600">{{ p1_target }}% (${{ "{:,.0f}".format(p1_target_amount) }})</span></div>
+                        <div class="flex justify-between py-1 text-sm"><span class="text-gray-600 dark:text-gray-400">Daily Loss Limit</span><span class="font-semibold text-red-600">{{ p1_daily }}% (${{ "{:,.0f}".format(p1_daily_amount) }})</span></div>
+                        <div class="flex justify-between py-1 text-sm"><span class="text-gray-600 dark:text-gray-400">Overall Loss Limit</span><span class="font-semibold text-red-600">{{ p1_overall }}% (${{ "{:,.0f}".format(p1_overall_amount) }})</span></div>
+                        <div class="flex justify-between py-1 text-sm"><span class="text-gray-600 dark:text-gray-400">Min Trading Days</span><span class="font-semibold">{{ challenge.phase1_min_days or 0 }} days</span></div>
+                        <div class="flex justify-between py-1 text-sm"><span class="text-gray-600 dark:text-gray-400">Time Duration</span><span class="font-semibold">{{ challenge.phase1_duration or 30 }} days</span></div>
+                        <div class="flex justify-between py-1 text-sm"><span class="text-gray-600 dark:text-gray-400">Leverage</span><span class="font-semibold">{{ challenge.phase1_leverage or "1:100" }}</span></div>
+                    </div>
+
+                    <!-- Phase 2 Box -->
+                    <div class="space-y-4 md:pl-6">
+                        <h4 class="font-bold text-center text-lg text-purple-600 dark:text-purple-400 border-b dark:border-gray-700 pb-2 flex items-center justify-center">
+                            <i class="fas fa-check-circle mr-2"></i> PHASE 2: VERIFICATION
+                        </h4>
+                        {% set p2_target = (challenge.phase2_target or 0.0)|float %}
+                        {% set p2_target_amount = challenge.account_size * (p2_target / 100) %}
+                        {% set p2_daily = (challenge.phase2_daily_loss or 0.0)|float %}
+                        {% set p2_daily_amount = challenge.account_size * (p2_daily / 100) %}
+                        {% set p2_overall = (challenge.phase2_overall_loss or 0.0)|float %}
+                        {% set p2_overall_amount = challenge.account_size * (p2_overall / 100) %}
+
+                        <div class="flex justify-between py-1 text-sm"><span class="text-gray-600 dark:text-gray-400">Profit Target</span><span class="font-semibold text-green-600">{{ p2_target }}% (${{ "{:,.0f}".format(p2_target_amount) }})</span></div>
+                        <div class="flex justify-between py-1 text-sm"><span class="text-gray-600 dark:text-gray-400">Daily Loss Limit</span><span class="font-semibold text-red-600">{{ p2_daily }}% (${{ "{:,.0f}".format(p2_daily_amount) }})</span></div>
+                        <div class="flex justify-between py-1 text-sm"><span class="text-gray-600 dark:text-gray-400">Overall Loss Limit</span><span class="font-semibold text-red-600">{{ p2_overall }}% (${{ "{:,.0f}".format(p2_overall_amount) }})</span></div>
+                        <div class="flex justify-between py-1 text-sm"><span class="text-gray-600 dark:text-gray-400">Min Trading Days</span><span class="font-semibold">{{ challenge.phase2_min_days or 0 }} days</span></div>
+                        <div class="flex justify-between py-1 text-sm"><span class="text-gray-600 dark:text-gray-400">Time Duration</span><span class="font-semibold">{{ challenge.phase2_duration or 30 }} days</span></div>
+                        <div class="flex justify-between py-1 text-sm"><span class="text-gray-600 dark:text-gray-400">Leverage</span><span class="font-semibold">{{ challenge.phase2_leverage or "1:100" }}</span></div>
+                    </div>
+                </div>
+
+                <div class="flex items-start px-2 py-1">
+                    <div class="w-8 h-8 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg flex items-center justify-center mr-3 mt-1 text-indigo-600 dark:text-indigo-400"><i class="fas fa-percentage"></i></div>
+                    <div>
+                        <h4 class="font-medium text-gray-900 dark:text-white">Profit Split Split (Funded Account)</h4>
+                        <p class="text-gray-600 dark:text-gray-400">{{ challenge.user_profit_share }}% for you, {{ 100 - challenge.user_profit_share }}% for firm</p>
+                        <p class="text-sm text-gray-500">Split automatically disbursed at payout cycles</p>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="space-y-4">
+                    {% set instant_daily = (challenge.instant_daily_loss or 0.0)|float %}
+                    {% set instant_daily_amount = challenge.account_size * (instant_daily / 100) %}
+                    <div class="flex items-start">
+                        <div class="w-8 h-8 bg-red-100 dark:bg-red-900/30 rounded-lg flex items-center justify-center mr-3 mt-1 text-red-600 dark:text-red-400"><i class="fas fa-shield-alt"></i></div>
+                        <div>
+                            <h4 class="font-medium text-gray-900 dark:text-white">Maximum Daily Loss</h4>
+                            <p class="text-gray-600 dark:text-gray-400">{{ instant_daily }}% (${{ "{:,.0f}".format(instant_daily_amount) }})</p>
+                            <p class="text-sm text-gray-500">Daily loss limit - challenge fails if exceeded</p>
+                        </div>
+                    </div>
+
+                    {% set instant_overall = (challenge.instant_overall_loss or 0.0)|float %}
+                    {% set instant_overall_amount = challenge.account_size * (instant_overall / 100) %}
+                    <div class="flex items-start">
+                        <div class="w-8 h-8 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center mr-3 mt-1 text-purple-600 dark:text-purple-400"><i class="fas fa-chart-line"></i></div>
+                        <div>
+                            <h4 class="font-medium text-gray-900 dark:text-white">Maximum Overall Loss</h4>
+                            <p class="text-gray-600 dark:text-gray-400">{{ instant_overall }}% (${{ "{:,.0f}".format(instant_overall_amount) }})</p>
+                            <p class="text-sm text-gray-500">Total overall loss limit</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="space-y-4">
+                    <div class="flex items-start">
+                        <div class="w-8 h-8 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg flex items-center justify-center mr-3 mt-1 text-yellow-600 dark:text-yellow-400"><i class="fas fa-calendar"></i></div>
+                        <div>
+                            <h4 class="font-medium text-gray-900 dark:text-white">Minimum Trading Days</h4>
+                            <p class="text-gray-600 dark:text-gray-400">{{ challenge.instant_min_days or 0 }} days</p>
+                            <p class="text-sm text-gray-500">Minimum trading days before being eligible for withdrawals</p>
+                        </div>
+                    </div>
+
+                    <div class="flex items-start">
+                        <div class="w-8 h-8 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg flex items-center justify-center mr-3 mt-1 text-indigo-600 dark:text-indigo-400"><i class="fas fa-percentage"></i></div>
+                        <div>
+                            <h4 class="font-medium text-gray-900 dark:text-white">Profit Share</h4>
+                            <p class="text-gray-600 dark:text-gray-400">{{ challenge.user_profit_share }}% for you, {{ 100 - challenge.user_profit_share }}% for firm</p>
+                            <p class="text-sm text-gray-500">Disbursed instantly starting from Day 1</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
         </div>
 
         <!-- Quick Stats -->

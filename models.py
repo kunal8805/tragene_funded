@@ -75,9 +75,9 @@ class User(db.Model):
     is_compact_view = db.Column(db.Boolean, default=False)
 
     # Relationships
-    challenge_purchases = db.relationship('ChallengePurchase', backref='user', lazy=True, cascade='all, delete-orphan')
+    challenge_purchases = db.relationship('TradingJourney', backref='user', lazy=True, cascade='all, delete-orphan')
     payouts = db.relationship('Payout', backref='user', lazy=True, cascade='all, delete-orphan')
-    payments = db.relationship('Payment', backref='user', lazy=True, cascade='all, delete-orphan')
+    payments = db.relationship('Payment', backref='user', lazy=True, cascade='all, delete-orphan', foreign_keys='Payment.user_id')
     
     def set_password(self, password):
         self.password = generate_password_hash(password)
@@ -123,26 +123,85 @@ class ChallengeTemplate(db.Model):
     name = db.Column(db.String(100), nullable=False, index=True)
     price = db.Column(db.Integer, nullable=False)
     account_size = db.Column(db.Integer, nullable=False)
-    phase = db.Column(db.Integer, nullable=False)
-    profit_target = db.Column(db.Float, nullable=False)
-    max_daily_loss = db.Column(db.Float, nullable=False)
-    max_overall_loss = db.Column(db.Float, nullable=False)
-    min_trading_days = db.Column(db.Integer, nullable=False)
-    duration_days = db.Column(db.Integer, nullable=False)
-    leverage = db.Column(db.String(20), default='1:100')
+    phase = db.Column(db.Integer, nullable=False, default=1) # legacy
+
+    # Phase 1 Rules
+    phase1_target = db.Column(db.Float, nullable=True)
+    phase1_daily_loss = db.Column(db.Float, nullable=True)
+    phase1_overall_loss = db.Column(db.Float, nullable=True)
+    phase1_min_days = db.Column(db.Integer, nullable=True)
+    phase1_duration = db.Column(db.Integer, nullable=True)
+    phase1_leverage = db.Column(db.String(20), nullable=True)
+    phase1_rules = db.Column(db.Text, nullable=True)
+
+    # Phase 2 Rules
+    phase2_target = db.Column(db.Float, nullable=True)
+    phase2_daily_loss = db.Column(db.Float, nullable=True)
+    phase2_overall_loss = db.Column(db.Float, nullable=True)
+    phase2_min_days = db.Column(db.Integer, nullable=True)
+    phase2_duration = db.Column(db.Integer, nullable=True)
+    phase2_leverage = db.Column(db.String(20), nullable=True)
+    phase2_rules = db.Column(db.Text, nullable=True)
+
+    # Instant Rules
+    instant_daily_loss = db.Column(db.Float, nullable=True)
+    instant_overall_loss = db.Column(db.Float, nullable=True)
+    instant_min_days = db.Column(db.Integer, nullable=True)
+    instant_leverage = db.Column(db.String(20), nullable=True)
+    instant_rules = db.Column(db.Text, nullable=True)
+
     user_profit_share = db.Column(db.Integer, nullable=False)
     payout_cycle = db.Column(db.String(20), default='biweekly')
     weekend_trading = db.Column(db.Boolean, default=True)
     is_active = db.Column(db.Boolean, default=True, index=True)
     description = db.Column(db.Text)
+    challenge_type = db.Column(db.String(20), nullable=False, default='one_phase', index=True)
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
     updated_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     
+    @property
+    def profit_target(self):
+        if self.challenge_type == 'instant':
+            return 0.0
+        return self.phase1_target or 0.0
+
+    @property
+    def max_daily_loss(self):
+        if self.challenge_type == 'instant':
+            return self.instant_daily_loss or 0.0
+        return self.phase1_daily_loss or 0.0
+
+    @property
+    def max_overall_loss(self):
+        if self.challenge_type == 'instant':
+            return self.instant_overall_loss or 0.0
+        return self.phase1_overall_loss or 0.0
+
+    @property
+    def min_trading_days(self):
+        if self.challenge_type == 'instant':
+            return self.instant_min_days or 0
+        return self.phase1_min_days or 0
+
+    @property
+    def duration_days(self):
+        if self.challenge_type == 'instant':
+            return 365
+        return self.phase1_duration or 30
+
+    @property
+    def leverage(self):
+        if self.challenge_type == 'instant':
+            return self.instant_leverage or "1:100"
+        return self.phase1_leverage or "1:100"
+
     def __repr__(self):
         return f'<ChallengeTemplate {self.name}>'
 
 
-class ChallengePurchase(db.Model):
+class TradingJourney(db.Model):
+    __tablename__ = 'challenge_purchase'
+
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
     challenge_template_id = db.Column(db.Integer, db.ForeignKey('challenge_template.id'), nullable=False, index=True)
@@ -188,6 +247,11 @@ class ChallengePurchase(db.Model):
     last_verified_equity = db.Column(db.Float, default=0.0)
     last_balance_check_time = db.Column(db.DateTime(timezone=True), nullable=True)
     balance_check_hash = db.Column(db.String(64), default='')
+    
+    # Persistent State Fields
+    challenge_type = db.Column(db.String(20), nullable=False, default='one_phase', index=True)
+    current_phase = db.Column(db.Integer, nullable=False, default=1)
+    is_terminated = db.Column(db.Boolean, nullable=False, default=False, index=True)
     
     # Status
     status = db.Column(db.String(20), default=ChallengeStatus.PENDING_CREDENTIALS, index=True)
@@ -293,6 +357,8 @@ class ChallengePurchase(db.Model):
     def __repr__(self):
         return f'<ChallengePurchase {self.id} - User {self.user_id}>'
 
+# Alias for backward compatibility
+ChallengePurchase = TradingJourney
 
 class AccountSnapshot(db.Model):
     """Store every heartbeat from EA"""
@@ -525,10 +591,16 @@ class Payment(db.Model):
     payment_id = db.Column(db.String(100), unique=True, nullable=False, index=True)
     amount = db.Column(db.Float, nullable=False)
     expected_amount = db.Column(db.Float, nullable=False, default=0.0)
+    paid_amount = db.Column(db.Float, default=0.0)
     currency = db.Column(db.String(10), default='INR')
-    payment_method = db.Column(db.String(20), nullable=False)
+    payment_method = db.Column(db.String(50), nullable=False)
     gateway = db.Column(db.String(50), default='cashfree')
     challenge_template_id = db.Column(db.Integer, nullable=True, index=True)
+    
+    # Cashfree specific
+    cf_order_id = db.Column(db.String(100), index=True)
+    cf_payment_id = db.Column(db.String(100))
+    payment_session_id = db.Column(db.String(200))
     
     # Status
     status = db.Column(db.String(20), default='pending', index=True)
@@ -537,6 +609,15 @@ class Payment(db.Model):
     gateway_id = db.Column(db.String(100))
     gateway_order_id = db.Column(db.String(100))
     gateway_response = db.Column(db.Text)
+    gateway_status = db.Column(db.String(50))
+    gateway_message = db.Column(db.Text)
+    
+    # Refund Tracking
+    refund_status = db.Column(db.String(20), default='none', index=True)
+    refund_eligible = db.Column(db.Boolean, default=False)
+    refund_verified_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    refund_requested_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    refund_processed_at = db.Column(db.DateTime(timezone=True), nullable=True)
     
     # Metadata
     notes = db.Column(db.Text)
@@ -587,6 +668,22 @@ class AdminLog(db.Model):
     
     def __repr__(self):
         return f'<AdminLog {self.action} by {self.admin_id}>'
+
+class AdminAuditLog(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    admin_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    action = db.Column(db.String(100), nullable=False, index=True)
+    payment_id = db.Column(db.Integer, db.ForeignKey('payment.id'), nullable=True, index=True)
+    old_value = db.Column(db.String(255))
+    new_value = db.Column(db.String(255))
+    ip_address = db.Column(db.String(50))
+    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
+    
+    admin = db.relationship('User', foreign_keys=[admin_id], backref='audit_logs', lazy=True)
+    payment = db.relationship('Payment', backref='audit_logs', lazy=True)
+    
+    def __repr__(self):
+        return f'<AdminAuditLog {self.action} by {self.admin_id}>'
 
 
 class SupportTicket(db.Model):
@@ -679,7 +776,7 @@ class Trade(db.Model):
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
     updated_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     
-    challenge_purchase = db.relationship('ChallengePurchase', backref='trades', lazy=True)
+    challenge_purchase = db.relationship('TradingJourney', backref='trades', lazy=True)
     
     def __repr__(self):
         return f'<Trade {self.trade_id} - {self.symbol}>'

@@ -77,7 +77,7 @@ app.config['SQLALCHEMY_DATABASE_URI'] = db_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 if DEV_MODE:
-    print(f"🗄️ Database: {db_url[:50]}...")
+    print(f"[DB] Database: {db_url[:50]}...")
 
 # ===== RESEND CONFIGURATION =====
 RESEND_API_KEY = os.getenv('RESEND_API_KEY')
@@ -116,17 +116,31 @@ def to_dict_filter(obj):
             'price': obj.price,
             'account_size': obj.account_size,
             'phase': obj.phase,
-            'profit_target': obj.profit_target,
-            'max_daily_loss': obj.max_daily_loss,
-            'max_overall_loss': obj.max_overall_loss,
-            'min_trading_days': obj.min_trading_days,
-            'duration_days': obj.duration_days,
-            'leverage': obj.leverage,
+            'phase1_target': obj.phase1_target,
+            'phase1_daily_loss': obj.phase1_daily_loss,
+            'phase1_overall_loss': obj.phase1_overall_loss,
+            'phase1_min_days': obj.phase1_min_days,
+            'phase1_duration': obj.phase1_duration,
+            'phase1_leverage': obj.phase1_leverage,
+            'phase2_target': obj.phase2_target,
+            'phase2_daily_loss': obj.phase2_daily_loss,
+            'phase2_overall_loss': obj.phase2_overall_loss,
+            'phase2_min_days': obj.phase2_min_days,
+            'phase2_duration': obj.phase2_duration,
+            'phase2_leverage': obj.phase2_leverage,
+            'instant_daily_loss': obj.instant_daily_loss,
+            'instant_overall_loss': obj.instant_overall_loss,
+            'instant_min_days': obj.instant_min_days,
+            'instant_leverage': obj.instant_leverage,
             'user_profit_share': obj.user_profit_share,
             'payout_cycle': obj.payout_cycle,
             'weekend_trading': obj.weekend_trading,
             'is_active': obj.is_active,
-            'description': obj.description or ""
+            'description': obj.description or "",
+            'challenge_type': obj.challenge_type or "one_phase",
+            'phase1_rules': obj.phase1_rules or "",
+            'phase2_rules': obj.phase2_rules or "",
+            'instant_rules': obj.instant_rules or ""
         }
     return str(obj)
 
@@ -238,10 +252,32 @@ def verify_cashfree_webhook_signature(payload_body, signature, timestamp):
         print(f"❌ Webhook verification error: {e}")
         return False
 
+def get_next_serial_no():
+    """Get next sequential serial number starting from 1111."""
+    max_serial = db.session.query(db.func.max(ChallengePurchase.serial_no)).scalar()
+    if max_serial is None:
+        return 1111
+    return max_serial + 1
+
+def generate_challenge_code():
+    """Generate random 6-digit numeric challenge code."""
+    while True:
+        code = str(random.randint(100000, 999999))
+        existing = ChallengePurchase.query.filter_by(challenge_code=code).first()
+        if not existing:
+            return code
+
+def generate_challenge_token():
+    """Generate cryptographically secure random token."""
+    while True:
+        token = secrets.token_hex(32)
+        existing = ChallengePurchase.query.filter_by(challenge_token=token).first()
+        if not existing:
+            return token
+
 def provision_challenge(payment, user, challenge_template_id):
     """Helper to provision a challenge after successful payment"""
     from models import db, ChallengePurchase, ChallengeTemplate
-    from utils.challenge_auth import get_next_serial_no, generate_challenge_code, generate_challenge_token
     
     challenge = ChallengeTemplate.query.get(challenge_template_id)
     if not challenge:
@@ -253,21 +289,44 @@ def provision_challenge(payment, user, challenge_template_id):
             print(f"⚠️ Payment {payment.id} already has a challenge assigned: {payment.challenge_purchase_id}")
         return True, payment.challenge_purchase_id
         
+    ctype = challenge.challenge_type or 'one_phase'
+    initial_status = 'phase1_active'
+    initial_phase = 1
+    
+    if ctype == 'two_phase':
+        initial_status = 'phase1_active'
+        initial_phase = 1
+    elif ctype == 'one_phase':
+        initial_status = 'phase1_active'
+        initial_phase = 1
+    elif ctype == 'instant':
+        initial_status = 'funded_active'
+        initial_phase = 0
+        
+    # Determine initial duration
+    if ctype == 'instant':
+        initial_duration = 999  # effectively unlimited or funded phase
+    else:
+        initial_duration = challenge.phase1_duration or 30
+
     purchase = ChallengePurchase(
         user_id=user.id,
         challenge_template_id=challenge.id,
         purchase_date=datetime.now(timezone.utc),
         amount=challenge.price,
         payment_method='cashfree',
-        status='active',
+        status=initial_status,
+        challenge_type=ctype,
+        current_phase=initial_phase,
+        is_terminated=False,
         start_date=datetime.now(timezone.utc),
-        end_date=datetime.now(timezone.utc) + timedelta(days=challenge.duration_days),
+        end_date=datetime.now(timezone.utc) + timedelta(days=initial_duration),
         mt5_account=f"TRG_{user.id}_{challenge.id}_{datetime.now().strftime('%Y%m%d')}",
         current_profit=0.0,
         current_loss=0.0,
-        phase=1,
+        phase=initial_phase,
         progress_percentage=0.0,
-        days_remaining=challenge.duration_days
+        days_remaining=initial_duration
     )
     
     purchase.serial_no = get_next_serial_no()
@@ -279,7 +338,7 @@ def provision_challenge(payment, user, challenge_template_id):
     payment.challenge_purchase_id = purchase.id
     
     if DEV_MODE:
-        print(f"🎯 Challenge purchase created: {purchase.id}")
+        print(f"[OK] Challenge purchase created: {purchase.id}")
         
     return True, purchase.id
 
@@ -311,9 +370,9 @@ with app.app_context():
 
         if not ChallengeTemplate.query.first():
             default_challenges = [
-                ChallengeTemplate(name="Basic Challenge", price=99, account_size=50, phase=1, profit_target=12.0, max_daily_loss=5.0, max_overall_loss=8.0, min_trading_days=4, duration_days=30, leverage="1:100", user_profit_share=70, payout_cycle="biweekly", weekend_trading=True, is_active=True, description="Start your trading journey"),
-                ChallengeTemplate(name="Advanced Challenge", price=149, account_size=75, phase=1, profit_target=12.0, max_daily_loss=5.0, max_overall_loss=8.0, min_trading_days=5, duration_days=30, leverage="1:100", user_profit_share=75, payout_cycle="biweekly", weekend_trading=True, is_active=True, description="Advanced challenge"),
-                ChallengeTemplate(name="Pro Challenge", price=199, account_size=100, phase=1, profit_target=12.0, max_daily_loss=5.0, max_overall_loss=8.0, min_trading_days=4, duration_days=30, leverage="1:100", user_profit_share=70, payout_cycle="biweekly", weekend_trading=True, is_active=True, description="Pro challenge")
+                ChallengeTemplate(name="Basic Challenge", price=99, account_size=50, phase=1, phase1_target=12.0, phase1_daily_loss=5.0, phase1_overall_loss=8.0, phase1_min_days=4, phase1_duration=30, phase1_leverage="1:100", challenge_type="one_phase", user_profit_share=70, payout_cycle="biweekly", weekend_trading=True, is_active=True, description="Start your trading journey"),
+                ChallengeTemplate(name="Advanced Challenge", price=149, account_size=75, phase=1, phase1_target=12.0, phase1_daily_loss=5.0, phase1_overall_loss=8.0, phase1_min_days=5, phase1_duration=30, phase1_leverage="1:100", challenge_type="one_phase", user_profit_share=75, payout_cycle="biweekly", weekend_trading=True, is_active=True, description="Advanced challenge"),
+                ChallengeTemplate(name="Pro Challenge", price=199, account_size=100, phase=1, phase1_target=12.0, phase1_daily_loss=5.0, phase1_overall_loss=8.0, phase1_min_days=4, phase1_duration=30, phase1_leverage="1:100", challenge_type="one_phase", user_profit_share=70, payout_cycle="biweekly", weekend_trading=True, is_active=True, description="Pro challenge")
             ]
 
             for challenge in default_challenges:

@@ -21,22 +21,23 @@
 
 {% block content %}
 <!-- Challenges List -->
-<div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8" data-aos="fade-up">
-    <!-- Phase 1 Challenges -->
-    <div class="glass-card p-6 h-full">
+<div class="grid grid-cols-1 xl:grid-cols-3 gap-8 mb-8" data-aos="fade-up">
+    
+    <!-- One Phase Challenges -->
+    <div class="glass-card p-6 h-full border border-blue-100 dark:border-blue-900/20">
         <div class="flex items-center justify-between mb-6 pb-4 border-b border-gray-100 dark:border-gray-700">
-            <h2 class="text-xl font-bold text-red-600 dark:text-red-400 flex items-center">
-                <i class="fas fa-fire mr-3"></i>
-                Phase 1 Challenges (Harder)
+            <h2 class="text-xl font-bold text-blue-600 dark:text-blue-400 flex items-center">
+                <i class="fas fa-layer-group mr-3 text-blue-500"></i>
+                One Phase Challenges
             </h2>
             <span
-                class="bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400 px-3 py-1 rounded-full text-sm font-semibold border border-red-200 dark:border-red-800">
-                {{ phase1_challenges|length }} Challenges
+                class="bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400 px-3 py-1 rounded-full text-sm font-semibold border border-blue-200 dark:border-blue-800">
+                {{ one_phase_challenges|length }} Challenges
             </span>
         </div>
 
         <div class="space-y-4">
-            {% for c in phase1_challenges %}
+            {% for c in one_phase_challenges %}
             <div class="border rounded-xl p-4 transition-all hover:shadow-md 
                 {% if c.is_active %}
                     border-green-200 bg-green-50/50 dark:bg-green-900/10 dark:border-green-900/30
@@ -46,8 +47,7 @@
                 <div class="flex justify-between items-start mb-3">
                     <div>
                         <h3 class="font-bold text-gray-900 dark:text-white text-lg">{{ c.name }}</h3>
-                        <p class="text-sm text-gray-600 dark:text-gray-400">₹{{ c.price }} • ${{
-                            c.account_size }} Account</p>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">₹{{ c.price }} • ${{ c.account_size }} Account</p>
                     </div>
                     <div class="flex items-center space-x-2">
                         <span class="px-2 py-1 text-xs rounded-full font-medium 
@@ -55,39 +55,18 @@
                             {% else %}bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400{% endif %}">
                             {{ 'Active' if c.is_active else 'Inactive' }}
                         </span>
-                        <span
-                            class="px-2 py-1 text-xs rounded-full font-medium bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400">
-                            Phase {{ c.phase }}
-                        </span>
                     </div>
                 </div>
 
-                <div class="grid grid-cols-2 gap-y-2 gap-x-4 text-xs mb-4 p-3 bg-white/50 dark:bg-black/20 rounded-lg">
-                    <div class="flex justify-between">
-                        <span class="text-gray-500 dark:text-gray-400">Profit Target:</span>
-                        <span class="font-semibold text-gray-900 dark:text-gray-200">{{ c.profit_target }}%</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-gray-500 dark:text-gray-400">Daily Loss:</span>
-                        <span class="font-semibold text-gray-900 dark:text-gray-200">{{ c.max_daily_loss }}%</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-gray-500 dark:text-gray-400">Overall Loss:</span>
-                        <span class="font-semibold text-gray-900 dark:text-gray-200">{{ c.max_overall_loss }}%</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-gray-500 dark:text-gray-400">Min Days:</span>
-                        <span class="font-semibold text-gray-900 dark:text-gray-200">{{ c.min_trading_days }}</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-gray-500 dark:text-gray-400">Profit Split:</span>
-                        <span class="font-semibold text-gray-900 dark:text-gray-200">{{ c.user_profit_share }}%
-                            User</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-gray-500 dark:text-gray-400">Duration:</span>
-                        <span class="font-semibold text-gray-900 dark:text-gray-200">{{ c.duration_days }} days</span>
-                    </div>
+                <div class="grid grid-cols-2 gap-y-2 gap-x-4 text-xs mb-4 p-3 bg-white/50 dark:bg-black/20 rounded-lg border-l-4 border-blue-500">
+                    <div class="col-span-2 text-center font-bold text-blue-600 dark:text-blue-400 border-b pb-1 mb-1">PHASE 1</div>
+                    <div class="flex justify-between"><span class="text-gray-500">Target:</span> <span class="font-semibold">{{ c.phase1_target }}%</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500">Daily Loss:</span> <span class="font-semibold">{{ c.phase1_daily_loss }}%</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500">Overall Loss:</span> <span class="font-semibold">{{ c.phase1_overall_loss }}%</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500">Min Days:</span> <span class="font-semibold">{{ c.phase1_min_days }}</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500">Duration:</span> <span class="font-semibold">{{ c.phase1_duration }} days</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500">Leverage:</span> <span class="font-semibold">{{ c.phase1_leverage }}</span></div>
+                    <div class="col-span-2 flex justify-between pt-2 border-t mt-1"><span class="text-gray-500">Profit Split:</span> <span class="font-semibold">{{ c.user_profit_share }}%</span></div>
                 </div>
 
                 <div class="flex justify-end space-x-3 border-t border-gray-200 dark:border-gray-700/50 pt-3">
@@ -105,21 +84,21 @@
         </div>
     </div>
 
-    <!-- Phase 2 Challenges -->
-    <div class="glass-card p-6 h-full" data-aos="fade-up" data-aos-delay="100">
+    <!-- Two Phase Challenges -->
+    <div class="glass-card p-6 h-full border border-purple-100 dark:border-purple-900/20">
         <div class="flex items-center justify-between mb-6 pb-4 border-b border-gray-100 dark:border-gray-700">
-            <h2 class="text-xl font-bold text-green-600 dark:text-green-400 flex items-center">
-                <i class="fas fa-flag-checkered mr-3"></i>
-                Phase 2 Challenges (Easier)
+            <h2 class="text-xl font-bold text-purple-600 dark:text-purple-400 flex items-center">
+                <i class="fas fa-flag-checkered mr-3 text-purple-500"></i>
+                Two Phase Challenges
             </h2>
             <span
-                class="bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400 px-3 py-1 rounded-full text-sm font-semibold border border-green-200 dark:border-green-800">
-                {{ phase2_challenges|length }} Challenges
+                class="bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-400 px-3 py-1 rounded-full text-sm font-semibold border border-purple-200 dark:border-purple-800">
+                {{ two_phase_challenges|length }} Challenges
             </span>
         </div>
 
         <div class="space-y-4">
-            {% for c in phase2_challenges %}
+            {% for c in two_phase_challenges %}
             <div class="border rounded-xl p-4 transition-all hover:shadow-md 
                 {% if c.is_active %}
                     border-green-200 bg-green-50/50 dark:bg-green-900/10 dark:border-green-900/30
@@ -129,8 +108,7 @@
                 <div class="flex justify-between items-start mb-3">
                     <div>
                         <h3 class="font-bold text-gray-900 dark:text-white text-lg">{{ c.name }}</h3>
-                        <p class="text-sm text-gray-600 dark:text-gray-400">₹{{ c.price }} • ${{
-                            c.account_size }} Account</p>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">₹{{ c.price }} • ${{ c.account_size }} Account</p>
                     </div>
                     <div class="flex items-center space-x-2">
                         <span class="px-2 py-1 text-xs rounded-full font-medium 
@@ -138,39 +116,88 @@
                             {% else %}bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400{% endif %}">
                             {{ 'Active' if c.is_active else 'Inactive' }}
                         </span>
-                        <span
-                            class="px-2 py-1 text-xs rounded-full font-medium bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400">
-                            Phase {{ c.phase }}
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4 text-xs mb-4 p-3 bg-white/50 dark:bg-black/20 rounded-lg">
+                    <div class="space-y-2 border-r pr-2 border-purple-200 dark:border-purple-800">
+                        <div class="text-center font-bold text-purple-600 dark:text-purple-400 border-b pb-1 mb-1">PHASE 1</div>
+                        <div class="flex justify-between"><span class="text-gray-500">Target:</span> <span class="font-semibold">{{ c.phase1_target }}%</span></div>
+                        <div class="flex justify-between"><span class="text-gray-500">Daily Loss:</span> <span class="font-semibold">{{ c.phase1_daily_loss }}%</span></div>
+                        <div class="flex justify-between"><span class="text-gray-500">Overall Loss:</span> <span class="font-semibold">{{ c.phase1_overall_loss }}%</span></div>
+                        <div class="flex justify-between"><span class="text-gray-500">Min Days:</span> <span class="font-semibold">{{ c.phase1_min_days }}</span></div>
+                        <div class="flex justify-between"><span class="text-gray-500">Duration:</span> <span class="font-semibold">{{ c.phase1_duration }}</span></div>
+                        <div class="flex justify-between"><span class="text-gray-500">Lev:</span> <span class="font-semibold">{{ c.phase1_leverage }}</span></div>
+                    </div>
+                    <div class="space-y-2 pl-2">
+                        <div class="text-center font-bold text-purple-600 dark:text-purple-400 border-b pb-1 mb-1">PHASE 2</div>
+                        <div class="flex justify-between"><span class="text-gray-500">Target:</span> <span class="font-semibold">{{ c.phase2_target }}%</span></div>
+                        <div class="flex justify-between"><span class="text-gray-500">Daily Loss:</span> <span class="font-semibold">{{ c.phase2_daily_loss }}%</span></div>
+                        <div class="flex justify-between"><span class="text-gray-500">Overall Loss:</span> <span class="font-semibold">{{ c.phase2_overall_loss }}%</span></div>
+                        <div class="flex justify-between"><span class="text-gray-500">Min Days:</span> <span class="font-semibold">{{ c.phase2_min_days }}</span></div>
+                        <div class="flex justify-between"><span class="text-gray-500">Duration:</span> <span class="font-semibold">{{ c.phase2_duration }}</span></div>
+                        <div class="flex justify-between"><span class="text-gray-500">Lev:</span> <span class="font-semibold">{{ c.phase2_leverage }}</span></div>
+                    </div>
+                    <div class="col-span-2 flex justify-between pt-2 border-t mt-1"><span class="text-gray-500">Profit Split:</span> <span class="font-semibold">{{ c.user_profit_share }}%</span></div>
+                </div>
+
+                <div class="flex justify-end space-x-3 border-t border-gray-200 dark:border-gray-700/50 pt-3">
+                    <button onclick="editChallenge({{ c|to_dict|tojson|forceescape }})"
+                        class="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 text-sm font-medium flex items-center transition-colors">
+                        <i class="fas fa-edit mr-1.5"></i> Edit
+                    </button>
+                    <button onclick="openDeleteModal({{ c.id }}, {{ c.name|tojson|forceescape }})"
+                        class="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 text-sm font-medium flex items-center transition-colors">
+                        <i class="fas fa-trash mr-1.5"></i> Delete
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Instant Funded Accounts -->
+    <div class="glass-card p-6 h-full border border-emerald-100 dark:border-emerald-900/20">
+        <div class="flex items-center justify-between mb-6 pb-4 border-b border-gray-100 dark:border-gray-700">
+            <h2 class="text-xl font-bold text-emerald-600 dark:text-emerald-400 flex items-center">
+                <i class="fas fa-bolt mr-3 text-emerald-500"></i>
+                Instant Funded Accounts
+            </h2>
+            <span
+                class="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-400 px-3 py-1 rounded-full text-sm font-semibold border border-emerald-200 dark:border-emerald-800">
+                {{ instant_challenges|length }} Challenges
+            </span>
+        </div>
+
+        <div class="space-y-4">
+            {% for c in instant_challenges %}
+            <div class="border rounded-xl p-4 transition-all hover:shadow-md 
+                {% if c.is_active %}
+                    border-green-200 bg-green-50/50 dark:bg-green-900/10 dark:border-green-900/30
+                {% else %}
+                    border-red-200 bg-red-50/50 dark:bg-red-900/10 dark:border-red-900/30
+                {% endif %}">
+                <div class="flex justify-between items-start mb-3">
+                    <div>
+                        <h3 class="font-bold text-gray-900 dark:text-white text-lg">{{ c.name }}</h3>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">₹{{ c.price }} • ${{ c.account_size }} Account</p>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <span class="px-2 py-1 text-xs rounded-full font-medium 
+                            {% if c.is_active %}bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400
+                            {% else %}bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400{% endif %}">
+                            {{ 'Active' if c.is_active else 'Inactive' }}
                         </span>
                     </div>
                 </div>
 
-                <div class="grid grid-cols-2 gap-y-2 gap-x-4 text-xs mb-4 p-3 bg-white/50 dark:bg-black/20 rounded-lg">
-                    <div class="flex justify-between">
-                        <span class="text-gray-500 dark:text-gray-400">Profit Target:</span>
-                        <span class="font-semibold text-gray-900 dark:text-gray-200">{{ c.profit_target }}%</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-gray-500 dark:text-gray-400">Daily Loss:</span>
-                        <span class="font-semibold text-gray-900 dark:text-gray-200">{{ c.max_daily_loss }}%</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-gray-500 dark:text-gray-400">Overall Loss:</span>
-                        <span class="font-semibold text-gray-900 dark:text-gray-200">{{ c.max_overall_loss }}%</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-gray-500 dark:text-gray-400">Min Days:</span>
-                        <span class="font-semibold text-gray-900 dark:text-gray-200">{{ c.min_trading_days }}</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-gray-500 dark:text-gray-400">Profit Split:</span>
-                        <span class="font-semibold text-gray-900 dark:text-gray-200">{{ c.user_profit_share }}%
-                            User</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-gray-500 dark:text-gray-400">Duration:</span>
-                        <span class="font-semibold text-gray-900 dark:text-gray-200">{{ c.duration_days }} days</span>
-                    </div>
+                <div class="grid grid-cols-2 gap-y-2 gap-x-4 text-xs mb-4 p-3 bg-white/50 dark:bg-black/20 rounded-lg border-l-4 border-emerald-500">
+                    <div class="col-span-2 text-center font-bold text-emerald-600 dark:text-emerald-400 border-b pb-1 mb-1">INSTANT FUNDED</div>
+                    <div class="flex justify-between"><span class="text-gray-500">Daily Loss:</span> <span class="font-semibold">{{ c.instant_daily_loss }}%</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500">Overall Loss:</span> <span class="font-semibold">{{ c.instant_overall_loss }}%</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500">Min Days:</span> <span class="font-semibold">{{ c.instant_min_days }}</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500">Leverage:</span> <span class="font-semibold">{{ c.instant_leverage }}</span></div>
+                    <div class="col-span-2 flex justify-between pt-2 border-t mt-1"><span class="text-gray-500">Profit Split:</span> <span class="font-semibold">{{ c.user_profit_share }}%</span></div>
                 </div>
 
                 <div class="flex justify-end space-x-3 border-t border-gray-200 dark:border-gray-700/50 pt-3">
@@ -209,8 +236,7 @@
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Challenge Name
-                        *</label>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Challenge Name *</label>
                     <input type="text" id="challengeName" name="name" required
                         class="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white">
                 </div>
@@ -223,64 +249,96 @@
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Account Size ($)
-                        *</label>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Account Size ($) *</label>
                     <input type="number" id="accountSize" name="account_size" required
                         class="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Phase *</label>
-                    <select id="challengePhase" name="phase" required
-                        class="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white">
-                        <option value="1">Phase 1</option>
-                        <option value="2">Phase 2</option>
-                    </select>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Challenge Type *</label>
+                    <div class="flex items-center space-x-4 mt-2">
+                        <label class="inline-flex items-center">
+                            <input type="radio" name="challenge_type" value="one_phase" checked
+                                class="form-radio h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500">
+                            <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">One Phase</span>
+                        </label>
+                        <label class="inline-flex items-center">
+                            <input type="radio" name="challenge_type" value="two_phase"
+                                class="form-radio h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500">
+                            <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">Two Phase</span>
+                        </label>
+                        <label class="inline-flex items-center">
+                            <input type="radio" name="challenge_type" value="instant"
+                                class="form-radio h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500">
+                            <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">Instant</span>
+                        </label>
+                    </div>
                 </div>
             </div>
 
             <div class="border-t dark:border-gray-700 pt-6">
                 <h4 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Trading Rules</h4>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Profit Target (%)
-                            *</label>
-                        <input type="number" step="0.1" id="profitTarget" name="profit_target" required
-                            class="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Max Daily Loss
-                            (%) *</label>
-                        <input type="number" step="0.1" id="maxDailyLoss" name="max_daily_loss" required
-                            class="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white">
-                    </div>
-                </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Max Overall Loss
-                            (%) *</label>
-                        <input type="number" step="0.1" id="maxOverallLoss" name="max_overall_loss" required
-                            class="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Min Trading Days
-                            *</label>
-                        <input type="number" id="minTradingDays" name="min_trading_days" required
-                            class="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white">
+                
+                <!-- Phase 1 Inputs -->
+                <div id="phase1Inputs" class="space-y-4 mb-6 border-l-4 border-blue-500 pl-4">
+                    <h5 class="font-bold text-blue-600">PHASE 1</h5>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div><label class="block text-xs text-gray-500 mb-1">Target (%)</label><input type="number" step="0.1" id="phase1_target" name="phase1_target" class="w-full px-2 py-1 border rounded"></div>
+                        <div><label class="block text-xs text-gray-500 mb-1">Daily Loss (%)</label><input type="number" step="0.1" id="phase1_daily_loss" name="phase1_daily_loss" class="w-full px-2 py-1 border rounded"></div>
+                        <div><label class="block text-xs text-gray-500 mb-1">Overall Loss (%)</label><input type="number" step="0.1" id="phase1_overall_loss" name="phase1_overall_loss" class="w-full px-2 py-1 border rounded"></div>
+                        <div><label class="block text-xs text-gray-500 mb-1">Min Days</label><input type="number" id="phase1_min_days" name="phase1_min_days" class="w-full px-2 py-1 border rounded"></div>
+                        <div><label class="block text-xs text-gray-500 mb-1">Duration (Days)</label><input type="number" id="phase1_duration" name="phase1_duration" class="w-full px-2 py-1 border rounded"></div>
+                        <div><label class="block text-xs text-gray-500 mb-1">Leverage</label><input type="text" id="phase1_leverage" name="phase1_leverage" placeholder="1:100" class="w-full px-2 py-1 border rounded"></div>
                     </div>
                 </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Duration (Days)
-                            *</label>
-                        <input type="number" id="durationDays" name="duration_days" required
-                            class="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white">
+
+                <!-- Phase 2 Inputs -->
+                <div id="phase2Inputs" class="space-y-4 mb-6 border-l-4 border-purple-500 pl-4 hidden">
+                    <h5 class="font-bold text-purple-600">PHASE 2</h5>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div><label class="block text-xs text-gray-500 mb-1">Target (%)</label><input type="number" step="0.1" id="phase2_target" name="phase2_target" class="w-full px-2 py-1 border rounded"></div>
+                        <div><label class="block text-xs text-gray-500 mb-1">Daily Loss (%)</label><input type="number" step="0.1" id="phase2_daily_loss" name="phase2_daily_loss" class="w-full px-2 py-1 border rounded"></div>
+                        <div><label class="block text-xs text-gray-500 mb-1">Overall Loss (%)</label><input type="number" step="0.1" id="phase2_overall_loss" name="phase2_overall_loss" class="w-full px-2 py-1 border rounded"></div>
+                        <div><label class="block text-xs text-gray-500 mb-1">Min Days</label><input type="number" id="phase2_min_days" name="phase2_min_days" class="w-full px-2 py-1 border rounded"></div>
+                        <div><label class="block text-xs text-gray-500 mb-1">Duration (Days)</label><input type="number" id="phase2_duration" name="phase2_duration" class="w-full px-2 py-1 border rounded"></div>
+                        <div><label class="block text-xs text-gray-500 mb-1">Leverage</label><input type="text" id="phase2_leverage" name="phase2_leverage" placeholder="1:100" class="w-full px-2 py-1 border rounded"></div>
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Leverage
-                            *</label>
-                        <input type="text" id="leverage" name="leverage" required
-                            class="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white">
+                </div>
+
+                <!-- Instant Inputs -->
+                <div id="instantInputs" class="space-y-4 mb-6 border-l-4 border-emerald-500 pl-4 hidden">
+                    <h5 class="font-bold text-emerald-600">INSTANT FUNDED</h5>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div><label class="block text-xs text-gray-500 mb-1">Daily Loss (%)</label><input type="number" step="0.1" id="instant_daily_loss" name="instant_daily_loss" class="w-full px-2 py-1 border rounded"></div>
+                        <div><label class="block text-xs text-gray-500 mb-1">Overall Loss (%)</label><input type="number" step="0.1" id="instant_overall_loss" name="instant_overall_loss" class="w-full px-2 py-1 border rounded"></div>
+                        <div><label class="block text-xs text-gray-500 mb-1">Min Days</label><input type="number" id="instant_min_days" name="instant_min_days" class="w-full px-2 py-1 border rounded"></div>
+                        <div><label class="block text-xs text-gray-500 mb-1">Leverage</label><input type="text" id="instant_leverage" name="instant_leverage" placeholder="1:100" class="w-full px-2 py-1 border rounded"></div>
                     </div>
+                </div>
+            </div>
+
+            <!-- Dynamic Rules Textareas depending on challenge type -->
+            <div class="border-t dark:border-gray-700 pt-6">
+                <h4 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Rule Blueprints & Detailed Guidelines</h4>
+                
+                <!-- Phase 1 Rules -->
+                <div id="phase1RulesGroup" class="space-y-2">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Phase 1 Rules Text</label>
+                    <textarea id="phase1Rules" name="phase1_rules" rows="3" placeholder="Enter rules for Phase 1 (e.g. daily drawdown, targets...)"
+                        class="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white"></textarea>
+                </div>
+
+                <!-- Phase 2 Rules -->
+                <div id="phase2RulesGroup" class="space-y-2 mt-4 hidden">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Phase 2 Rules Text</label>
+                    <textarea id="phase2Rules" name="phase2_rules" rows="3" placeholder="Enter rules for Phase 2..."
+                        class="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white"></textarea>
+                </div>
+
+                <!-- Instant Rules -->
+                <div id="instantRulesGroup" class="space-y-2 mt-4 hidden">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Instant Rules Text</label>
+                    <textarea id="instantRules" name="instant_rules" rows="3" placeholder="Enter rules for Instant Funded Account..."
+                        class="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white"></textarea>
                 </div>
             </div>
 
@@ -288,21 +346,18 @@
                 <h4 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Profit Split & Payout</h4>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">User Profit Share
-                            (%) *</label>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">User Profit Share (%) *</label>
                         <input type="number" id="userProfitShare" name="user_profit_share" required
                             class="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Firm Profit Share
-                            (%)</label>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Firm Profit Share (%)</label>
                         <input type="number" id="firmProfitShare" readonly
                             class="w-full px-3 py-2 bg-gray-100 dark:bg-gray-600 border border-gray-300 dark:border-gray-500 rounded-lg text-gray-500">
                     </div>
                 </div>
                 <div class="mt-4">
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Payout Cycle
-                        *</label>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Payout Cycle *</label>
                     <select id="payoutCycle" name="payout_cycle" required
                         class="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white">
                         <option value="weekly">Weekly</option>
@@ -372,35 +427,83 @@
             firmShare.value = 100 - (parseInt(userShare.value) || 0);
         });
 
-        // Phase selection defaults
-        const phaseSelect = document.getElementById('challengePhase');
-        phaseSelect.addEventListener('change', () => {
-            if (phaseSelect.value === '1') {
-                document.getElementById('profitTarget').value = 12;
-                document.getElementById('maxDailyLoss').value = 5;
-                document.getElementById('maxOverallLoss').value = 8;
-                document.getElementById('minTradingDays').value = 4;
-                document.getElementById('durationDays').value = 30;
-                document.getElementById('leverage').value = '1:100';
-                document.getElementById('userProfitShare').value = 70;
-                firmShare.value = 30;
-            } else {
-                document.getElementById('profitTarget').value = 8;
-                document.getElementById('maxDailyLoss').value = 5;
-                document.getElementById('maxOverallLoss').value = 12;
-                document.getElementById('minTradingDays').value = 4;
-                document.getElementById('durationDays').value = 30;
-                document.getElementById('leverage').value = '1:100';
-                document.getElementById('userProfitShare').value = 80;
-                firmShare.value = 20;
-            }
+        // Challenge Type Radio Buttons selection change
+        const typeRadios = document.getElementsByName('challenge_type');
+        typeRadios.forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                handleTypeSelection(e.target.value);
+            });
         });
 
         // Auto-open if editing (redirected from backend)
         {% if challenge %}
-        editChallenge({{ challenge| to_dict | tojson | safe }});
-    {% endif %}
+        editChallenge({{ challenge|to_dict|tojson|safe }});
+        {% endif %}
     });
+
+    function handleTypeSelection(type) {
+        const p1Group = document.getElementById('phase1RulesGroup');
+        const p2Group = document.getElementById('phase2RulesGroup');
+        const instantGroup = document.getElementById('instantRulesGroup');
+
+        const p1Inputs = document.getElementById('phase1Inputs');
+        const p2Inputs = document.getElementById('phase2Inputs');
+        const instantInputs = document.getElementById('instantInputs');
+
+        if (type === 'one_phase') {
+            p1Group.classList.remove('hidden'); p2Group.classList.add('hidden'); instantGroup.classList.add('hidden');
+            if(p1Inputs) p1Inputs.classList.remove('hidden'); 
+            if(p2Inputs) p2Inputs.classList.add('hidden'); 
+            if(instantInputs) instantInputs.classList.add('hidden');
+
+            document.getElementById('phase1_target').value = 10;
+            document.getElementById('phase1_daily_loss').value = 5;
+            document.getElementById('phase1_overall_loss').value = 10;
+            document.getElementById('phase1_min_days').value = 0;
+            document.getElementById('phase1_duration').value = 30;
+            document.getElementById('phase1_leverage').value = '1:100';
+
+            document.getElementById('userProfitShare').value = 80;
+            document.getElementById('firmProfitShare').value = 20;
+
+        } else if (type === 'two_phase') {
+            p1Group.classList.remove('hidden'); p2Group.classList.remove('hidden'); instantGroup.classList.add('hidden');
+            if(p1Inputs) p1Inputs.classList.remove('hidden'); 
+            if(p2Inputs) p2Inputs.classList.remove('hidden'); 
+            if(instantInputs) instantInputs.classList.add('hidden');
+
+            document.getElementById('phase1_target').value = 8;
+            document.getElementById('phase1_daily_loss').value = 5;
+            document.getElementById('phase1_overall_loss').value = 10;
+            document.getElementById('phase1_min_days').value = 0;
+            document.getElementById('phase1_duration').value = 30;
+            document.getElementById('phase1_leverage').value = '1:100';
+
+            document.getElementById('phase2_target').value = 5;
+            document.getElementById('phase2_daily_loss').value = 5;
+            document.getElementById('phase2_overall_loss').value = 10;
+            document.getElementById('phase2_min_days').value = 0;
+            document.getElementById('phase2_duration').value = 60;
+            document.getElementById('phase2_leverage').value = '1:100';
+
+            document.getElementById('userProfitShare').value = 80;
+            document.getElementById('firmProfitShare').value = 20;
+
+        } else if (type === 'instant') {
+            p1Group.classList.add('hidden'); p2Group.classList.add('hidden'); instantGroup.classList.remove('hidden');
+            if(p1Inputs) p1Inputs.classList.add('hidden'); 
+            if(p2Inputs) p2Inputs.classList.add('hidden'); 
+            if(instantInputs) instantInputs.classList.remove('hidden');
+
+            document.getElementById('instant_daily_loss').value = 5;
+            document.getElementById('instant_overall_loss').value = 10;
+            document.getElementById('instant_min_days').value = 0;
+            document.getElementById('instant_leverage').value = '1:100';
+
+            document.getElementById('userProfitShare').value = 60;
+            document.getElementById('firmProfitShare').value = 40;
+        }
+    }
 
     function openAddChallengeModal() {
         document.getElementById('modalTitle').textContent = 'Add New Challenge';
@@ -408,10 +511,12 @@
         document.getElementById('challengeId').value = '';
         document.getElementById('isActive').checked = true;
         
-        // Trigger phase 1 defaults
-        const phaseSelect = document.getElementById('challengePhase');
-        phaseSelect.value = '1';
-        phaseSelect.dispatchEvent(new Event('change'));
+        // Select 'one_phase' by default and trigger handles
+        const onePhaseRadio = document.querySelector('input[name="challenge_type"][value="one_phase"]');
+        if (onePhaseRadio) {
+            onePhaseRadio.checked = true;
+            handleTypeSelection('one_phase');
+        }
         
         document.getElementById('challengeModal').classList.remove('hidden');
     }
@@ -422,19 +527,46 @@
         document.getElementById('challengeName').value = c.name;
         document.getElementById('challengePrice').value = c.price;
         document.getElementById('accountSize').value = c.account_size;
-        document.getElementById('challengePhase').value = c.phase;
-        document.getElementById('profitTarget').value = c.profit_target;
-        document.getElementById('maxDailyLoss').value = c.max_daily_loss;
-        document.getElementById('maxOverallLoss').value = c.max_overall_loss;
-        document.getElementById('minTradingDays').value = c.min_trading_days;
-        document.getElementById('durationDays').value = c.duration_days;
-        document.getElementById('leverage').value = c.leverage;
+        
+        // Set type and render correct input groups
+        const typeVal = c.challenge_type || 'one_phase';
+        const typeRadio = document.querySelector(`input[name="challenge_type"][value="${typeVal}"]`);
+        if (typeRadio) {
+            typeRadio.checked = true;
+        }
+        
+        handleTypeSelection(typeVal);
+
+        if(c.phase1_target) document.getElementById('phase1_target').value = c.phase1_target;
+        if(c.phase1_daily_loss) document.getElementById('phase1_daily_loss').value = c.phase1_daily_loss;
+        if(c.phase1_overall_loss) document.getElementById('phase1_overall_loss').value = c.phase1_overall_loss;
+        if(c.phase1_min_days !== null) document.getElementById('phase1_min_days').value = c.phase1_min_days;
+        if(c.phase1_duration !== null) document.getElementById('phase1_duration').value = c.phase1_duration;
+        if(c.phase1_leverage) document.getElementById('phase1_leverage').value = c.phase1_leverage;
+
+        if(c.phase2_target) document.getElementById('phase2_target').value = c.phase2_target;
+        if(c.phase2_daily_loss) document.getElementById('phase2_daily_loss').value = c.phase2_daily_loss;
+        if(c.phase2_overall_loss) document.getElementById('phase2_overall_loss').value = c.phase2_overall_loss;
+        if(c.phase2_min_days !== null) document.getElementById('phase2_min_days').value = c.phase2_min_days;
+        if(c.phase2_duration !== null) document.getElementById('phase2_duration').value = c.phase2_duration;
+        if(c.phase2_leverage) document.getElementById('phase2_leverage').value = c.phase2_leverage;
+
+        if(c.instant_daily_loss) document.getElementById('instant_daily_loss').value = c.instant_daily_loss;
+        if(c.instant_overall_loss) document.getElementById('instant_overall_loss').value = c.instant_overall_loss;
+        if(c.instant_min_days !== null) document.getElementById('instant_min_days').value = c.instant_min_days;
+        if(c.instant_leverage) document.getElementById('instant_leverage').value = c.instant_leverage;
+
         document.getElementById('userProfitShare').value = c.user_profit_share;
         document.getElementById('firmProfitShare').value = 100 - c.user_profit_share;
         document.getElementById('payoutCycle').value = c.payout_cycle;
         document.getElementById('weekendTrading').checked = c.weekend_trading;
         document.getElementById('isActive').checked = c.is_active;
         document.getElementById('description').value = c.description || '';
+        
+        document.getElementById('phase1Rules').value = c.phase1_rules || '';
+        document.getElementById('phase2Rules').value = c.phase2_rules || '';
+        document.getElementById('instantRules').value = c.instant_rules || '';
+
         document.getElementById('challengeModal').classList.remove('hidden');
     }
 
