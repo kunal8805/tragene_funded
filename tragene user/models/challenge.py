@@ -1,1 +1,0 @@
-# Challenge table model

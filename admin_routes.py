@@ -234,33 +234,30 @@ def admin_challenge_action():
         purchase = ChallengePurchase.query.get_or_404(challenge_id)
         
         if action == 'force_pass_phase1':
-            purchase.status = 'passed'
-            if purchase.phase == 1:
-                phase2_template = ChallengeTemplate.query.filter_by(
-                    phase=2, 
-                    account_size=purchase.challenge_template.account_size
-                ).first()
-                
-                if phase2_template:
-                    phase2_purchase = ChallengePurchase(
-                        user_id=purchase.user_id,
-                        challenge_template_id=phase2_template.id,
-                        phase=2,
-                        start_date=datetime.now(timezone.utc),
-                        end_date=datetime.now(timezone.utc) + timedelta(days=phase2_template.duration_days),
-                        status='active',
-                        mt5_account=f"TRG_{purchase.user.first_name}_{purchase.user.id}_P2_{secrets.token_hex(4)}"
-                    )
-                    db.session.add(phase2_purchase)
+            ctype = purchase.challenge_type or 'one_phase'
+            if ctype == 'two_phase':
+                purchase.current_phase = 2
+                purchase.status = 'phase2_active'
+                purchase.phase = 2
+            else:
+                purchase.current_phase = 3
+                purchase.status = 'funded_active'
+                purchase.phase = 3
             
         elif action == 'force_pass_phase2':
-            purchase.status = 'passed'
+            purchase.current_phase = 3
+            purchase.status = 'funded_active'
+            purchase.phase = 3
             
         elif action == 'force_pass_all':
-            purchase.status = 'passed'
+            purchase.current_phase = 3
+            purchase.status = 'funded_active'
+            purchase.phase = 3
             
         elif action == 'force_fail':
-            purchase.status = 'failed'
+            purchase.status = 'breached'
+            purchase.is_terminated = True
+            purchase.credentials_revoked_at = datetime.now(timezone.utc)
             
         elif action.startswith('extend_'):
             days = int(action.split('_')[1])
@@ -272,7 +269,6 @@ def admin_challenge_action():
                     purchase.days_remaining = (purchase.end_date.replace(tzinfo=timezone.utc) - datetime.now(timezone.utc)).days
         
         db.session.commit()
-        
         return jsonify({'success': True, 'message': 'Action completed successfully'})
         
     except Exception as e:
@@ -292,41 +288,41 @@ def admin_bulk_challenge_action():
         
         for purchase in purchases:
             if action == 'force_pass_phase1':
-                purchase.status = 'passed'
-                if purchase.phase == 1:
-                    phase2_template = ChallengeTemplate.query.filter_by(
-                        phase=2, 
-                        account_size=purchase.challenge_template.account_size
-                    ).first()
-                    
-                    if phase2_template:
-                        phase2_purchase = ChallengePurchase(
-                            user_id=purchase.user_id,
-                            challenge_template_id=phase2_template.id,
-                            phase=2,
-                            start_date=datetime.now(timezone.utc),
-                            end_date=datetime.now(timezone.utc) + timedelta(days=phase2_template.duration_days),
-                            status='active',
-                            mt5_account=f"TRG_{purchase.user.first_name}_{purchase.user.id}_P2_{secrets.token_hex(4)}"
-                        )
-                        db.session.add(phase2_purchase)
-                        
+                ctype = purchase.challenge_type or 'one_phase'
+                if ctype == 'two_phase':
+                    purchase.current_phase = 2
+                    purchase.status = 'phase2_active'
+                    purchase.phase = 2
+                else:
+                    purchase.current_phase = 3
+                    purchase.status = 'funded_active'
+                    purchase.phase = 3
+                
             elif action == 'force_pass_phase2':
-                purchase.status = 'passed'
+                purchase.current_phase = 3
+                purchase.status = 'funded_active'
+                purchase.phase = 3
                 
             elif action == 'force_pass_all':
-                purchase.status = 'passed'
+                purchase.current_phase = 3
+                purchase.status = 'funded_active'
+                purchase.phase = 3
                 
             elif action == 'force_fail':
-                purchase.status = 'failed'
+                purchase.status = 'breached'
+                purchase.is_terminated = True
+                purchase.credentials_revoked_at = datetime.now(timezone.utc)
                 
             elif action.startswith('extend_'):
                 days = int(action.split('_')[1])
                 if purchase.end_date:
                     purchase.end_date += timedelta(days=days)
+                    if purchase.end_date.tzinfo is not None:
+                        purchase.days_remaining = (purchase.end_date - datetime.now(timezone.utc)).days
+                    else:
+                        purchase.days_remaining = (purchase.end_date.replace(tzinfo=timezone.utc) - datetime.now(timezone.utc)).days
         
         db.session.commit()
-        
         return jsonify({'success': True, 'message': f'Action completed for {len(purchases)} challenges'})
         
     except Exception as e:
@@ -355,18 +351,69 @@ def admin_challenge_purchases():
 @admin_bp.route('/manage-challenges')
 @admin_required
 def admin_manage_challenges():
-    phase1_challenges = ChallengeTemplate.query.filter_by(phase=1).all()
-    phase2_challenges = ChallengeTemplate.query.filter_by(phase=2).all()
+    one_phase_challenges = ChallengeTemplate.query.filter_by(challenge_type='one_phase').all()
+    two_phase_challenges = ChallengeTemplate.query.filter_by(challenge_type='two_phase').all()
+    instant_challenges = ChallengeTemplate.query.filter_by(challenge_type='instant').all()
     
     return render_template('admin/add_challenge.html',
-                         phase1_challenges=phase1_challenges,
-                         phase2_challenges=phase2_challenges)
+                         one_phase_challenges=one_phase_challenges,
+                         two_phase_challenges=two_phase_challenges,
+                         instant_challenges=instant_challenges)
+
+import re
+
+def validate_challenge_form(data):
+    # Base validation
+    if float(data.get('price', 0)) <= 0:
+        raise ValueError("Price must be greater than 0")
+    if float(data.get('account_size', 0)) <= 0:
+        raise ValueError("Account size must be greater than 0")
+        
+    ctype = data.get('challenge_type', 'one_phase')
+    
+    def validate_leverage(lev):
+        if lev and not re.match(r'^\d+:\d+$', lev):
+            raise ValueError(f"Invalid leverage format '{lev}'. Must be like 1:100")
+            
+    def validate_percentages(target, daily, overall, phase_name):
+        if target is not None and not (0 <= float(target) <= 100):
+            raise ValueError(f"{phase_name} Target must be between 0 and 100")
+        if daily is not None and not (0 <= float(daily) <= 100):
+            raise ValueError(f"{phase_name} Daily Loss must be between 0 and 100")
+        if overall is not None and not (0 <= float(overall) <= 100):
+            raise ValueError(f"{phase_name} Overall Loss must be between 0 and 100")
+            
+    def validate_duration(min_days, duration, phase_name):
+        if min_days is not None and int(min_days) < 0:
+            raise ValueError(f"{phase_name} Min Trading Days cannot be negative")
+        if duration is not None and int(duration) < 1:
+            raise ValueError(f"{phase_name} Duration must be at least 1 day")
+
+    # Validate based on type
+    if ctype in ['one_phase', 'two_phase']:
+        validate_percentages(data.get('phase1_target'), data.get('phase1_daily_loss'), data.get('phase1_overall_loss'), "Phase 1")
+        validate_duration(data.get('phase1_min_days'), data.get('phase1_duration'), "Phase 1")
+        validate_leverage(data.get('phase1_leverage'))
+        
+        if ctype == 'two_phase':
+            validate_percentages(data.get('phase2_target'), data.get('phase2_daily_loss'), data.get('phase2_overall_loss'), "Phase 2")
+            validate_duration(data.get('phase2_min_days'), data.get('phase2_duration'), "Phase 2")
+            validate_leverage(data.get('phase2_leverage'))
+            
+    elif ctype == 'instant':
+        validate_percentages(None, data.get('instant_daily_loss'), data.get('instant_overall_loss'), "Instant")
+        if data.get('instant_min_days') is not None and int(data.get('instant_min_days', 0)) < 0:
+            raise ValueError("Instant Min Trading Days cannot be negative")
+        validate_leverage(data.get('instant_leverage'))
 
 @admin_bp.route('/save-challenge', methods=['POST'])
 @admin_required
 def admin_save_challenge():
     try:
         challenge_id = request.form.get('challenge_id')
+        
+        # Validation
+        validate_challenge_form(request.form)
         
         if challenge_id:
             challenge = ChallengeTemplate.query.get(challenge_id)
@@ -379,15 +426,76 @@ def admin_save_challenge():
         challenge.name = request.form['name']
         challenge.price = int(request.form['price'])
         challenge.account_size = int(request.form['account_size'])
-        challenge.phase = int(request.form['phase'])
-        challenge.profit_target = float(request.form['profit_target'])
-        challenge.max_daily_loss = float(request.form['max_daily_loss'])
-        challenge.max_overall_loss = float(request.form['max_overall_loss'])
-        challenge.min_trading_days = int(request.form['min_trading_days'])
-        challenge.duration_days = int(request.form['duration_days'])
-        challenge.leverage = request.form['leverage']
-        challenge.user_profit_share = int(request.form['user_profit_share'])
-        challenge.payout_cycle = request.form['payout_cycle']
+        
+        ctype = request.form.get('challenge_type', 'one_phase')
+        challenge.challenge_type = ctype
+        
+        # Legacy phase mapping
+        if ctype == 'two_phase':
+            challenge.phase = 2
+        elif ctype == 'instant':
+            challenge.phase = 0
+        else:
+            challenge.phase = 1
+
+        # Reset all rules first
+        challenge.phase1_target = None
+        challenge.phase1_daily_loss = None
+        challenge.phase1_overall_loss = None
+        challenge.phase1_min_days = None
+        challenge.phase1_duration = None
+        challenge.phase1_leverage = None
+        challenge.phase1_rules = None
+        
+        challenge.phase2_target = None
+        challenge.phase2_daily_loss = None
+        challenge.phase2_overall_loss = None
+        challenge.phase2_min_days = None
+        challenge.phase2_duration = None
+        challenge.phase2_leverage = None
+        challenge.phase2_rules = None
+        
+        challenge.instant_daily_loss = None
+        challenge.instant_overall_loss = None
+        challenge.instant_min_days = None
+        challenge.instant_leverage = None
+        challenge.instant_rules = None
+
+        def get_float(key):
+            val = request.form.get(key)
+            return float(val) if val else None
+            
+        def get_int(key):
+            val = request.form.get(key)
+            return int(val) if val else None
+
+        if ctype in ['one_phase', 'two_phase']:
+            challenge.phase1_target = get_float('phase1_target')
+            challenge.phase1_daily_loss = get_float('phase1_daily_loss')
+            challenge.phase1_overall_loss = get_float('phase1_overall_loss')
+            challenge.phase1_min_days = get_int('phase1_min_days')
+            challenge.phase1_duration = get_int('phase1_duration')
+            challenge.phase1_leverage = request.form.get('phase1_leverage')
+            challenge.phase1_rules = request.form.get('phase1_rules_text', '')
+            
+            if ctype == 'two_phase':
+                challenge.phase2_target = get_float('phase2_target')
+                challenge.phase2_daily_loss = get_float('phase2_daily_loss')
+                challenge.phase2_overall_loss = get_float('phase2_overall_loss')
+                challenge.phase2_min_days = get_int('phase2_min_days')
+                challenge.phase2_duration = get_int('phase2_duration')
+                challenge.phase2_leverage = request.form.get('phase2_leverage')
+                challenge.phase2_rules = request.form.get('phase2_rules_text', '')
+                
+        elif ctype == 'instant':
+            challenge.instant_daily_loss = get_float('instant_daily_loss')
+            challenge.instant_overall_loss = get_float('instant_overall_loss')
+            challenge.instant_min_days = get_int('instant_min_days')
+            challenge.instant_leverage = request.form.get('instant_leverage')
+            challenge.instant_rules = request.form.get('instant_rules_text', '')
+
+        challenge.user_profit_share = int(request.form.get('user_profit_share', 0))
+        challenge.payout_cycle = request.form.get('payout_cycle', 'biweekly')
         challenge.weekend_trading = 'weekend_trading' in request.form
         challenge.is_active = 'is_active' in request.form
         challenge.description = request.form.get('description', '')
@@ -400,6 +508,8 @@ def admin_save_challenge():
         action = "updated" if challenge_id else "created"
         flash(f'Challenge {action} successfully!', 'success')
         
+    except ValueError as e:
+        flash(str(e), 'error')
     except Exception as e:
         db.session.rollback()
         print(f"Error saving challenge: {e}")
@@ -411,13 +521,15 @@ def admin_save_challenge():
 @admin_required
 def admin_edit_challenge(challenge_id):
     challenge = ChallengeTemplate.query.get_or_404(challenge_id)
-    phase1_challenges = ChallengeTemplate.query.filter_by(phase=1).all()
-    phase2_challenges = ChallengeTemplate.query.filter_by(phase=2).all()
+    one_phase_challenges = ChallengeTemplate.query.filter_by(challenge_type='one_phase').all()
+    two_phase_challenges = ChallengeTemplate.query.filter_by(challenge_type='two_phase').all()
+    instant_challenges = ChallengeTemplate.query.filter_by(challenge_type='instant').all()
     
     return render_template('admin/add_challenge.html',
                          challenge=challenge,
-                         phase1_challenges=phase1_challenges,
-                         phase2_challenges=phase2_challenges)
+                         one_phase_challenges=one_phase_challenges,
+                         two_phase_challenges=two_phase_challenges,
+                         instant_challenges=instant_challenges)
 
 @admin_bp.route('/delete-challenge/<int:challenge_id>')
 @admin_required
@@ -661,10 +773,6 @@ def admin_api_payments():
         'stats': stats
     })
 
-@admin_bp.route('/activity')
-@admin_required
-def admin_activity():
-    return render_template('admin/activity.html')
 
 @admin_bp.route('/settings')
 @admin_required
@@ -1041,6 +1149,41 @@ def admin_ticket_detail(ticket_number):
     
     return render_template('admin/ticket_detail.html', ticket=ticket, messages=messages)
 
+def admin_compress_and_save_attachment(attachment, ticket_number, prefix=""):
+    import os, time
+    from werkzeug.utils import secure_filename
+    
+    ext = attachment.filename.rsplit('.', 1)[1].lower() if '.' in attachment.filename else ''
+    if ext not in {'png', 'jpg', 'jpeg', 'pdf'}:
+        return None
+        
+    upload_dir = os.path.join('static', 'uploads', 'tickets')
+    os.makedirs(upload_dir, exist_ok=True)
+    
+    if ext in {'png', 'jpg', 'jpeg'}:
+        from PIL import Image
+        filename = secure_filename(f"{prefix}{ticket_number}_{int(time.time())}.jpg")
+        target_path = os.path.join(upload_dir, filename)
+        
+        img = Image.open(attachment)
+        if img.mode in ("RGBA", "P"):
+            img = img.convert("RGB")
+        
+        max_width = 1200
+        if img.width > max_width:
+            ratio = max_width / float(img.width)
+            height = int(float(img.height) * ratio)
+            img = img.resize((max_width, height), Image.Resampling.LANCZOS)
+        
+        img.save(target_path, "JPEG", quality=65, optimize=True)
+        return f"uploads/tickets/{filename}"
+    elif ext == 'pdf':
+        filename = secure_filename(f"{prefix}{ticket_number}_{int(time.time())}_{attachment.filename}")
+        target_path = os.path.join(upload_dir, filename)
+        attachment.save(target_path)
+        return f"uploads/tickets/{filename}"
+    return None
+
 @admin_bp.route('/support/ticket/<string:ticket_number>/reply', methods=['POST'])
 @admin_required
 def admin_ticket_reply(ticket_number):
@@ -1057,18 +1200,7 @@ def admin_ticket_reply(ticket_number):
     # Save attachment if exists
     attachment_url = None
     if attachment and attachment.filename != '':
-        # Use simple allowed check
-        def is_allowed(filename):
-            return '.' in filename and filename.rsplit('.', 1)[1].lower() in {'png', 'jpg', 'jpeg', 'pdf'}
-            
-        if is_allowed(attachment.filename):
-            from werkzeug.utils import secure_filename
-            import os, time
-            filename = secure_filename(f"admin_{ticket_number}_reply_{int(time.time())}_{attachment.filename}")
-            upload_dir = os.path.join('static', 'uploads', 'tickets')
-            os.makedirs(upload_dir, exist_ok=True)
-            attachment.save(os.path.join(upload_dir, filename))
-            attachment_url = f"uploads/tickets/{filename}"
+        attachment_url = admin_compress_and_save_attachment(attachment, ticket_number, prefix="admin_reply_")
     
     message = TicketMessage(
         ticket_id=ticket.id,

@@ -37,7 +37,7 @@
             <div>
                 <p class="text-gray-600 dark:text-gray-400 text-sm">Account Balance</p>
                 <p class="text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white">
-                    ₹{{ "{:,.0f}".format(display_challenge.account_balance if display_challenge else 0) }}
+                    ${{ "{:,.0f}".format(active_challenges|map(attribute='challenge_template.account_size')|sum) }}
                 </p>
             </div>
             <div class="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center">
@@ -139,33 +139,54 @@
             {% if display_challenge %}
             <!-- Profit Target Progress -->
             <div class="mb-6">
-                {% set target_amount = display_challenge.challenge_template.account_size *
-                (display_challenge.challenge_template.profit_target / 100) %}
+                {% if display_challenge.challenge_type == 'two_phase' and display_challenge.phase == 2 %}
+                    {% set target_pct = display_challenge.challenge_template.phase2_target %}
+                {% elif display_challenge.challenge_type == 'instant' %}
+                    {% set target_pct = 0.0 %}
+                {% else %}
+                    {% set target_pct = display_challenge.challenge_template.phase1_target %}
+                {% endif %}
+                {% set target_pct = (target_pct or 0.0)|float %}
+                {% set account_size = (display_challenge.challenge_template.account_size or 0.0)|float %}
+                {% set target_amount = account_size * (target_pct / 100) %}
+                
                 <div class="flex justify-between text-sm mb-3">
-                    <span class="text-gray-600 dark:text-gray-400">Profit Target: {{
-                        display_challenge.challenge_template.profit_target }}% (₹{{ "{:,.0f}".format(target_amount)
-                        }})</span>
-                    <span class="text-green-600 dark:text-green-400 font-semibold">{{
-                        "%.1f"|format(display_challenge.progress_percentage or 0) }}% (₹{{
-                        "{:,.2f}".format(display_challenge.current_profit or 0) }})</span>
+                    <span class="text-gray-600 dark:text-gray-400">
+                        {% if display_challenge.challenge_type == 'instant' %}
+                            Profit Target: None (Instant Funded)
+                        {% else %}
+                            Profit Target: {{ target_pct }}% (₹{{ "{:,.0f}".format(target_amount) }})
+                        {% endif %}
+                    </span>
+                    <span class="text-green-600 dark:text-green-400 font-semibold">
+                        {% if display_challenge.challenge_type == 'instant' %}
+                            Current Profit: ₹{{ "{:,.2f}".format(display_challenge.current_profit or 0) }}
+                        {% else %}
+                            {{ "%.1f"|format(display_challenge.progress_percentage or 0) }}% (₹{{ "{:,.2f}".format(display_challenge.current_profit or 0) }})
+                        {% endif %}
+                    </span>
                 </div>
                 <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
                     <div class="progress-glow h-3 rounded-full transition-all duration-500"
-                        style="width: {{ [100, display_challenge.progress_percentage or 0]|min }}%"></div>
+                        style="width: {{ [100, display_challenge.progress_percentage or 0]|min if display_challenge.challenge_type != 'instant' else 100 }}%"></div>
                 </div>
             </div>
 
             <!-- Drawdown Progress -->
             <div class="mb-6">
-                {% set max_loss_amount = display_challenge.challenge_template.account_size *
-                (display_challenge.challenge_template.max_daily_loss / 100) %}
+                {% if display_challenge.challenge_type == 'two_phase' and display_challenge.phase == 2 %}
+                    {% set daily_loss_pct = display_challenge.challenge_template.phase2_daily_loss %}
+                {% elif display_challenge.challenge_type == 'instant' %}
+                    {% set daily_loss_pct = display_challenge.challenge_template.instant_daily_loss %}
+                {% else %}
+                    {% set daily_loss_pct = display_challenge.challenge_template.phase1_daily_loss %}
+                {% endif %}
+                {% set daily_loss_pct = (daily_loss_pct or 0.0)|float %}
+                {% set max_loss_amount = account_size * (daily_loss_pct / 100) %}
+                
                 <div class="flex justify-between text-sm mb-3">
-                    <span class="text-gray-600 dark:text-gray-400">Max Drawdown Limit: {{
-                        display_challenge.challenge_template.max_daily_loss }}% (₹{{ "{:,.0f}".format(max_loss_amount)
-                        }})</span>
-                    <span class="text-red-600 dark:text-red-400 font-semibold">{{
-                        "%.2f"|format(display_challenge.max_drawdown_used or 0) }}% (₹{{
-                        "{:,.2f}".format(display_challenge.current_loss or 0) }})</span>
+                    <span class="text-gray-600 dark:text-gray-400">Max Daily Drawdown Limit: {{ daily_loss_pct }}% (₹{{ "{:,.0f}".format(max_loss_amount) }})</span>
+                    <span class="text-red-600 dark:text-red-400 font-semibold">{{ "%.2f"|format(display_challenge.max_drawdown_used or 0) }}% (₹{{ "{:,.2f}".format(display_challenge.current_loss or 0) }})</span>
                 </div>
                 <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
                     <div class="bg-red-500 h-3 rounded-full transition-all duration-500"
@@ -176,13 +197,19 @@
 
             <!-- Time Progress -->
             <div>
-                {% set days_total = display_challenge.challenge_template.duration_days %}
-                {% set days_left = display_challenge.days_remaining if display_challenge.days_remaining is not none else
-                days_total %}
+                {% if display_challenge.challenge_type == 'two_phase' and display_challenge.phase == 2 %}
+                    {% set days_total = display_challenge.challenge_template.phase2_duration %}
+                {% elif display_challenge.challenge_type == 'instant' %}
+                    {% set days_total = 365 %}
+                {% else %}
+                    {% set days_total = display_challenge.challenge_template.phase1_duration %}
+                {% endif %}
+                {% set days_total = (days_total or 30)|int %}
+                {% set days_left = display_challenge.days_remaining if display_challenge.days_remaining is not none else days_total %}
+                {% set days_left = (days_left or 0)|int %}
                 <div class="flex justify-between text-sm mb-3">
                     <span class="text-gray-600 dark:text-gray-400">Time Remaining: {{ days_left }} days</span>
-                    <span class="text-blue-600 dark:text-blue-400 font-semibold">{{ "%.1f"|format(days_left / days_total
-                        * 100 if days_total > 0 else 0) }}%</span>
+                    <span class="text-blue-600 dark:text-blue-400 font-semibold">{{ "%.1f"|format(days_left / days_total * 100 if days_total > 0 else 0) }}%</span>
                 </div>
                 <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
                     <div class="bg-blue-500 h-3 rounded-full transition-all duration-500"
@@ -201,13 +228,13 @@
         </div>
 
         <!-- MT5 Account Info -->
+        {% if display_challenge and display_challenge.mt5_login %}
         <div class="glass-card p-4 lg:p-6 border dark:border-dark-border" data-aos="fade-up" data-aos-delay="100">
             <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
                 <i class="fas fa-terminal text-blue-600 dark:text-blue-400 mr-2"></i>
                 MT5 Trading Account
             </h3>
 
-            {% if display_challenge and display_challenge.mt5_login %}
             <div class="bg-gray-50 dark:bg-gray-800 rounded-xl p-4 mb-4 border border-gray-200 dark:border-gray-700">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                     <div>
@@ -241,15 +268,8 @@
                     <i class="fas fa-key mr-2"></i>View Credentials
                 </a>
             </div>
-            {% else %}
-            <div
-                class="bg-gray-50 dark:bg-gray-800 rounded-xl p-8 text-center border border-gray-200 dark:border-gray-700">
-                <i class="fas fa-clock text-4xl text-gray-400 mb-3"></i>
-                <p class="text-gray-600 dark:text-gray-400">Account credentials will appear here once your payment is
-                    verified and processed.</p>
-            </div>
-            {% endif %}
         </div>
+        {% endif %}
     </div>
 
     <!-- Right Column - 1/3 width on desktop -->

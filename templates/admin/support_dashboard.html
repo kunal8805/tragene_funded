@@ -9,22 +9,22 @@
     </div>
 
     <!-- Stats Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-green-500">
-            <p class="text-xs font-bold text-gray-400 uppercase">Open Tickets</p>
-            <p class="text-3xl font-bold text-gray-800 mt-1">{{ stats.open }}</p>
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
+        <div class="bg-white p-4 sm:p-6 rounded-xl shadow-sm border-l-4 border-green-500">
+            <p class="text-[10px] sm:text-xs font-bold text-gray-400 uppercase">Open Tickets</p>
+            <p class="text-2xl sm:text-3xl font-bold text-gray-800 mt-1">{{ stats.open }}</p>
         </div>
-        <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-blue-500">
-            <p class="text-xs font-bold text-gray-400 uppercase">In Progress</p>
-            <p class="text-3xl font-bold text-gray-800 mt-1">{{ stats.in_progress }}</p>
+        <div class="bg-white p-4 sm:p-6 rounded-xl shadow-sm border-l-4 border-blue-500">
+            <p class="text-[10px] sm:text-xs font-bold text-gray-400 uppercase">In Progress</p>
+            <p class="text-2xl sm:text-3xl font-bold text-gray-800 mt-1">{{ stats.in_progress }}</p>
         </div>
-        <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-gray-400">
-            <p class="text-xs font-bold text-gray-400 uppercase">Resolved</p>
-            <p class="text-3xl font-bold text-gray-800 mt-1">{{ stats.resolved }}</p>
+        <div class="bg-white p-4 sm:p-6 rounded-xl shadow-sm border-l-4 border-gray-400">
+            <p class="text-[10px] sm:text-xs font-bold text-gray-400 uppercase">Resolved</p>
+            <p class="text-2xl sm:text-3xl font-bold text-gray-800 mt-1">{{ stats.resolved }}</p>
         </div>
-        <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-red-500">
-            <p class="text-xs font-bold text-gray-400 uppercase">Closed</p>
-            <p class="text-3xl font-bold text-gray-800 mt-1">{{ stats.closed }}</p>
+        <div class="bg-white p-4 sm:p-6 rounded-xl shadow-sm border-l-4 border-red-500">
+            <p class="text-[10px] sm:text-xs font-bold text-gray-400 uppercase">Closed</p>
+            <p class="text-2xl sm:text-3xl font-bold text-gray-800 mt-1">{{ stats.closed }}</p>
         </div>
     </div>
 
@@ -47,8 +47,8 @@
         </a>
     </div>
 
-    <div class="bg-white rounded-xl shadow-sm overflow-hidden">
-        <table class="w-full">
+    <div class="bg-white rounded-xl shadow-sm overflow-x-auto">
+        <table class="w-full min-w-[900px] border-collapse">
             <thead class="bg-gray-50 border-b border-gray-100">
                 <tr>
                     <th class="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Ticket</th>
