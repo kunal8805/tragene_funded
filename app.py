@@ -456,7 +456,7 @@ def create_cashfree_order():
         )
         
         # Create order in Cashfree
-        api_response = Cashfree().PGCreateOrder(x_api_version="2025-01-01", create_order_request=create_order_request)
+        api_response = Cashfree().PGCreateOrder(x_api_version="2023-08-01", create_order_request=create_order_request)
         order_response = api_response.data
         
         if DEV_MODE:
@@ -557,7 +557,7 @@ def cashfree_webhook():
                 
             # Double check with Cashfree API
             try:
-                api_response = Cashfree().PGOrderFetchPayments(x_api_version="2025-01-01", order_id=order_id)
+                api_response = Cashfree().PGOrderFetchPayments(x_api_version="2023-08-01", order_id=order_id)
                 payments_list = api_response.data
                 
                 is_actually_paid = False
@@ -631,15 +631,15 @@ def payment_success():
         
     if payment.status == 'pending':
         flash('Your payment is being verified securely. Please check back in a moment.', 'info')
-        return redirect(url_for('user.payment_status', payment_id=payment.id))
+        return redirect(url_for('payment_status', payment_id=payment.id))
         
     elif payment.status == 'success' or payment.status == 'paid':
         flash('Payment successful! Your account has been created.', 'success')
-        return redirect(url_for('user.payment_status', payment_id=payment.id))
+        return redirect(url_for('payment_status', payment_id=payment.id))
         
     else:
         flash('❌ Payment failed or invalid. Please try again.', 'error')
-        return redirect(url_for('user.payment_status', payment_id=payment.id))
+        return redirect(url_for('payment_status', payment_id=payment.id))
 
 @app.route('/payment/status/<int:payment_id>')
 @login_required

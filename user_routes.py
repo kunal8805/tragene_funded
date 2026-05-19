@@ -67,9 +67,9 @@ def dashboard():
         return redirect(url_for('auth.login'))
     
     # Get user's active challenges
-    active_challenges = ChallengePurchase.query.filter_by(
-        user_id=user.id, 
-        status='active'
+    active_challenges = ChallengePurchase.query.filter(
+        ChallengePurchase.user_id == user.id,
+        ChallengePurchase.status.in_(['active', 'phase1_active', 'phase2_active', 'pending_credentials'])
     ).join(ChallengeTemplate).all()
     
     # Calculate days remaining dynamically for each challenge
@@ -296,9 +296,9 @@ def buy_challenge(challenge_id):
 @login_required
 def trading():
     user = User.query.get(session['user_id'])
-    active_challenges = ChallengePurchase.query.filter_by(
-        user_id=user.id, 
-        status='active'
+    active_challenges = ChallengePurchase.query.filter(
+        ChallengePurchase.user_id == user.id,
+        ChallengePurchase.status.in_(['active', 'phase1_active', 'phase2_active', 'pending_credentials'])
     ).join(ChallengeTemplate).all()
     
     # Calculate days remaining dynamically for each challenge
