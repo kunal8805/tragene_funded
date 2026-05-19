@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify, abort
 from functools import wraps
-from models import db, User, ChallengeTemplate, ChallengePurchase, Payout, FAQ, SupportTicket, TicketMessage
+from models import db, User, ChallengeTemplate, ChallengePurchase, Payout, FAQ, SupportTicket, TicketMessage, Payment
 from datetime import datetime, timedelta, timezone
 import secrets
 
@@ -27,11 +27,44 @@ def admin_dashboard():
     approved_kyc = User.query.filter_by(kyc_status='approved').count()
     recent_users = User.query.order_by(User.created_at.desc()).limit(5).all()
     
+    # Calculate revenue dynamic
+    total_revenue = db.session.query(db.func.coalesce(db.func.sum(Payment.amount), 0)).filter(
+        Payment.status.in_(['SUCCESS', 'success'])
+    ).scalar() or 0
+
+    # Calculate monthly revenue change
+    now = datetime.now(timezone.utc)
+    start_of_this_month = datetime(now.year, now.month, 1, tzinfo=timezone.utc)
+    if now.month == 1:
+        start_of_last_month = datetime(now.year - 1, 12, 1, tzinfo=timezone.utc)
+    else:
+        start_of_last_month = datetime(now.year, now.month - 1, 1, tzinfo=timezone.utc)
+
+    this_month_revenue = db.session.query(db.func.coalesce(db.func.sum(Payment.amount), 0)).filter(
+        Payment.status.in_(['SUCCESS', 'success']),
+        Payment.created_at >= start_of_this_month
+    ).scalar() or 0
+
+    last_month_revenue = db.session.query(db.func.coalesce(db.func.sum(Payment.amount), 0)).filter(
+        Payment.status.in_(['SUCCESS', 'success']),
+        Payment.created_at >= start_of_last_month,
+        Payment.created_at < start_of_this_month
+    ).scalar() or 0
+
+    if last_month_revenue > 0:
+        revenue_change = ((this_month_revenue - last_month_revenue) / last_month_revenue) * 100
+    elif this_month_revenue > 0:
+        revenue_change = 100.0
+    else:
+        revenue_change = 0.0
+    
     return render_template('admin/admin_dashboard.html', 
                          total_users=total_users,
                          pending_kyc=pending_kyc,
                          approved_kyc=approved_kyc,
-                         recent_users=recent_users)
+                         recent_users=recent_users,
+                         total_revenue=total_revenue,
+                         revenue_change=revenue_change)
 
 @admin_bp.route('/users')
 @admin_required

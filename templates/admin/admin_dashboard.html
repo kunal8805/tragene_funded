@@ -34,9 +34,11 @@
         <div class="text-sm text-green-600 dark:text-green-400 mt-1">+{{ recent_users|length }} new</div>
     </div>
     <div class="glass-card p-6 text-center" data-aos="fade-up" data-aos-delay="100">
-        <div class="text-3xl font-bold text-green-600 dark:text-green-400 mb-2">₹84,250</div>
+        <div class="text-3xl font-bold text-green-600 dark:text-green-400 mb-2">₹{{ '{:,.0f}'.format(total_revenue) }}</div>
         <div class="text-base text-gray-600 dark:text-gray-400">Total Revenue</div>
-        <div class="text-sm text-green-600 dark:text-green-400 mt-1">+15% this month</div>
+        <div class="text-sm {% if revenue_change >= 0 %}text-green-600 dark:text-green-400{% else %}text-red-600 dark:text-red-400{% endif %} mt-1">
+            {% if revenue_change >= 0 %}+{% endif %}{{ "%.1f"|format(revenue_change) }}% this month
+        </div>
     </div>
     <div class="glass-card p-6 text-center" data-aos="fade-up" data-aos-delay="200">
         <div class="text-3xl font-bold text-purple-600 dark:text-purple-400 mb-2">{{ pending_kyc }}</div>
@@ -89,20 +91,7 @@
             </a>
         </div>
 
-        <!-- Admin Controls -->
-        <div class="p-4 bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700">
-            <h3 class="font-semibold text-gray-900 dark:text-white mb-3">Admin Controls</h3>
-            <div class="flex gap-2">
-                <button
-                    class="flex-1 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 py-2 px-4 rounded-lg font-semibold hover:bg-red-200 dark:hover:bg-red-900/50 transition flex items-center justify-center">
-                    <i class="fas fa-ban mr-2"></i>Maintenance
-                </button>
-                <button
-                    class="flex-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 py-2 px-4 rounded-lg font-semibold hover:bg-blue-200 dark:hover:bg-blue-900/50 transition flex items-center justify-center">
-                    <i class="fas fa-user-shield mr-2"></i>Moderators
-                </button>
-            </div>
-        </div>
+
     </div>
 
     <!-- Recent Activity & Alerts -->

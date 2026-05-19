@@ -74,6 +74,10 @@
                         <span class="text-sm font-semibold text-gray-900 dark:text-white">{{ user.country }}</span>
                     </div>
                     <div class="flex justify-between items-center">
+                        <span class="text-sm text-gray-500 dark:text-gray-400">State</span>
+                        <span class="text-sm font-semibold text-gray-900 dark:text-white">{{ user.state if user.state else 'null' }}</span>
+                    </div>
+                    <div class="flex justify-between items-center">
                         <span class="text-sm text-gray-500 dark:text-gray-400">Joined</span>
                         <span class="text-sm font-semibold text-gray-900 dark:text-white">{{ user.created_at.strftime('%d %b, %Y') if user.created_at else 'N/A' }}</span>
                     </div>

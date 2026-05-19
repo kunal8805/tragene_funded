@@ -191,3 +191,97 @@ def resend_phone_otp():
 @login_required
 def verify_phone():
     return redirect(url_for('auth.verify_phone_otp'))
+
+
+@auth_bp.route('/forgot-password', methods=['GET', 'POST'])
+def forgot_password():
+    if request.method == 'POST':
+        email = request.form.get('email', '').strip()
+        user = User.query.filter_by(email=email).first()
+        
+        if user:
+            # Generate secure token
+            token = secrets.token_urlsafe(32)
+            user.reset_token = token
+            user.reset_token_expiry = datetime.utcnow() + timedelta(hours=1)
+            db.session.commit()
+            
+            # Create reset link
+            reset_link = url_for('auth.reset_password', token=token, _external=True)
+            
+            html = f"""
+            <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+                <h2>Reset Your Password</h2>
+                <p>Hello {user.first_name},</p>
+                <p>We received a request to reset your password for your Tragene Funded account.</p>
+                <p>Click the button below to choose a new password. This link expires in 1 hour.</p>
+                <div style="margin: 20px 0;">
+                    <a href="{reset_link}"
+                       style="
+                           background: #3b82f6;
+                           color: white;
+                           padding: 12px 24px;
+                           border-radius: 8px;
+                           text-decoration: none;
+                           display: inline-block;
+                           font-weight: bold;
+                       ">
+                       Reset Password
+                    </a>
+                </div>
+                <p style="font-size: 12px; color: #666; margin-top: 30px;">
+                    If you did not request this, you can safely ignore this email.
+                </p>
+            </div>
+            """
+            
+            send_test_email(
+                user.email,
+                "Reset Your Password",
+                html
+            )
+            
+        # Always return the same message to protect user privacy
+        flash('If an account exists, a reset email has been sent.', 'success')
+        return redirect(url_for('auth.login'))
+        
+    return render_template('forgot_password.html')
+
+
+@auth_bp.route('/reset-password/<token>', methods=['GET', 'POST'])
+def reset_password(token):
+    # Find user with token
+    user = User.query.filter_by(reset_token=token).first()
+    
+    # Reject invalid token
+    if not user:
+        flash('Invalid or expired reset link.', 'error')
+        return redirect(url_for('auth.forgot_password'))
+        
+    # Check expiry time
+    if user.reset_token_expiry and user.reset_token_expiry < datetime.utcnow():
+        flash('Invalid or expired reset link.', 'error')
+        return redirect(url_for('auth.forgot_password'))
+        
+    if request.method == 'POST':
+        password = request.form.get('password')
+        confirm_password = request.form.get('confirm_password')
+        
+        if not password or not confirm_password:
+            flash('Both password fields are required.', 'error')
+            return render_template('reset_password.html', token=token)
+            
+        if password != confirm_password:
+            flash('Passwords do not match.', 'error')
+            return render_template('reset_password.html', token=token)
+            
+        # Update password securely
+        user.set_password(password)
+        user.reset_token = None
+        user.reset_token_expiry = None
+        db.session.commit()
+        
+        flash('Your password has been successfully reset. Please login.', 'success')
+        return redirect(url_for('auth.login'))
+        
+    return render_template('reset_password.html', token=token)

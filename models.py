@@ -60,6 +60,10 @@ class User(db.Model):
     # Email Verification Token
     email_verification_token = db.Column(db.String(100), index=True)
     
+    # Password Reset Tokens
+    reset_token = db.Column(db.String(255), nullable=True)
+    reset_token_expiry = db.Column(db.DateTime, nullable=True)
+    
     # Phone OTP Fields
     phone_verification_code = db.Column(db.String(6))
     phone_verification_sent_at = db.Column(db.Float)  # Unix timestamp

@@ -345,8 +345,11 @@ def provision_challenge(payment, user, challenge_template_id):
 # ===== SEED DEFAULT DATA =====
 with app.app_context():
     try:
-        admin_email = os.getenv("ADMIN_EMAIL", "admin@tragene.com")
-        admin_password = os.getenv("ADMIN_PASSWORD", "admin123")
+        admin_email = os.getenv("ADMIN_EMAIL")
+        admin_password = os.getenv("ADMIN_PASSWORD")
+
+        if not admin_email or not admin_password:
+            raise ValueError("ADMIN_EMAIL and ADMIN_PASSWORD must be set in .env")
 
         if not User.query.filter_by(email=admin_email).first():
             admin = User(

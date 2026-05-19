@@ -89,6 +89,28 @@
     </div>
 </div>
 
+<!-- Filter Buttons -->
+<div class="flex flex-wrap gap-2 mb-6">
+    <button id="btn-all" onclick="filterStatus('all')" class="filter-btn px-4 py-2 rounded-lg text-sm font-semibold bg-blue-600 text-white transition flex items-center shadow-sm">
+        <i class="fas fa-list mr-2"></i>All
+    </button>
+    <button id="btn-phase1" onclick="filterStatus('phase1')" class="filter-btn px-4 py-2 rounded-lg text-sm font-semibold bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition flex items-center shadow-sm">
+        <i class="fas fa-flag mr-2 text-blue-500"></i>Phase 1
+    </button>
+    <button id="btn-phase2" onclick="filterStatus('phase2')" class="filter-btn px-4 py-2 rounded-lg text-sm font-semibold bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition flex items-center shadow-sm">
+        <i class="fas fa-flag-checkered mr-2 text-indigo-500"></i>Phase 2
+    </button>
+    <button id="btn-funded" onclick="filterStatus('funded')" class="filter-btn px-4 py-2 rounded-lg text-sm font-semibold bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition flex items-center shadow-sm">
+        <i class="fas fa-award mr-2 text-green-500"></i>Funded
+    </button>
+    <button id="btn-challenge_purchased" onclick="filterStatus('challenge_purchased')" class="filter-btn px-4 py-2 rounded-lg text-sm font-semibold bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition flex items-center shadow-sm">
+        <i class="fas fa-shopping-bag mr-2 text-yellow-500"></i>Challenge Purchased
+    </button>
+    <button id="btn-breached" onclick="filterStatus('breached')" class="filter-btn px-4 py-2 rounded-lg text-sm font-semibold bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition flex items-center shadow-sm">
+        <i class="fas fa-times-circle mr-2 text-red-500"></i>Breached
+    </button>
+</div>
+
 <!-- Challenges Table -->
 <div class="glass-card overflow-hidden">
     <div class="overflow-x-auto">
@@ -128,7 +150,9 @@
             <tbody class="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
                 {% if challenges %}
                 {% for challenge in challenges %}
-                <tr class="hover:bg-gray-50 dark:hover:bg-gray-800 transition">
+                <tr class="hover:bg-gray-50 dark:hover:bg-gray-800 transition challenge-row" 
+                    data-status="{{ challenge.status }}" 
+                    data-phase="{{ challenge.phase }}">
                     <td class="px-6 py-4 whitespace-nowrap">
                         <span class="font-mono font-bold text-blue-600 dark:text-blue-400">
                             #{{ challenge.serial_no or 'N/A' }}
@@ -184,7 +208,7 @@
                                 title="View User">
                                 <i class="fas fa-user"></i>
                             </a>
-                            <button onclick="handleAction('force_pass_all', {{ challenge.id }})"
+                            <button onclick="handleForcePass({{ challenge.id }}, '{{ challenge.challenge_template.challenge_type }}', {{ challenge.phase }})"
                                 class="text-green-600 hover:text-green-800 font-medium" title="Force Pass">
                                 <i class="fas fa-check-circle"></i>
                             </button>
@@ -221,28 +245,106 @@
 {% endif %}
 
 <script>
-    // Real-time Search
-    const searchInput = document.getElementById('searchInput');
-    const challengeTable = document.getElementById('challengeTable');
-    const rows = challengeTable.getElementsByTagName('tr');
+    // Combined Search and Status Filter System
+    let currentFilter = 'all';
 
-    searchInput.addEventListener('input', function () {
-        const query = searchInput.value.toLowerCase();
-
-        for (let i = 1; i < rows.length; i++) {
-            const rowText = rows[i].textContent.toLowerCase();
-            if (rowText.includes(query)) {
-                rows[i].style.display = '';
-            } else {
-                rows[i].style.display = 'none';
-            }
+    function filterStatus(filterType) {
+        currentFilter = filterType;
+        
+        // Reset and highlight active button styling
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.classList.remove('bg-blue-600', 'text-white');
+            btn.classList.add('bg-gray-100', 'dark:bg-gray-800', 'text-gray-700', 'dark:text-gray-300');
+        });
+        
+        const activeBtn = document.getElementById('btn-' + filterType);
+        if (activeBtn) {
+            activeBtn.classList.remove('bg-gray-100', 'dark:bg-gray-800', 'text-gray-700', 'dark:text-gray-300');
+            activeBtn.classList.add('bg-blue-600', 'text-white');
         }
-    });
+
+        applyFilters();
+    }
+
+    function applyFilters() {
+        const query = document.getElementById('searchInput').value.toLowerCase();
+        const rows = document.querySelectorAll('.challenge-row');
+        
+        rows.forEach(row => {
+            const status = row.getAttribute('data-status');
+            const phase = parseInt(row.getAttribute('data-phase'));
+            const rowText = row.textContent.toLowerCase();
+            
+            // Search validation
+            const matchesSearch = rowText.includes(query);
+            
+            // Status filter validation
+            let matchesFilter = false;
+            if (currentFilter === 'all') {
+                matchesFilter = true;
+            } else if (currentFilter === 'phase1') {
+                matchesFilter = (phase === 1 && (status === 'active' || status === 'phase1_active'));
+            } else if (currentFilter === 'phase2') {
+                matchesFilter = (phase === 2 && (status === 'active' || status === 'phase2_active'));
+            } else if (currentFilter === 'funded') {
+                matchesFilter = (phase === 3 || status === 'funded_active' || status === 'passed');
+            } else if (currentFilter === 'challenge_purchased') {
+                matchesFilter = (status === 'pending_credentials');
+            } else if (currentFilter === 'breached') {
+                matchesFilter = (status === 'failed' || status === 'breached' || status === 'revoked');
+            }
+            
+            if (matchesSearch && matchesFilter) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    }
+
+    // Attach listener for real-time search
+    document.getElementById('searchInput').addEventListener('input', applyFilters);
 
     // Force Pass/Fail Actions
+    async function handleForcePass(challengeId, challengeType, currentPhase) {
+        let action = 'force_pass_all';
+        
+        if (challengeType === 'two_phase') {
+            if (currentPhase === 1) {
+                // Ask: Pass Phase 1 or Pass all phases?
+                const choice = confirm("This is a Two-Phase account currently on Phase 1.\n\nClick 'OK' to pass Phase 1 only (move to Phase 2).\nClick 'Cancel' to pass ALL phases (move directly to Funded).");
+                if (choice) {
+                    action = 'force_pass_phase1';
+                } else {
+                    const confirmAll = confirm("Are you sure you want to pass ALL phases and move directly to Funded?");
+                    if (!confirmAll) return;
+                    action = 'force_pass_all';
+                }
+            } else if (currentPhase === 2) {
+                const confirmPhase2 = confirm("This is a Two-Phase account currently on Phase 2.\n\nClick 'OK' to pass Phase 2 and move to Funded.");
+                if (!confirmPhase2) return;
+                action = 'force_pass_phase2';
+            } else {
+                const confirmAll = confirm("Are you sure you want to force pass this account?");
+                if (!confirmAll) return;
+                action = 'force_pass_all';
+            }
+        } else {
+            // One-phase or other type of account
+            const confirmPass = confirm("Are you sure you want to force pass this challenge account?");
+            if (!confirmPass) return;
+            action = 'force_pass_all';
+        }
+        
+        await executeAction(action, challengeId);
+    }
+
     async function handleAction(action, challengeId) {
         if (!confirm(`Are you sure you want to ${action.replace(/_/g, ' ')}?`)) return;
+        await executeAction(action, challengeId);
+    }
 
+    async function executeAction(action, challengeId) {
         try {
             const response = await fetch("{{ url_for('admin.admin_challenge_action') }}", {
                 method: 'POST',
