@@ -99,7 +99,7 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'pdf'}
 
 # ===== INITIALIZE DATABASE & MIGRATE =====
-from models import db, User, ChallengeTemplate, Payment, ChallengePurchase, WebhookLog, FAQ
+from models import db, User, ChallengeTemplate, Payment, ChallengePurchase, WebhookLog, FAQ, BlogPost
 
 db.init_app(app)
 migrate = Migrate(app, db)
@@ -176,6 +176,7 @@ def inject_user():
                     self.email_verified = user_obj.email_verified
                     self.is_authenticated = True
                     self.is_admin = user_obj.is_admin
+                    self.role = 'admin' if user_obj.is_admin else 'user'
                     self.is_active = True
                     
                 def __repr__(self):
@@ -344,6 +345,9 @@ def provision_challenge(payment, user, challenge_template_id):
 
 # ===== SEED DEFAULT DATA =====
 with app.app_context():
+    # Automatically create tables for any new models (like BlogPost)
+    db.create_all()
+    
     try:
         admin_email = os.getenv("ADMIN_EMAIL")
         admin_password = os.getenv("ADMIN_PASSWORD")
@@ -392,10 +396,14 @@ with app.app_context():
         from auth import auth_bp
         from admin_routes import admin_bp
         from user_routes import user_bp
+        from blog import blog_bp
+        from admin_blog import admin_blog_bp
 
         app.register_blueprint(auth_bp)
         app.register_blueprint(admin_bp)
         app.register_blueprint(user_bp)
+        app.register_blueprint(blog_bp)
+        app.register_blueprint(admin_blog_bp)
         if DEV_MODE:
             print("[OK] Blueprints registered successfully")
     except ImportError as e:

@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-8SBBXX72M7"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-8SBBXX72M7');
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blog - Tragene Funded | Expert Trading Insights & Updates</title>
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/images/logo.png">
+    <link rel="shortcut icon" href="/static/images/logo.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/static/images/logo.png">
+
+    <!-- Primary SEO -->
+    <meta name="description" content="Read our official blog for expert forex trading tips, strategies for prop firm challenges, platform updates, and insights on getting funded up to $500,000.">
+    <meta name="keywords" content="prop firm India, funded trading account India, affordable prop firm, beginner prop firm, forex funded account, MT5 prop firm, cheap prop firm India, trading challenge, instant funding, trader funding India, forex challenge, Tragene Funded">
+    <meta name="author" content="Tragene Funded">
+    <meta name="robots" content="index, follow, max-image-preview:large">
+    <meta name="theme-color" content="#0f172a">
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Blog - Tragene Funded | Expert Trading Insights & Updates">
+    <meta property="og:description" content="Read our official blog for expert forex trading tips, strategies for prop firm challenges, platform updates, and insights on getting funded.">
+    <meta property="og:url" content="https://www.tragenefunded.com/blog/">
+    <meta property="og:site_name" content="Tragene Funded">
+    <meta property="og:image" content="https://www.tragenefunded.com/static/images/tragene_banner.png">
+
+    <!-- Twitter / X -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Blog - Tragene Funded | Expert Trading Insights & Updates">
+    <meta name="twitter:description" content="Read our official blog for expert forex trading tips, strategies for prop firm challenges, platform updates, and insights on getting funded.">
+    <meta name="twitter:image" content="https://www.tragenefunded.com/static/images/tragene_banner.png">
+
+    <!-- Canonical -->
+    <link rel="canonical" href="https://www.tragenefunded.com/blog/">
+
+    <!-- Organization Schema -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "Tragene Funded",
+      "url": "https://www.tragenefunded.com",
+      "logo": "https://www.tragenefunded.com/static/images/logo.png"
+    }
+    </script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <!-- AOS Library for scroll animations -->
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            background-color: #0b0f19;
+            color: #ffffff;
+            font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+        }
+
+        .bg-starry-night {
+            background: linear-gradient(135deg, #0a0a0a 0%, #111827 50%, #0b0f19 100%);
+            position: relative;
+            min-height: 100vh;
+        }
+
+        .stars {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .star {
+            position: absolute;
+            background-color: white;
+            border-radius: 50%;
+            animation: twinkle 5s infinite;
+        }
+
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 1; }
+        }
+
+        .liquid-glass {
+            background: rgba(255, 255, 255, 0.04);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .text-gradient {
+            background: linear-gradient(135deg, #22c55e, #06b6d4);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+    </style>
+</head>
+<body class="bg-starry-night">
+    <!-- Starry Background -->
+    <div class="stars" id="stars"></div>
+
+    <div class="relative z-10 min-h-screen flex flex-col justify-between">
+        <!-- Fixed Navigation -->
+        <nav class="bg-black/80 backdrop-blur-md shadow-xl w-full z-50 py-1 sticky top-0 border-b border-gray-800">
+            <div class="max-w-7xl mx-auto px-4">
+                <div class="flex justify-between items-center">
+                    <!-- Logo -->
+                    <div class="flex items-center">
+                        <a href="{{ url_for('home') }}" class="text-white font-bold flex items-center">
+                            <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Tragene Funded Logo"
+                                class="h-12 w-auto rounded-full">
+                        </a>
+                    </div>
+
+                    <!-- Buttons -->
+                    <div class="flex items-center space-x-2">
+                        {% if session.get('user_id') %}
+                        <a href="{{ url_for('user.dashboard') }}"
+                            class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition duration-300">
+                            Dashboard
+                        </a>
+                        <a href="/logout"
+                            class="bg-gray-800 hover:bg-gray-700 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition duration-300">
+                            Logout
+                        </a>
+                        {% else %}
+                        <a href="/login"
+                            class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition duration-300">
+                            Login
+                        </a>
+                        <a href="/register"
+                            class="bg-green-600 hover:bg-green-700 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition duration-300">
+                            Get Started
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="flex-grow py-20 px-4">
+            <div class="max-w-7xl mx-auto">
+                <!-- Hero Header -->
+                <div class="text-center mb-16" data-aos="fade-up">
+                    <span class="px-4 py-1.5 rounded-full bg-blue-500/10 text-blue-400 text-xs font-semibold uppercase tracking-wider border border-blue-500/20">
+                        Insights & Education
+                    </span>
+                    <h1 class="text-4xl md:text-5xl font-extrabold text-white mt-4 tracking-tight">
+                        The Tragene <span class="text-gradient">Funded Blog</span>
+                    </h1>
+                    <p class="text-gray-400 mt-4 max-w-2xl mx-auto text-lg">
+                        Your ultimate resource for trading strategies, risk management tips, prop firm challenge walkthroughs, and news updates.
+                    </p>
+                </div>
+
+                {% if posts %}
+                <!-- Blog Grid -->
+                <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    {% for post in posts %}
+                    <article class="liquid-glass overflow-hidden hover:border-blue-500/40 hover:-translate-y-1.5 transition-all duration-300 flex flex-col group" data-aos="fade-up" data-aos-delay="{{ loop.index0 * 100 }}">
+                        <!-- Decorative Top Border -->
+                        <div class="h-1.5 bg-gradient-to-r from-green-500 to-cyan-400"></div>
+                        
+                        <div class="p-6 md:p-8 flex-1 flex flex-col">
+                            <!-- Date & Meta -->
+                            <div class="flex items-center text-xs text-gray-500 mb-4 gap-2">
+                                <i class="far fa-calendar-alt text-cyan-400"></i>
+                                <span>{{ post.date_published.strftime('%B %d, %Y') if post.date_published else 'Date' }}</span>
+                            </div>
+
+                            <!-- Title -->
+                            <h2 class="text-xl font-bold text-white mb-3 group-hover:text-cyan-400 transition-colors line-clamp-2">
+                                <a href="{{ url_for('blog.detail', slug=post.slug) }}">
+                                    {{ post.title }}
+                                </a>
+                            </h2>
+
+                            <!-- Excerpt -->
+                            <p class="text-gray-400 text-sm leading-relaxed mb-6 flex-1 line-clamp-3">
+                                {{ post.content|striptags|truncate(150, True, '…') }}
+                            </p>
+
+                            <!-- Read More Button -->
+                            <div class="mt-auto">
+                                <a href="{{ url_for('blog.detail', slug=post.slug) }}" class="inline-flex items-center text-sm font-semibold text-cyan-400 hover:text-cyan-300 transition-colors group/link">
+                                    Read Full Article
+                                    <i class="fas fa-arrow-right ml-2 text-xs group-hover/link:translate-x-1.5 transition-transform"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </article>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <!-- Empty State -->
+                <div class="text-center py-20 liquid-glass max-w-xl mx-auto" data-aos="fade-up">
+                    <div class="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-4 border border-white/10">
+                        <i class="fas fa-book-open text-cyan-400 text-xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-white mb-2">No Articles Published Yet</h3>
+                    <p class="text-gray-400 text-sm">
+                        Our expert writers are crafting insights right now. Please check back soon!
+                    </p>
+                </div>
+                {% endif %}
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="bg-black/80 text-white py-12 border-t border-gray-800">
+            <div class="max-w-7xl mx-auto px-4">
+                <div class="grid md:grid-cols-5 gap-8">
+                    <div>
+                        <h3 class="text-2xl font-bold mb-4 flex items-center">
+                            <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Tragene Funded Logo"
+                                class="h-10 w-auto mr-2 rounded-full">
+                            Tragene Funded
+                        </h3>
+                        <p class="text-gray-400">Professional Forex Trading Challenges. Start your funded account journey
+                            today.</p>
+                    </div>
+                    <div>
+                        <h4 class="font-semibold mb-4">Quick Links</h4>
+                        <ul class="space-y-2 text-gray-400">
+                            <li><a href="{{ url_for('home') }}" class="hover:text-white transition">Home</a></li>
+                            <li><a href="{{ url_for('home') }}#challenges" class="hover:text-white transition">Challenges</a></li>
+                            <li><a href="{{ url_for('home') }}#rules" class="hover:text-white transition">Trading Rules</a></li>
+                            <li><a href="{{ url_for('user.dashboard') }}" class="hover:text-white transition">Dashboard</a></li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4 class="font-semibold mb-4">Support</h4>
+                        <ul class="space-y-2 text-gray-400">
+                            <li><a href="{{ url_for('help_center') }}" class="hover:text-white transition">Help Center</a>
+                            </li>
+                            <li><a href="{{ url_for('contact') }}" class="hover:text-white transition">Contact Us</a></li>
+                            <li><a href="{{ url_for('faq') }}" class="hover:text-white transition">FAQ</a></li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4 class="font-semibold mb-4">Legal</h4>
+                        <ul class="space-y-2 text-gray-400">
+                            <li><a href="{{ url_for('privacy') }}" class="hover:text-white transition">Privacy Policy</a>
+                            </li>
+                            <li><a href="{{ url_for('terms') }}" class="hover:text-white transition">Terms & Conditions</a>
+                            </li>
+                            <li><a href="{{ url_for('refund_policy') }}" class="hover:text-white transition">Refund
+                                    Policy</a></li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4 class="font-semibold mb-4">Content</h4>
+                        <ul class="space-y-2 text-gray-400">
+                            <li><a href="{{ url_for('blog.index') }}" class="hover:text-white transition">Blog</a></li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="border-t border-gray-700 mt-8 pt-8 text-center text-gray-400">
+                    <p>&copy; 2026 Tragene Funded. All rights reserved.</p>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        // Create stars
+        function createStars() {
+            const starsContainer = document.getElementById('stars');
+            const starCount = 100;
+
+            for (let i = 0; i < starCount; i++) {
+                const star = document.createElement('div');
+                star.classList.add('star');
+                star.style.left = `${Math.random() * 100}%`;
+                star.style.top = `${Math.random() * 100}%`;
+                star.style.width = `${Math.random() * 3}px`;
+                star.style.height = star.style.width;
+                star.style.animationDelay = `${Math.random() * 5}s`;
+                starsContainer.appendChild(star);
+            }
+        }
+
+        AOS.init({
+            duration: 800,
+            once: true,
+            offset: 50,
+            easing: 'ease-out-cubic'
+        });
+
+        document.addEventListener('DOMContentLoaded', createStars);
+    </script>
+</body>
+</html>

@@ -1,0 +1,70 @@
+{% extends "admin/base.html" %}
+
+{% block title %}{{ 'Edit' if post else 'Create' }} Blog Post - Admin Panel{% endblock %}
+
+{% block header_title %}{{ 'Edit' if post else 'Create' }} Blog Post{% endblock %}
+{% block header_subtitle %}{{ 'Modify an existing blog article' if post else 'Publish a new article to the blog section' }}{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto space-y-6" data-aos="fade-up">
+    <!-- Back Button & Header -->
+    <div class="flex items-center gap-4">
+        <a href="{{ url_for('admin_blog.list_posts') }}" class="text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition">
+            <i class="fas fa-arrow-left text-xl"></i>
+        </a>
+        <h2 class="text-2xl font-bold text-gray-900 dark:text-white">{{ 'Edit' if post else 'Create New' }} Blog Post</h2>
+    </div>
+
+    <!-- Form Container -->
+    <div class="bg-white dark:bg-dark-card rounded-2xl shadow-sm border border-gray-200 dark:border-dark-border p-8">
+        <form action="{{ url_for('admin_blog.edit', post_id=post.id) if post else url_for('admin_blog.create') }}" method="POST" class="space-y-6">
+            <!-- Title -->
+            <div class="space-y-2">
+                <label class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Post Title</label>
+                <input type="text" name="title" id="title" value="{{ post.title if post else '' }}" required placeholder="e.g. 5 Tips to Pass Your Prop Firm Challenge" 
+                       class="w-full p-3 rounded-xl border border-gray-200 dark:border-dark-border focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white transition">
+            </div>
+
+            <!-- Slug -->
+            <div class="space-y-2">
+                <label class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">URL Slug (Optional)</label>
+                <input type="text" name="slug" id="slug" value="{{ post.slug if post else '' }}" placeholder="e.g. 5-tips-to-pass-prop-challenge (leave empty to auto-generate)" 
+                       class="w-full p-3 rounded-xl border border-gray-200 dark:border-dark-border focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white transition">
+                <p class="text-xs text-gray-400 dark:text-gray-500">Will be generated from the title if left empty.</p>
+            </div>
+
+            <!-- Meta Description -->
+            <div class="space-y-2">
+                <label class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Meta Description (SEO)</label>
+                <textarea name="meta_description" required rows="2" maxlength="255" placeholder="Enter a brief, engaging summary of the article for search results (recommended under 160 characters)" 
+                          class="w-full p-3 rounded-xl border border-gray-200 dark:border-dark-border focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white transition">{{ post.meta_description if post else '' }}</textarea>
+                <p class="text-xs text-gray-400 dark:text-gray-500">Highly critical for search engine rankings and social media previews.</p>
+            </div>
+
+            <!-- Content -->
+            <div class="space-y-2">
+                <label class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Content (HTML or plain text allowed)</label>
+                <textarea name="content" required rows="15" placeholder="Write your post content here. You can use standard HTML formatting tags like <p>, <h2>, <h3>, <strong>, <ul>, <li>, and <a> to style your post." 
+                          class="w-full p-3 rounded-xl border border-gray-200 dark:border-dark-border focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white font-mono text-sm transition">{{ post.content if post else '' }}</textarea>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="pt-4 flex gap-4">
+                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3.5 rounded-xl font-bold transition shadow-sm">
+                    {{ 'Update Post' if post else 'Publish Post' }}
+                </button>
+                <a href="{{ url_for('admin_blog.list_posts') }}" class="bg-gray-150 hover:bg-gray-250 text-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-750 px-8 py-3.5 rounded-xl font-bold transition">
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    .bg-gray-150 { background-color: #f1f5f9; }
+    .bg-gray-150:hover { background-color: #e2e8f0; }
+    .dark .bg-gray-150 { background-color: #1e293b; }
+    .dark .bg-gray-150:hover { background-color: #334155; }
+</style>
+{% endblock %}

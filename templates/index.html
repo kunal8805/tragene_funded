@@ -15,6 +15,46 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tragene Funded - Forex Trading Challenges</title>
 
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/images/logo.png">
+    <link rel="shortcut icon" href="/static/images/logo.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/static/images/logo.png">
+
+    <!-- Primary SEO -->
+    <meta name="description" content="Trade with India's most affordable and beginner-friendly prop firm. Low-cost challenges, transparent rules, fast payouts, trusted support, and funding opportunities designed for every trader.">
+    <meta name="keywords" content="prop firm India, funded trading account India, affordable prop firm, beginner prop firm, forex funded account, MT5 prop firm, cheap prop firm India, trading challenge, instant funding, trader funding India, forex challenge, Tragene Funded">
+    <meta name="author" content="Tragene Funded">
+    <meta name="robots" content="index, follow, max-image-preview:large">
+    <meta name="theme-color" content="#0f172a">
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Tragene Funded | India's Most Affordable Prop Firm">
+    <meta property="og:description" content="Low-cost challenges, beginner-friendly rules, fast and transparent payouts. Built for Indian traders.">
+    <meta property="og:url" content="https://www.tragenefunded.com">
+    <meta property="og:site_name" content="Tragene Funded">
+    <meta property="og:image" content="https://www.tragenefunded.com/static/images/tragene_banner.png">
+
+    <!-- Twitter / X -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Tragene Funded | India's Most Affordable Prop Firm">
+    <meta name="twitter:description" content="Low-cost challenges. Beginner friendly. Built for Indian traders.">
+    <meta name="twitter:image" content="https://www.tragenefunded.com/static/images/tragene_banner.png">
+
+    <!-- Canonical -->
+    <link rel="canonical" href="https://www.tragenefunded.com">
+
+    <!-- Organization Schema -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "Tragene Funded",
+      "url": "https://www.tragenefunded.com",
+      "logo": "https://www.tragenefunded.com/static/images/logo.png"
+    }
+    </script>
+
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
 
@@ -1246,7 +1286,7 @@
     <!-- Footer -->
     <footer class="bg-black/80 text-white py-12 border-t border-gray-800">
         <div class="max-w-7xl mx-auto px-4">
-            <div class="grid md:grid-cols-4 gap-8">
+            <div class="grid md:grid-cols-5 gap-8">
                 <div>
                     <h3 class="text-2xl font-bold mb-4 flex items-center">
                         <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Tragene Funded Logo"
@@ -1283,6 +1323,12 @@
                         </li>
                         <li><a href="{{ url_for('refund_policy') }}" class="hover:text-white transition">Refund
                                 Policy</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="font-semibold mb-4">Content</h4>
+                    <ul class="space-y-2 text-gray-400">
+                        <li><a href="{{ url_for('blog.index') }}" class="hover:text-white transition">Blog</a></li>
                     </ul>
                 </div>
             </div>
