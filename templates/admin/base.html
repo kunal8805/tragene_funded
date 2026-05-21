@@ -267,6 +267,12 @@
                 <span class="font-medium">Dashboard</span>
             </a>
 
+            <a href="/admin/analytics"
+                class="flex items-center space-x-3 p-3 {% if request.endpoint == 'admin.admin_analytics' %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
+                <i class="fas fa-chart-pie w-5"></i>
+                <span>Analytics</span>
+            </a>
+
             <a href="/admin/users"
                 class="flex items-center space-x-3 p-3 {% if 'admin.users' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
                 <i class="fas fa-users w-5"></i>
@@ -374,6 +380,13 @@
                 onclick="toggleSidebar()">
                 <i class="fas fa-tachometer-alt w-5"></i>
                 <span class="font-medium">Dashboard</span>
+            </a>
+
+            <a href="/admin/analytics"
+                class="flex items-center space-x-3 p-3 {% if request.endpoint == 'admin.admin_analytics' %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition"
+                onclick="toggleSidebar()">
+                <i class="fas fa-chart-pie w-5"></i>
+                <span>Analytics</span>
             </a>
 
             <a href="/admin/users"

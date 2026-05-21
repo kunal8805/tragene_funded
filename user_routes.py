@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify
 from functools import wraps
-from models import db, User, ChallengeTemplate, ChallengePurchase, Payment, Payout, SupportTicket, TicketMessage, FAQ
+from models import db, User, ChallengeTemplate, ChallengePurchase, Payment, Payout, SupportTicket, TicketMessage, FAQ, RuleLog, TradeHistory
 from datetime import datetime, timezone, timedelta
 import os
 import secrets
@@ -790,3 +790,108 @@ def ticket_reply(ticket_number):
     db.session.commit()
     
     return redirect(url_for('user.ticket_chat', ticket_number=ticket_number))
+
+
+
+@user_bp.route('/user_analytics')
+@login_required
+def user_analytics():
+    return render_template('user/user_analytics.html', user=User.query.get(session['user_id']))
+
+
+
+
+
+# ===== ADD THESE ROUTES TO user_routes.py =====
+
+@user_bp.route('/api/challenge/<int:challenge_id>/clear-flag', methods=['POST'])
+@login_required
+def api_user_clear_flag(challenge_id):
+    """Clear flag after admin review (only if admin cleared it)"""
+    user = User.query.get(session['user_id'])
+    challenge = ChallengePurchase.query.filter_by(id=challenge_id, user_id=user.id).first()
+    
+    if not challenge:
+        return jsonify({'success': False, 'error': 'Challenge not found'}), 404
+    
+    # Only allow clearing if admin has set review_required to False
+    if not challenge.review_required and challenge.monitoring_status == 'active':
+        challenge.status = 'active'
+        challenge.monitoring_status = 'active'
+        challenge.violation_reason = None
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Flag cleared'})
+    
+    return jsonify({'success': False, 'error': 'Flag cannot be cleared yet'}), 400
+
+
+@user_bp.route('/history/details/<int:challenge_id>')
+@login_required
+def history_details(challenge_id):
+    """Show detailed history of a failed/passed challenge"""
+    user = User.query.get(session['user_id'])
+    challenge = ChallengePurchase.query.filter_by(id=challenge_id, user_id=user.id).first_or_404()
+    
+    # Get all violations for this challenge
+    from models import RuleLog
+    violations = RuleLog.query.filter_by(challenge_id=challenge_id).order_by(RuleLog.created_at.desc()).all()
+    
+    # Get trade history
+    trades = TradeHistory.query.filter_by(challenge_id=challenge_id).order_by(TradeHistory.close_time.desc()).limit(50).all()
+    
+    return render_template('user/history_details.html',
+                         user=user,
+                         challenge=challenge,
+                         violations=violations,
+                         trades=trades)
+
+
+@user_bp.route('/api/challenge/<int:challenge_id>/history')
+@login_required
+def api_challenge_history(challenge_id):
+    """API endpoint for challenge history data"""
+    user = User.query.get(session['user_id'])
+    challenge = ChallengePurchase.query.filter_by(id=challenge_id, user_id=user.id).first()
+    
+    if not challenge:
+        return jsonify({'error': 'Challenge not found'}), 404
+    
+    from models import RuleLog, TradeHistory
+    
+    violations = RuleLog.query.filter_by(challenge_id=challenge_id).order_by(RuleLog.created_at.desc()).all()
+    trades = TradeHistory.query.filter_by(challenge_id=challenge_id).order_by(TradeHistory.close_time.desc()).limit(50).all()
+    
+    return jsonify({
+        'success': True,
+        'challenge': {
+            'id': challenge.id,
+            'challenge_name': challenge.challenge_template.name if challenge.challenge_template else 'Challenge',
+            'status': challenge.status,
+            'profit_percent': challenge.profit_percent,
+            'daily_drawdown': challenge.daily_drawdown,
+            'overall_drawdown': challenge.overall_drawdown,
+            'trading_days': challenge.trading_days,
+            'start_date': challenge.start_date.isoformat() if challenge.start_date else None,
+            'end_date': challenge.end_date.isoformat() if challenge.end_date else None,
+            'completed_at': challenge.completed_at.isoformat() if challenge.completed_at else None,
+            'violation_reason': challenge.violation_reason,
+            'pass_reason': challenge.pass_reason,
+        },
+        'violations': [{
+            'rule_name': v.rule_name,
+            'severity': v.severity,
+            'message': v.message,
+            'current_value': v.current_value,
+            'threshold_value': v.threshold_value,
+            'created_at': v.created_at.isoformat() if v.created_at else None
+        } for v in violations],
+        'trades': [{
+            'ticket': t.ticket,
+            'symbol': t.symbol,
+            'lots': t.lots,
+            'profit': t.profit,
+            'open_time': t.open_time.isoformat() if t.open_time else None,
+            'close_time': t.close_time.isoformat() if t.close_time else None
+        } for t in trades]
+    })
+

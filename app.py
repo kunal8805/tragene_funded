@@ -1,4 +1,4 @@
-# ===== COMPLETE WORKING app.py WITH RAZORPAY =====
+# ===== COMPLETE WORKING app.py WITH RULE ENGINE =====
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, g
 from datetime import datetime, date, timedelta, timezone
 import os
@@ -65,7 +65,7 @@ if not app.config['SECRET_KEY']:
     raise ValueError("APP_SECRET_KEY must be set in .env file")
 
 # Session security
-app.config['SESSION_COOKIE_SECURE'] = not DEV_MODE  # HTTPS only in production
+app.config['SESSION_COOKIE_SECURE'] = not DEV_MODE
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
@@ -82,7 +82,6 @@ if DEV_MODE:
 # ===== RESEND CONFIGURATION =====
 RESEND_API_KEY = os.getenv('RESEND_API_KEY')
 
-# Initialize Resend client ONLY if available
 if RESEND_AVAILABLE and RESEND_API_KEY:
     try:
         resend.api_key = RESEND_API_KEY
@@ -91,7 +90,6 @@ if RESEND_AVAILABLE and RESEND_API_KEY:
     except Exception as e:
         print(f"[ERROR] Failed to configure Resend: {e}")
         RESEND_AVAILABLE = False
-
 
 # File upload configuration
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
@@ -152,14 +150,12 @@ def allowed_file(filename):
 # ===== CONTEXT PROCESSOR FOR TEMPLATES =====
 @app.context_processor
 def inject_user():
-    """Make user available in all templates as both 'user' and 'current_user'"""
     context = {
         'current_user': None,
         'user': None,
         'PRELAUNCH_MODE': PRELAUNCH_MODE,
         'DEV_MODE': DEV_MODE
     }
-
 
     if 'user_id' in session:
         user = User.query.get(session['user_id'])
@@ -187,14 +183,12 @@ def inject_user():
     
     return context
 
-
-
 # ===== FIXED EMAIL SENDER FUNCTION =====
 def send_test_email(to_email, subject, html_content):
     if not RESEND_AVAILABLE or not resend.api_key:
         if DEV_MODE:
             print("⚠️ Email skipped - Resend not available or API key missing")
-        return False  # Return False if not available so we don't flash success
+        return False
     
     try:
         params = {
@@ -203,17 +197,13 @@ def send_test_email(to_email, subject, html_content):
             "subject": subject,
             "html": html_content
         }
-
         result = resend.Emails.send(params)
         if DEV_MODE:
             print(f"✅ Email sent successfully: {result}")
         return True
-
-
     except Exception as e:
         print(f"❌ Email failed: {str(e)}")
         return False
-
 
 # ===== LOGIN DECORATOR =====
 def login_required(f):
@@ -227,7 +217,6 @@ def login_required(f):
 
 # ===== CASHFREE HELPER FUNCTIONS =====
 def verify_cashfree_webhook_signature(payload_body, signature, timestamp):
-    """Verify Cashfree webhook signature"""
     if not CASHFREE_WEBHOOK_SECRET:
         print("❌ Cashfree webhook secret not configured")
         return False
@@ -248,20 +237,17 @@ def verify_cashfree_webhook_signature(payload_body, signature, timestamp):
         else:
             print(f"❌ Invalid webhook signature")
             return False
-            
     except Exception as e:
         print(f"❌ Webhook verification error: {e}")
         return False
 
 def get_next_serial_no():
-    """Get next sequential serial number starting from 1111."""
     max_serial = db.session.query(db.func.max(ChallengePurchase.serial_no)).scalar()
     if max_serial is None:
         return 1111
     return max_serial + 1
 
 def generate_challenge_code():
-    """Generate random 6-digit numeric challenge code."""
     while True:
         code = str(random.randint(100000, 999999))
         existing = ChallengePurchase.query.filter_by(challenge_code=code).first()
@@ -269,7 +255,6 @@ def generate_challenge_code():
             return code
 
 def generate_challenge_token():
-    """Generate cryptographically secure random token."""
     while True:
         token = secrets.token_hex(32)
         existing = ChallengePurchase.query.filter_by(challenge_token=token).first()
@@ -284,7 +269,6 @@ def provision_challenge(payment, user, challenge_template_id):
     if not challenge:
         return False, "Challenge template not found"
         
-    # Idempotency check: Don't create if already provisioned for this payment
     if payment.challenge_purchase_id:
         if DEV_MODE:
             print(f"⚠️ Payment {payment.id} already has a challenge assigned: {payment.challenge_purchase_id}")
@@ -304,9 +288,8 @@ def provision_challenge(payment, user, challenge_template_id):
         initial_status = 'funded_active'
         initial_phase = 0
         
-    # Determine initial duration
     if ctype == 'instant':
-        initial_duration = 999  # effectively unlimited or funded phase
+        initial_duration = 999
     else:
         initial_duration = challenge.phase1_duration or 30
 
@@ -330,6 +313,54 @@ def provision_challenge(payment, user, challenge_template_id):
         days_remaining=initial_duration
     )
     
+    # ===== RULE ENGINE FIELD INITIALIZATION =====
+    # Starting balances
+    purchase.starting_balance = float(challenge.account_size)
+    purchase.starting_equity = float(challenge.account_size)
+    purchase.current_balance = float(challenge.account_size)
+    purchase.current_equity = float(challenge.account_size)
+    purchase.peak_equity = float(challenge.account_size)
+    purchase.highest_equity = float(challenge.account_size)
+    
+    # Daily tracking
+    purchase.day_start_equity = float(challenge.account_size)
+    purchase.lowest_equity_today = float(challenge.account_size)
+    purchase.highest_equity_today = float(challenge.account_size)
+    purchase.daily_start_date = datetime.now(timezone.utc).date()
+    
+    # Metrics
+    purchase.profit_percent = 0.0
+    purchase.daily_drawdown = 0.0
+    purchase.overall_drawdown = 0.0
+    purchase.trading_days = 0
+    purchase.risk_score = 0
+    
+    # Monitoring
+    purchase.monitoring_status = 'active'
+    purchase.review_required = False
+    
+    # Phase progression
+    purchase.phase1_completed_at = None
+    purchase.phase2_started_at = None
+    purchase.funded_at = None
+    
+    # Phase tracking fields
+    purchase.phase_start_balance = float(challenge.account_size)
+    purchase.phase_start_equity = float(challenge.account_size)
+    purchase.phase_start_date = datetime.now(timezone.utc)
+    purchase.phase_trading_days = 0
+    purchase.phase_profit_percent = 0.0
+    purchase.phase_daily_drawdown = 0.0
+    purchase.phase_day_start_equity = float(challenge.account_size)
+    purchase.phase_lowest_equity_today = float(challenge.account_size)
+    purchase.phase_daily_start_date = datetime.now(timezone.utc).date()
+    
+    # Distance metrics
+    purchase.distance_to_payout = None
+    purchase.distance_to_breach = None
+    purchase.last_trade_date = None
+    # ===== END RULE ENGINE FIELD INITIALIZATION =====
+    
     purchase.serial_no = get_next_serial_no()
     purchase.challenge_code = generate_challenge_code()
     purchase.challenge_token = generate_challenge_token()
@@ -340,12 +371,12 @@ def provision_challenge(payment, user, challenge_template_id):
     
     if DEV_MODE:
         print(f"[OK] Challenge purchase created: {purchase.id}")
+        print(f"[OK] Rule engine fields initialized with account size: {challenge.account_size}")
         
     return True, purchase.id
 
 # ===== SEED DEFAULT DATA =====
 with app.app_context():
-    # Automatically create tables for any new models (like BlogPost)
     db.create_all()
     
     try:
@@ -377,11 +408,10 @@ with app.app_context():
 
         if not ChallengeTemplate.query.first():
             default_challenges = [
-                ChallengeTemplate(name="Basic Challenge", price=99, account_size=50, phase=1, phase1_target=12.0, phase1_daily_loss=5.0, phase1_overall_loss=8.0, phase1_min_days=4, phase1_duration=30, phase1_leverage="1:100", challenge_type="one_phase", user_profit_share=70, payout_cycle="biweekly", weekend_trading=True, is_active=True, description="Start your trading journey"),
-                ChallengeTemplate(name="Advanced Challenge", price=149, account_size=75, phase=1, phase1_target=12.0, phase1_daily_loss=5.0, phase1_overall_loss=8.0, phase1_min_days=5, phase1_duration=30, phase1_leverage="1:100", challenge_type="one_phase", user_profit_share=75, payout_cycle="biweekly", weekend_trading=True, is_active=True, description="Advanced challenge"),
-                ChallengeTemplate(name="Pro Challenge", price=199, account_size=100, phase=1, phase1_target=12.0, phase1_daily_loss=5.0, phase1_overall_loss=8.0, phase1_min_days=4, phase1_duration=30, phase1_leverage="1:100", challenge_type="one_phase", user_profit_share=70, payout_cycle="biweekly", weekend_trading=True, is_active=True, description="Pro challenge")
+                ChallengeTemplate(name="Basic Challenge", price=99, account_size=100, phase=1, phase1_target=8.0, phase1_daily_loss=5.0, phase1_overall_loss=10.0, phase1_min_days=5, phase1_duration=30, phase1_leverage="1:100", challenge_type="one_phase", user_profit_share=80, payout_cycle="biweekly", weekend_trading=True, is_active=True, description="Start your trading journey"),
+                ChallengeTemplate(name="Advanced Challenge", price=149, account_size=150, phase=1, phase1_target=8.0, phase1_daily_loss=5.0, phase1_overall_loss=10.0, phase1_min_days=5, phase1_duration=30, phase1_leverage="1:100", challenge_type="one_phase", user_profit_share=85, payout_cycle="biweekly", weekend_trading=True, is_active=True, description="Advanced challenge"),
+                ChallengeTemplate(name="Pro Challenge", price=199, account_size=200, phase=1, phase1_target=8.0, phase1_daily_loss=5.0, phase1_overall_loss=10.0, phase1_min_days=5, phase1_duration=30, phase1_leverage="1:100", challenge_type="one_phase", user_profit_share=90, payout_cycle="biweekly", weekend_trading=True, is_active=True, description="Pro challenge")
             ]
-
             for challenge in default_challenges:
                 db.session.add(challenge)
             db.session.commit()
@@ -413,7 +443,6 @@ with app.app_context():
 @app.route('/create-cashfree-order', methods=['POST'])
 @login_required
 def create_cashfree_order():
-    """Create Cashfree order when user clicks 'Proceed to Payment'"""
     if not CASHFREE_APP_ID:
         return jsonify({'success': False, 'error': 'Payment system not configured'})
     
@@ -435,11 +464,7 @@ def create_cashfree_order():
         if user.kyc_status != 'approved':
             return jsonify({'success': False, 'error': 'Please complete KYC verification first'})
         
-        # Calculate expected payable amount on backend.
-        # This is where coupon logic would apply. For now, it's just price.
         expected_payable_amount = float(challenge.price)
-        
-        # Unique Order ID
         internal_order_id = f"ORDER_{user.id}_{int(time.time())}_{secrets.token_hex(4)}"
         
         customer_details = CustomerDetails(
@@ -463,7 +488,6 @@ def create_cashfree_order():
             order_note=f"Challenge: {challenge.name}"
         )
         
-        # Create order in Cashfree
         api_response = Cashfree().PGCreateOrder(x_api_version="2023-08-01", create_order_request=create_order_request)
         order_response = api_response.data
         
@@ -500,7 +524,6 @@ def create_cashfree_order():
 
 @app.route('/cashfree-webhook', methods=['POST'])
 def cashfree_webhook():
-    """Cashfree Webhook - Single Source of Truth"""
     try:
         from models import WebhookLog, Payment, db
         payload = request.get_data().decode('utf-8')
@@ -517,7 +540,6 @@ def cashfree_webhook():
         event_type = data.get('type')
         order_id = data.get('data', {}).get('order', {}).get('order_id')
         
-        # Log incoming webhook
         webhook_log = WebhookLog(
             event_type=event_type,
             order_id=order_id,
@@ -542,13 +564,11 @@ def cashfree_webhook():
                 db.session.commit()
                 return jsonify({'status': 'order not found'}), 200
                 
-            # Idempotency check
             if payment.status in ['paid', 'success']:
                 webhook_log.status = 'duplicate'
                 db.session.commit()
                 return jsonify({'status': 'already processed'}), 200
                 
-            # Strict Amount Validation
             if paid_amount != payment.expected_amount:
                 payment.status = 'failed'
                 webhook_log.status = 'failed'
@@ -563,7 +583,6 @@ def cashfree_webhook():
                 db.session.commit()
                 return jsonify({'status': 'currency mismatch'}), 200
                 
-            # Double check with Cashfree API
             try:
                 api_response = Cashfree().PGOrderFetchPayments(x_api_version="2023-08-01", order_id=order_id)
                 payments_list = api_response.data
@@ -583,12 +602,11 @@ def cashfree_webhook():
                 print(f"Direct verification error: {e}")
                 return jsonify({'status': 'error verifying with API'}), 500
                 
-            # Provisioning
             user = User.query.get(payment.user_id)
             success, msg = provision_challenge(payment, user, payment.challenge_template_id)
             
             if success:
-                payment.status = 'success' # Keep as success for frontend compatibility
+                payment.status = 'success'
                 payment.gateway_id = str(cf_payment_id)
                 payment.gateway_response = json.dumps(data)
                 webhook_log.status = 'processed'
@@ -622,7 +640,6 @@ def cashfree_webhook():
 @app.route('/payment-success')
 @login_required
 def payment_success():
-    """Purely UI route for successful payment return. NO PROVISIONING HERE."""
     order_id = request.args.get('order_id')
     if not order_id:
         flash('Invalid order reference', 'error')
@@ -652,7 +669,6 @@ def payment_success():
 @app.route('/payment/status/<int:payment_id>')
 @login_required
 def payment_status(payment_id):
-    """Show payment status page"""
     payment = Payment.query.get_or_404(payment_id)
     
     current_user = User.query.get(session.get('user_id'))
@@ -673,15 +689,155 @@ def payment_status(payment_id):
 @app.route('/payment/failed')
 @login_required
 def payment_failed():
-    """Show payment failed page"""
     return render_template('user/payment_failed.html', user=User.query.get(session['user_id']))
+
+# ===== RULE ENGINE API ENDPOINTS =====
+
+@app.route('/api/challenge/<int:challenge_id>/metrics')
+@login_required
+def get_challenge_metrics(challenge_id):
+    """API endpoint for dashboard to get real-time metrics"""
+    user_id = session.get('user_id')
+    user = User.query.get(user_id)
+    
+    challenge = ChallengePurchase.query.filter_by(id=challenge_id).first()
+    
+    if not challenge:
+        return jsonify({'error': 'Challenge not found'}), 404
+    
+    # Check access (admin or owner)
+    if challenge.user_id != user_id and not user.is_admin:
+        return jsonify({'error': 'Access denied'}), 403
+    
+    # Helper function to safely round None values
+    def safe_round(value, decimals=2):
+        if value is None:
+            return None
+        try:
+            return round(float(value), decimals)
+        except (TypeError, ValueError):
+            return None
+    
+    return jsonify({
+        'success': True,
+        'challenge_id': challenge.id,
+        'challenge_name': challenge.challenge_template.name if challenge.challenge_template else 'N/A',
+        'metrics': {
+            'profit_percent': safe_round(challenge.profit_percent, 2),
+            'phase_profit_percent': safe_round(challenge.phase_profit_percent, 2),
+            'daily_drawdown': safe_round(challenge.daily_drawdown, 2),
+            'overall_drawdown': safe_round(challenge.overall_drawdown, 2),
+            'trading_days': challenge.trading_days or 0,
+            'phase_trading_days': challenge.phase_trading_days or 0,
+            'days_remaining': challenge.days_remaining or 0,
+            'distance_to_payout': safe_round(challenge.distance_to_payout, 2),
+            'distance_to_breach': safe_round(challenge.distance_to_breach, 2),
+            'risk_score': challenge.risk_score or 0,
+            'status': challenge.status or 'unknown',
+            'monitoring_status': challenge.monitoring_status or 'unknown',
+            'current_balance': safe_round(challenge.current_balance, 2),
+            'current_equity': safe_round(challenge.current_equity, 2),
+            'progress_percentage': safe_round(challenge.progress_percentage, 1)
+        }
+    })
+
+@app.route('/api/challenge/<int:challenge_id>/rules')
+@login_required
+def get_challenge_rules_api(challenge_id):
+    """Get current challenge rules for display"""
+    user_id = session.get('user_id')
+    user = User.query.get(user_id)
+    
+    challenge = ChallengePurchase.query.filter_by(id=challenge_id).first()
+    
+    if not challenge:
+        return jsonify({'error': 'Challenge not found'}), 404
+    
+    if challenge.user_id != user_id and not user.is_admin:
+        return jsonify({'error': 'Access denied'}), 403
+    
+    template = challenge.challenge_template
+    if not template:
+        return jsonify({'error': 'Template not found'}), 404
+    
+    # Get active rules based on phase
+    if challenge.challenge_type == 'two_phase' and challenge.current_phase == 2:
+        rules = {
+            'phase': 'Phase 2',
+            'profit_target': template.phase2_target,
+            'daily_loss': template.phase2_daily_loss,
+            'overall_loss': template.phase2_overall_loss,
+            'min_trading_days': template.phase2_min_days,
+            'duration': template.phase2_duration,
+            'leverage': template.phase2_leverage
+        }
+    elif challenge.challenge_type == 'instant':
+        rules = {
+            'phase': 'Instant Funded',
+            'profit_target': 0,
+            'daily_loss': template.instant_daily_loss,
+            'overall_loss': template.instant_overall_loss,
+            'min_trading_days': template.instant_min_days,
+            'duration': 365,
+            'leverage': template.instant_leverage
+        }
+    else:
+        rules = {
+            'phase': 'Phase 1',
+            'profit_target': template.phase1_target,
+            'daily_loss': template.phase1_daily_loss,
+            'overall_loss': template.phase1_overall_loss,
+            'min_trading_days': template.phase1_min_days,
+            'duration': template.phase1_duration,
+            'leverage': template.phase1_leverage
+        }
+    
+    return jsonify({
+        'success': True,
+        'challenge_type': challenge.challenge_type,
+        'current_phase': challenge.current_phase,
+        'rules': rules
+    })
+
+@app.route('/api/user/challenges/metrics')
+@login_required
+def get_user_all_challenges_metrics():
+    """Get metrics for all user's active challenges"""
+    user_id = session.get('user_id')
+    
+    challenges = ChallengePurchase.query.filter_by(user_id=user_id).all()
+    
+    def safe_round(value, decimals=2):
+        if value is None:
+            return None
+        try:
+            return round(float(value), decimals)
+        except (TypeError, ValueError):
+            return None
+    
+    result = []
+    for challenge in challenges:
+        result.append({
+            'id': challenge.id,
+            'challenge_name': challenge.challenge_template.name if challenge.challenge_template else 'N/A',
+            'profit_percent': safe_round(challenge.profit_percent, 2),
+            'daily_drawdown': safe_round(challenge.daily_drawdown, 2),
+            'overall_drawdown': safe_round(challenge.overall_drawdown, 2),
+            'distance_to_payout': safe_round(challenge.distance_to_payout, 2),
+            'distance_to_breach': safe_round(challenge.distance_to_breach, 2),
+            'status': challenge.status or 'unknown',
+            'days_remaining': challenge.days_remaining or 0
+        })
+    
+    return jsonify({
+        'success': True,
+        'challenges': result
+    })
 
 # ===== MAIN ROUTES =====
 @app.route('/')
 def home():
     return render_template('index.html')
-
-
 
 @app.route('/terms')
 def terms():
@@ -697,7 +853,6 @@ def contact():
 
 @app.route('/faq')
 def faq():
-    # Query all FAQs grouped by category
     faqs = FAQ.query.order_by(FAQ.is_pinned.desc(), FAQ.created_at.desc()).all()
     categories = {}
     for faq in faqs:
@@ -708,7 +863,6 @@ def faq():
 
 @app.route('/help')
 def help_center():
-    # Public help route redirects to login since Help Center is inside dashboard
     flash('Please login to access the Help Center and Ticket system.', 'info')
     return redirect(url_for('auth.login'))
 
@@ -727,7 +881,6 @@ if __name__ == '__main__':
         print(f"Database: {db_url[:60]}...")
         print(f"Template folder: {app.template_folder}")
         print(f"Resend: {'ENABLED' if RESEND_AVAILABLE else 'DISABLED'}")
-        # Cashfree status (Razorpay removed)
         cashfree_enabled = bool(CASHFREE_APP_ID and CASHFREE_SECRET_KEY)
         print(f"Cashfree: {'ENABLED' if cashfree_enabled else 'DISABLED'}")    
         important_templates = ['index.html', 'user/user_dashboard.html', 'login.html', 

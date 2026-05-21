@@ -28,6 +28,14 @@ class KYCStatus:
     
     ALL = [PENDING, SUBMITTED, APPROVED, REJECTED]
 
+class MonitoringStatus:
+    ACTIVE = 'active'
+    OFFLINE = 'offline'
+    UNDER_REVIEW = 'under_review'
+    FLAGGED = 'flagged'
+    
+    ALL = [ACTIVE, OFFLINE, UNDER_REVIEW, FLAGGED]
+
 # ========================================================================
 # MODELS WITH INDEXES AND FIXES
 # ========================================================================
@@ -66,16 +74,16 @@ class User(db.Model):
     
     # Phone OTP Fields
     phone_verification_code = db.Column(db.String(6))
-    phone_verification_sent_at = db.Column(db.Float)  # Unix timestamp
+    phone_verification_sent_at = db.Column(db.Float)
     phone_verification_attempts = db.Column(db.Integer, default=0)
     
     # Security fields for balance manipulation detection
     last_balance_check = db.Column(db.DateTime(timezone=True), default=None)
-    balance_check_hash = db.Column(db.String(64), default='')  # For detecting balance changes
+    balance_check_hash = db.Column(db.String(64), default='')
     
     # Personalization & Levels
     trading_alias = db.Column(db.String(50), default='')
-    trader_level = db.Column(db.String(50), default='Starter')  # Starter, Consistent, Funded Partner
+    trader_level = db.Column(db.String(50), default='Starter')
     is_compact_view = db.Column(db.Boolean, default=False)
 
     # Relationships
@@ -115,7 +123,6 @@ class User(db.Model):
         return status_map.get(self.kyc_status, 'Not Started')
     
     def get_full_name(self):
-
         return f"{self.first_name} {self.last_name}"
     
     def __repr__(self):
@@ -127,7 +134,7 @@ class ChallengeTemplate(db.Model):
     name = db.Column(db.String(100), nullable=False, index=True)
     price = db.Column(db.Integer, nullable=False)
     account_size = db.Column(db.Integer, nullable=False)
-    phase = db.Column(db.Integer, nullable=False, default=1) # legacy
+    phase = db.Column(db.Integer, nullable=False, default=1)
 
     # Phase 1 Rules
     phase1_target = db.Column(db.Float, nullable=True)
@@ -213,7 +220,7 @@ class TradingJourney(db.Model):
     # Purchase Details
     purchase_date = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
     amount = db.Column(db.Float, nullable=False, default=0.0)
-    payment_method = db.Column(db.String(50))  # razorpay, dev-bypass, etc.
+    payment_method = db.Column(db.String(50))
     
     # MT5 Credentials Fields
     mt5_server = db.Column(db.String(200), nullable=True)
@@ -242,9 +249,51 @@ class TradingJourney(db.Model):
     starting_equity = db.Column(db.Float, default=0.0)
     current_balance = db.Column(db.Float, default=0.0)
     current_equity = db.Column(db.Float, default=0.0)
-    peak_equity = db.Column(db.Float, default=0.0)  # For max DD calculation
-    daily_start_equity = db.Column(db.Float, default=0.0)  # For daily DD
-    daily_start_date = db.Column(db.Date, nullable=True, index=True)  # UTC date for day tracking
+    peak_equity = db.Column(db.Float, default=0.0)
+    daily_start_equity = db.Column(db.Float, default=0.0)
+    daily_start_date = db.Column(db.Date, nullable=True, index=True)
+    
+    # NEW: Additional metrics for rule engine
+    highest_equity = db.Column(db.Float, default=0.0)  # All-time highest equity
+    daily_drawdown = db.Column(db.Float, default=0.0)  # Current day's drawdown %
+    overall_drawdown = db.Column(db.Float, default=0.0)  # Overall drawdown from peak %
+    profit_percent = db.Column(db.Float, default=0.0)  # Current profit percentage
+    trading_days = db.Column(db.Integer, default=0)  # Number of days traded
+    lowest_equity_today = db.Column(db.Float, nullable=True)  # Lowest equity for current day
+    highest_equity_today = db.Column(db.Float, nullable=True)  # Highest equity for current day
+    day_start_equity = db.Column(db.Float, nullable=True)  # Equity at start of current day
+    
+    # NEW: Risk and monitoring
+    risk_score = db.Column(db.Integer, default=0)  # 0-100 risk score
+    monitoring_status = db.Column(db.String(30), default=MonitoringStatus.ACTIVE)  # active, offline, under_review, flagged
+    review_required = db.Column(db.Boolean, default=False)  # Admin review flag
+    
+    # NEW: Phase progression tracking
+    phase1_completed_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    phase2_started_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    funded_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    
+    # ===== NEW FIELDS FOR PHASE TRACKING (Preserves lifetime stats) =====
+    # Phase tracking (preserves lifetime stats)
+    phase_start_balance = db.Column(db.Float, default=0.0)
+    phase_start_equity = db.Column(db.Float, default=0.0)
+    phase_start_date = db.Column(db.DateTime(timezone=True), nullable=True)
+    phase_trading_days = db.Column(db.Integer, default=0)
+    phase_profit_percent = db.Column(db.Float, default=0.0)
+
+    # Phase daily tracking
+    phase_daily_drawdown = db.Column(db.Float, default=0.0)
+    phase_day_start_equity = db.Column(db.Float, default=0.0)
+    phase_lowest_equity_today = db.Column(db.Float, default=0.0)
+    phase_daily_start_date = db.Column(db.Date, nullable=True)
+
+    # Distance metrics
+    distance_to_payout = db.Column(db.Float, nullable=True)
+    distance_to_breach = db.Column(db.Float, nullable=True)
+
+    # Last trade date
+    last_trade_date = db.Column(db.Date, nullable=True)
+    # ===== END NEW FIELDS =====
     
     # CRITICAL FIX: Tracker for balance manipulation detection
     last_verified_balance = db.Column(db.Float, default=0.0)
@@ -290,6 +339,10 @@ class TradingJourney(db.Model):
     ea_trades = db.relationship('EATrade', backref='challenge', lazy=True, cascade='all, delete-orphan')
     rule_violations = db.relationship('RuleViolation', backref='challenge', lazy=True, cascade='all, delete-orphan')
     
+    # NEW: Rule engine relationships
+    rule_logs = db.relationship('RuleLog', backref='challenge', lazy=True, cascade='all, delete-orphan')
+    trade_history = db.relationship('TradeHistory', backref='challenge', lazy=True, cascade='all, delete-orphan')
+    
     # Simple methods only - business logic goes in engine
     def is_active(self):
         return self.status == ChallengeStatus.ACTIVE
@@ -314,6 +367,19 @@ class TradingJourney(db.Model):
         self.mt5_password = password
         self.credentials_assigned_at = datetime.now(timezone.utc)
         self.status = ChallengeStatus.ACTIVE
+        self.monitoring_status = MonitoringStatus.ACTIVE
+        
+        # Initialize phase tracking on first assignment
+        if self.phase_start_balance == 0:
+            self.phase_start_balance = float(self.current_balance) if self.current_balance else float(self.starting_balance)
+            self.phase_start_equity = float(self.current_equity) if self.current_equity else float(self.starting_equity)
+            self.phase_start_date = datetime.now(timezone.utc)
+            self.phase_trading_days = 0
+            self.phase_profit_percent = 0.0
+            self.phase_daily_drawdown = 0.0
+            self.phase_day_start_equity = float(self.current_equity) if self.current_equity else float(self.starting_equity)
+            self.phase_lowest_equity_today = float(self.current_equity) if self.current_equity else float(self.starting_equity)
+            self.phase_daily_start_date = datetime.now(timezone.utc).date()
         
         # Generate challenge token if not provided
         if challenge_token:
@@ -355,7 +421,18 @@ class TradingJourney(db.Model):
             'max_drawdown_used': self.max_drawdown_used,
             'current_profit': self.current_profit,
             'trading_days_completed': self.trading_days_completed,
-            'status': self.status
+            'status': self.status,
+            # NEW fields
+            'profit_percent': self.profit_percent,
+            'daily_drawdown': self.daily_drawdown,
+            'overall_drawdown': self.overall_drawdown,
+            'risk_score': self.risk_score,
+            'monitoring_status': self.monitoring_status,
+            # Phase fields
+            'phase_profit_percent': self.phase_profit_percent,
+            'phase_trading_days': self.phase_trading_days,
+            'distance_to_payout': self.distance_to_payout,
+            'distance_to_breach': self.distance_to_breach
         }
     
     def __repr__(self):
@@ -363,6 +440,92 @@ class TradingJourney(db.Model):
 
 # Alias for backward compatibility
 ChallengePurchase = TradingJourney
+
+
+# ========================================================================
+# NEW MODELS FOR RULE ENGINE
+# ========================================================================
+
+class RuleLog(db.Model):
+    """Stores every rule check and violation for audit trail"""
+    __tablename__ = 'rule_logs'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    challenge_id = db.Column(db.Integer, db.ForeignKey('challenge_purchase.id'), nullable=False, index=True)
+    
+    # Rule details
+    rule_name = db.Column(db.String(100), nullable=False, index=True)
+    severity = db.Column(db.String(20), default='info', index=True)  # info, warning, violation, critical
+    
+    # Message and values
+    message = db.Column(db.Text, nullable=False)
+    current_value = db.Column(db.Float, nullable=True)
+    threshold_value = db.Column(db.Float, nullable=True)
+    
+    # Context
+    additional_data = db.Column(db.JSON, nullable=True)  # Store extra context as JSON
+    
+    # Timestamps
+    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
+    
+    # Indexes
+    __table_args__ = (
+        Index('idx_rulelog_challenge_rule', 'challenge_id', 'rule_name'),
+        Index('idx_rulelog_severity_date', 'severity', 'created_at'),
+    )
+    
+    def __repr__(self):
+        return f'<RuleLog {self.rule_name} - {self.severity}>'
+
+
+class TradeHistory(db.Model):
+    """Simplified trade history from EA data"""
+    __tablename__ = 'trade_history'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    challenge_id = db.Column(db.Integer, db.ForeignKey('challenge_purchase.id'), nullable=False, index=True)
+    
+    # Trade identification
+    ticket = db.Column(db.BigInteger, nullable=False)
+    symbol = db.Column(db.String(20), nullable=False)
+    
+    # Trade details
+    lots = db.Column(db.Float, nullable=False)
+    open_price = db.Column(db.Float, nullable=False)
+    close_price = db.Column(db.Float, nullable=True)
+    profit = db.Column(db.Float, default=0.0)
+    sl = db.Column(db.Float, default=0.0)
+    tp = db.Column(db.Float, default=0.0)
+    
+    # Timestamps
+    open_time = db.Column(db.DateTime(timezone=True), nullable=False, index=True)
+    close_time = db.Column(db.DateTime(timezone=True), nullable=True, index=True)
+    
+    # Status
+    is_open = db.Column(db.Boolean, default=True, index=True)
+    
+    # Metadata
+    magic_number = db.Column(db.BigInteger, default=0)
+    comment = db.Column(db.String(200), nullable=True)
+    
+    # Timestamps
+    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    
+    # Constraints
+    __table_args__ = (
+        db.UniqueConstraint('challenge_id', 'ticket', name='unique_challenge_ticket_history'),
+        Index('idx_tradehistory_challenge_open', 'challenge_id', 'is_open'),
+        Index('idx_tradehistory_close_date', 'close_time'),
+    )
+    
+    def __repr__(self):
+        return f'<TradeHistory {self.ticket} - {self.symbol}>'
+
+
+# ========================================================================
+# EXISTING MODELS (unchanged below)
+# ========================================================================
 
 class AccountSnapshot(db.Model):
     """Store every heartbeat from EA"""
@@ -385,7 +548,7 @@ class AccountSnapshot(db.Model):
     equity = db.Column(db.Float, nullable=False)
     free_margin = db.Column(db.Float, default=0.0)
     margin_used = db.Column(db.Float, default=0.0)
-    credit = db.Column(db.Float, default=0.0)  # For bonus abuse detection
+    credit = db.Column(db.Float, default=0.0)
     leverage = db.Column(db.Integer)
     currency = db.Column(db.String(10), default='USD')
     
@@ -419,7 +582,7 @@ class EATrade(db.Model):
     # Trade Identifiers
     ticket = db.Column(db.BigInteger, nullable=False, index=True)
     symbol = db.Column(db.String(20), nullable=False, index=True)
-    trade_type = db.Column(db.Integer, nullable=False)  # 0=BUY, 1=SELL
+    trade_type = db.Column(db.Integer, nullable=False)
     
     # Trade Details
     lots = db.Column(db.Float, nullable=False)
@@ -487,11 +650,11 @@ class RuleViolation(db.Model):
     snapshot_id = db.Column(db.Integer, db.ForeignKey('account_snapshot.id'), nullable=True)
     
     # Severity
-    severity = db.Column(db.String(20), default='hard_fail', index=True)  # hard_fail, warning, info
+    severity = db.Column(db.String(20), default='hard_fail', index=True)
     is_hard_fail = db.Column(db.Boolean, default=True, index=True)
     
     # Action taken
-    action_taken = db.Column(db.String(50), default='logged')  # logged, failed_challenge, warned, etc.
+    action_taken = db.Column(db.String(50), default='logged')
     
     # Timestamps
     violated_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
@@ -553,10 +716,6 @@ class DailySnapshot(db.Model):
     def __repr__(self):
         return f'<DailySnapshot {self.snapshot_date} - Challenge {self.challenge_purchase_id}>'
 
-
-# ========================================================================
-# EXISTING MODELS (OPTIMIZED)
-# ========================================================================
 
 class Payout(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -647,7 +806,7 @@ class WebhookLog(db.Model):
     signature = db.Column(db.String(500))
     
     # Processing Status
-    status = db.Column(db.String(50), default='pending', index=True) # pending, processed, failed, duplicate
+    status = db.Column(db.String(50), default='pending', index=True)
     error_message = db.Column(db.Text)
     
     # Timestamps
@@ -672,6 +831,7 @@ class AdminLog(db.Model):
     
     def __repr__(self):
         return f'<AdminLog {self.action} by {self.admin_id}>'
+
 
 class AdminAuditLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -748,7 +908,6 @@ class FAQ(db.Model):
 
     def __repr__(self):
         return f'<FAQ {self.question[:30]}>'
-
 
 
 class Trade(db.Model):
@@ -843,4 +1002,11 @@ class BlogPost(db.Model):
     date_published = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
 
     def __repr__(self):
-        return f'<BlogPost {self.title}>'
+        return f'<BlogPost {self.title}>'
+
+
+
+
+
+
+

@@ -1,0 +1,274 @@
+{% extends "user/base.html" %}
+
+{% block title %}Trading Analytics | Tragene Funded{% endblock %}
+{% block header_title %}Trading Analytics{% endblock %}
+{% block header_subtitle %}Real-time performance metrics for your funded challenges{% endblock %}
+
+{% block head %}
+<style>
+.analytics-container { max-width: 1400px; margin: 0 auto; }
+.analytics-stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-bottom: 32px; }
+.analytics-stat-card { background: rgba(255,255,255,0.85); backdrop-filter: blur(10px); border-radius: 20px; padding: 20px; border: 1px solid rgba(59,130,246,0.15); box-shadow: 0 4px 20px rgba(0,0,0,0.05); transition: all 0.3s ease; }
+.dark .analytics-stat-card { background: rgba(30,41,59,0.75); border-color: rgba(96,165,250,0.2); }
+.stat-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.stat-title { color: #4b5563; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
+.dark .stat-title { color: #94a3b8; }
+.stat-icon { width: 40px; height: 40px; background: rgba(96,165,250,0.15); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: #60a5fa; font-size: 20px; }
+.stat-value { font-size: 32px; font-weight: 700; color: #0f172a; margin-bottom: 8px; }
+.dark .stat-value { color: #f8fafc; }
+.stat-sub { font-size: 12px; color: #6b7280; }
+.positive { color: #10b981; }
+.negative { color: #ef4444; }
+.warning { color: #f59e0b; }
+.challenges-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 24px; }
+.challenge-card { background: rgba(255,255,255,0.85); backdrop-filter: blur(10px); border-radius: 20px; overflow: hidden; border: 1px solid rgba(59,130,246,0.15); box-shadow: 0 4px 20px rgba(0,0,0,0.05); transition: all 0.3s ease; }
+.dark .challenge-card { background: rgba(30,41,59,0.75); border-color: rgba(96,165,250,0.2); }
+.challenge-card.flagged { border-color: #f59e0b !important; box-shadow: 0 0 0 2px rgba(245,158,11,0.2), 0 4px 20px rgba(0,0,0,0.1) !important; }
+.challenge-card.under_review { border-color: #f59e0b !important; box-shadow: 0 0 0 2px rgba(245,158,11,0.2) !important; }
+.card-header { padding: 20px; background: linear-gradient(135deg, rgba(59,130,246,0.08), rgba(59,130,246,0.03)); border-bottom: 1px solid rgba(59,130,246,0.15); display: flex; justify-content: space-between; align-items: center; }
+.dark .card-header { background: linear-gradient(135deg, rgba(96,165,250,0.1), rgba(59,130,246,0.05)); border-bottom-color: rgba(96,165,250,0.2); }
+.challenge-name { font-size: 18px; font-weight: 700; color: #0f172a; }
+.dark .challenge-name { color: white; }
+.status-badge { padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
+.status-active { background: rgba(16,185,129,0.2); color: #10b981; border: 1px solid rgba(16,185,129,0.3); }
+.status-flagged { background: rgba(245,158,11,0.2); color: #f59e0b; border: 1px solid rgba(245,158,11,0.4); }
+.status-under_review { background: rgba(245,158,11,0.2); color: #f59e0b; border: 1px solid rgba(245,158,11,0.4); }
+.status-passed { background: rgba(16,185,129,0.2); color: #10b981; border: 1px solid rgba(16,185,129,0.3); }
+.status-pending { background: rgba(245,158,11,0.15); color: #f59e0b; border: 1px solid rgba(245,158,11,0.3); }
+
+/* BIG FLAG BANNER */
+.flag-banner { margin: 0; padding: 14px 20px; background: linear-gradient(135deg, rgba(245,158,11,0.15), rgba(239,68,68,0.1)); border-bottom: 1px solid rgba(245,158,11,0.4); display: flex; align-items: flex-start; gap-12px; }
+.flag-banner-icon { font-size: 22px; color: #f59e0b; flex-shrink: 0; margin-right: 12px; margin-top: 1px; }
+.flag-banner-title { font-size: 13px; font-weight: 700; color: #b45309; margin-bottom: 2px; }
+.dark .flag-banner-title { color: #fbbf24; }
+.flag-banner-msg { font-size: 12px; color: #92400e; line-height: 1.4; }
+.dark .flag-banner-msg { color: #fcd34d; }
+
+.card-body { padding: 20px; }
+.metric-row { display: flex; justify-content: space-between; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid rgba(0,0,0,0.05); }
+.dark .metric-row { border-bottom-color: rgba(255,255,255,0.05); }
+.metric-label { color: #4b5563; font-size: 13px; }
+.dark .metric-label { color: #9ca3af; }
+.metric-value { font-weight: 600; color: #111827; }
+.dark .metric-value { color: white; }
+.progress-container { margin-top: 16px; }
+.progress-label { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 6px; color: #6b7280; }
+.dark .progress-label { color: #9ca3af; }
+.progress-bar { height: 8px; background: rgba(0,0,0,0.08); border-radius: 10px; overflow: hidden; }
+.dark .progress-bar { background: rgba(255,255,255,0.1); }
+.progress-fill { height: 100%; border-radius: 10px; transition: width 0.5s ease; }
+.fill-green { background: linear-gradient(90deg, #10b981, #34d399); }
+.fill-orange { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+.fill-red { background: linear-gradient(90deg, #ef4444, #f87171); }
+.small-stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 12px; }
+.small-stat { text-align: center; padding: 10px; background: rgba(59,130,246,0.04); border-radius: 12px; }
+.dark .small-stat { background: rgba(255,255,255,0.03); }
+.small-stat-label { font-size: 11px; color: #6b7280; margin-bottom: 4px; }
+.small-stat-value { font-size: 15px; font-weight: 600; color: #1f2937; }
+.dark .small-stat-value { color: white; }
+.card-footer { padding: 12px 20px; background: rgba(0,0,0,0.02); display: flex; justify-content: space-between; font-size: 12px; color: #4b5563; border-top: 1px solid rgba(0,0,0,0.05); }
+.dark .card-footer { background: rgba(0,0,0,0.2); color: #9ca3af; border-top: none; }
+.section-title { font-size: 20px; font-weight: 600; margin-bottom: 20px; color: #1f2937; display: flex; align-items: center; gap: 10px; }
+.dark .section-title { color: #f8fafc; }
+.loading { text-align: center; padding: 60px; color: #4b5563; }
+.dark .loading { color: #9ca3af; }
+.loading i { font-size: 40px; animation: spin 1s linear infinite; }
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+.refresh-btn { background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.2); padding: 10px 20px; border-radius: 12px; color: #2563eb; cursor: pointer; transition: all 0.3s ease; font-size: 14px; font-weight: 500; }
+.dark .refresh-btn { background: rgba(96,165,250,0.15); border-color: rgba(96,165,250,0.3); color: #60a5fa; }
+.refresh-btn:hover { background: rgba(59,130,246,0.2); transform: translateY(-1px); }
+.empty-state { text-align: center; padding: 60px; background: rgba(255,255,255,0.5); border-radius: 20px; border: 1px dashed rgba(59,130,246,0.2); }
+.dark .empty-state { background: rgba(15,25,45,0.5); border-color: rgba(96,165,250,0.2); }
+.empty-state i { font-size: 48px; color: #9ca3af; margin-bottom: 16px; }
+@media (max-width: 768px) { .analytics-stats-grid { grid-template-columns: 1fr; gap: 12px; } .challenges-grid { grid-template-columns: 1fr; } .stat-value { font-size: 28px; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="lg:hidden mb-6 flex justify-between items-center flex-wrap gap-4">
+    <div>
+        <h2 class="text-xl font-bold text-gray-900 dark:text-white"><i class="fas fa-chart-line mr-2 text-blue-500"></i>Trading Analytics</h2>
+        <p class="text-xs text-gray-500 dark:text-gray-400">Real-time performance metrics</p>
+    </div>
+    <button class="refresh-btn" onclick="refreshAllData()"><i class="fas fa-sync-alt"></i> Refresh</button>
+</div>
+<div class="hidden lg:flex justify-end mb-6">
+    <button class="refresh-btn" onclick="refreshAllData()"><i class="fas fa-sync-alt mr-2"></i>Refresh Data</button>
+</div>
+
+<div class="analytics-container">
+    <div id="loadingState" class="loading">
+        <i class="fas fa-spinner"></i>
+        <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Loading your trading data...</p>
+    </div>
+    <div id="dashboardContent" style="display:none;">
+        <div class="analytics-stats-grid" id="statsGrid"></div>
+        <div class="section-title text-gray-900 dark:text-white mb-6 mt-8">
+            <i class="fas fa-trophy mr-2 text-blue-500"></i><span>Your Challenges</span>
+        </div>
+        <div class="challenges-grid" id="challengesGrid"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const API_BASE = window.location.origin;
+
+async function fetchAllChallenges() {
+    try {
+        const r = await fetch(`${API_BASE}/api/user/challenges/metrics`, { credentials: 'include', headers: { 'Accept': 'application/json' } });
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const d = await r.json();
+        return d.success ? d.challenges : [];
+    } catch (e) { console.error(e); return []; }
+}
+
+function renderStats(challenges) {
+    // Only count non-failed challenges for stats
+    const active = challenges.filter(c => !['failed'].includes(c.status));
+    let totalProfit = 0, totalDD = 0, totalDays = 0, bestProfit = -999, activeCount = 0;
+    active.forEach(ch => {
+        const p = ch.profit_percent || 0;
+        totalProfit += p;
+        totalDD += ch.overall_drawdown || 0;
+        totalDays += ch.trading_days || 0;
+        if (p > bestProfit) bestProfit = p;
+        if (['active','phase1_active','phase2_active','flagged','under_review'].includes(ch.status)) activeCount++;
+    });
+    if (bestProfit === -999) bestProfit = 0;
+    const avgProfit = active.length > 0 ? (totalProfit / active.length).toFixed(2) : 0;
+    const avgDD = active.length > 0 ? (totalDD / active.length).toFixed(1) : 0;
+
+    document.getElementById('statsGrid').innerHTML = `
+        <div class="analytics-stat-card">
+            <div class="stat-header"><span class="stat-title">Active Challenges</span><div class="stat-icon"><i class="fas fa-chart-simple"></i></div></div>
+            <div class="stat-value">${activeCount}</div>
+            <div class="stat-sub">${active.length} total (excl. failed)</div>
+        </div>
+        <div class="analytics-stat-card">
+            <div class="stat-header"><span class="stat-title">Avg. Profit</span><div class="stat-icon"><i class="fas fa-chart-line"></i></div></div>
+            <div class="stat-value ${avgProfit >= 0 ? 'positive' : 'negative'}">${avgProfit > 0 ? '+' : ''}${avgProfit}%</div>
+            <div class="stat-sub">Best: ${bestProfit > 0 ? '+' : ''}${bestProfit.toFixed(2)}%</div>
+        </div>
+        <div class="analytics-stat-card">
+            <div class="stat-header"><span class="stat-title">Total Trading Days</span><div class="stat-icon"><i class="fas fa-calendar-alt"></i></div></div>
+            <div class="stat-value">${totalDays}</div>
+            <div class="stat-sub">Across active challenges</div>
+        </div>
+        <div class="analytics-stat-card">
+            <div class="stat-header"><span class="stat-title">Avg Drawdown</span><div class="stat-icon"><i class="fas fa-shield-alt"></i></div></div>
+            <div class="stat-value ${avgDD > 5 ? 'warning' : ''}">${avgDD}%</div>
+            <div class="stat-sub">Overall risk exposure</div>
+        </div>`;
+}
+
+function renderChallenges(challenges) {
+    // ONLY show non-failed challenges — failed go to history page
+    const visible = challenges.filter(c => c.status !== 'failed');
+    const container = document.getElementById('challengesGrid');
+
+    if (!visible.length) {
+        container.innerHTML = `<div class="empty-state"><i class="fas fa-folder-open"></i><h3>No Active Challenges</h3><p style="color:#9ca3af;margin-top:8px;">Purchase a challenge to start your trading journey</p><button onclick="window.location.href='/user/challenges'" style="margin-top:20px;padding:10px 24px;background:linear-gradient(135deg,#3b82f6,#2563eb);border:none;border-radius:12px;color:white;cursor:pointer;">Buy Challenge</button></div>`;
+        return;
+    }
+
+    container.innerHTML = visible.map(ch => {
+        const profit = ch.profit_percent || 0;
+        const profitSign = profit > 0 ? '+' : '';
+        const profitClass = profit >= 0 ? 'positive' : 'negative';
+        const dailyDD = ch.daily_drawdown || 0;
+        const overallDD = ch.overall_drawdown || 0;
+        const daysLeft = ch.days_remaining || 0;
+        const tradingDays = ch.trading_days || 0;
+        const profitTarget = ch.profit_target || 8;
+        const progress = profit > 0 ? Math.min(100, Math.round((profit / profitTarget) * 100)) : 0;
+        const progressColor = profit < 0 ? 'fill-red' : profit < profitTarget * 0.5 ? 'fill-orange' : 'fill-green';
+
+        const isFlagged = ch.status === 'flagged' || ch.status === 'under_review';
+        const statusMap = {
+            'active': ['status-active', 'Active'],
+            'phase1_active': ['status-active', 'Phase 1'],
+            'phase2_active': ['status-active', 'Phase 2'],
+            'flagged': ['status-flagged', '⚠ Flagged'],
+            'under_review': ['status-under_review', '🔍 Under Review'],
+            'passed': ['status-passed', '✓ Passed'],
+            'pending_credentials': ['status-pending', 'Pending'],
+        };
+        const [statusClass, statusText] = statusMap[ch.status] || ['status-active', ch.status];
+
+        // Flag banner shown when flagged or under review
+        const flagBanner = isFlagged ? `
+            <div class="flag-banner">
+                <i class="fas fa-exclamation-triangle flag-banner-icon"></i>
+                <div>
+                    <div class="flag-banner-title">⚠️ Your Account is Flagged — Under Review</div>
+                    <div class="flag-banner-msg">${ch.violation_reason || 'A suspicious activity was detected on your account.'} Our team is reviewing this. You may continue trading but your account is under scrutiny. Do not attempt any further violations.</div>
+                </div>
+            </div>` : '';
+
+        return `
+        <div class="challenge-card ${isFlagged ? 'flagged' : ''}">
+            <div class="card-header">
+                <span class="challenge-name">${ch.challenge_name || 'Challenge'}</span>
+                <span class="status-badge ${statusClass}">${statusText}</span>
+            </div>
+            ${flagBanner}
+            <div class="card-body">
+                <div class="metric-row">
+                    <span class="metric-label">Profit / Target</span>
+                    <span class="metric-value ${profitClass}">${profitSign}${profit.toFixed(2)}% / ${profitTarget}%</span>
+                </div>
+                <div class="progress-container">
+                    <div class="progress-label"><span>Progress to Target</span><span>${progress}%</span></div>
+                    <div class="progress-bar"><div class="progress-fill ${progressColor}" style="width:${progress}%"></div></div>
+                </div>
+                <div class="small-stats">
+                    <div class="small-stat">
+                        <div class="small-stat-label">Daily DD</div>
+                        <div class="small-stat-value ${dailyDD > 4 ? 'warning' : ''}">${dailyDD.toFixed(2)}% / ${ch.daily_loss_limit || 5}%</div>
+                    </div>
+                    <div class="small-stat">
+                        <div class="small-stat-label">Overall DD</div>
+                        <div class="small-stat-value ${overallDD > 8 ? 'warning' : ''}">${overallDD.toFixed(2)}% / ${ch.overall_loss_limit || 10}%</div>
+                    </div>
+                    <div class="small-stat">
+                        <div class="small-stat-label">Trading Days</div>
+                        <div class="small-stat-value">${tradingDays} / ${ch.min_trading_days || 5}</div>
+                    </div>
+                    <div class="small-stat">
+                        <div class="small-stat-label">Days Left</div>
+                        <div class="small-stat-value ${daysLeft < 5 ? 'warning' : ''}">${daysLeft}</div>
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer">
+                <span><i class="fas fa-circle ${isFlagged ? 'text-yellow-500' : 'text-green-500'}"></i> ${isFlagged ? 'Flagged for review' : 'Live tracking'}</span>
+                <span><i class="fas fa-clock"></i> ${ch.last_updated ? new Date(ch.last_updated).toLocaleTimeString() : 'Just now'}</span>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+async function refreshAllData() {
+    document.getElementById('loadingState').style.display = 'block';
+    document.getElementById('dashboardContent').style.display = 'none';
+    try {
+        const challenges = await fetchAllChallenges();
+        renderStats(challenges);
+        renderChallenges(challenges);
+        document.getElementById('loadingState').style.display = 'none';
+        document.getElementById('dashboardContent').style.display = 'block';
+    } catch (e) {
+        document.getElementById('loadingState').innerHTML = `<i class="fas fa-exclamation-triangle" style="color:#ef4444"></i><p class="mt-2 text-sm text-red-500">Failed to load. <button onclick="refreshAllData()" style="padding:6px 16px;background:#3b82f6;border:none;border-radius:8px;color:white;cursor:pointer;margin-top:12px">Retry</button></p>`;
+    }
+}
+
+let refreshInterval;
+function startAutoRefresh() {
+    if (refreshInterval) clearInterval(refreshInterval);
+    refreshInterval = setInterval(refreshAllData, 30000);
+}
+document.addEventListener('DOMContentLoaded', () => { refreshAllData(); startAutoRefresh(); });
+</script>
+{% endblock %}

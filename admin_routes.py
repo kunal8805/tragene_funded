@@ -640,10 +640,10 @@ def admin_verify_phone(user_id):
     db.session.commit()
     flash(f'Phone number for {user.email} marked as verified.', 'success')
     return redirect(request.referrer or url_for('admin.admin_users'))
+
 @admin_bp.route('/bulk_action', methods=['POST'])
 @admin_required
 def admin_bulk_action():
-
     user_ids = request.form.getlist('user_ids')
     action = request.form.get('action')
     
@@ -729,14 +729,6 @@ def admin_api_payments():
     if method != 'all':
         query = query.filter(Payment.payment_method.ilike(f'%{method}%'))
         
-    if refund != 'all':
-        if refund == 'eligible':
-            pass  # refund filter removed
-        elif refund == 'refunded':
-            pass  # refund filter removed
-        elif refund == 'not_eligible':
-            pass  # refund filter removed
-            
     if date_filter:
         try:
             target_date = datetime.strptime(date_filter, '%Y-%m-%d').date()
@@ -816,7 +808,6 @@ def admin_settings():
 @admin_required
 def api_users():
     """Return paginated JSON for admin users list with filters."""
-    # Pagination params
     try:
         page = max(int(request.args.get('page', 1)), 1)
     except (ValueError, TypeError):
@@ -828,19 +819,15 @@ def api_users():
         per_page = 20
         
     search = request.args.get('search', '').strip()
-    # Base query
     query = User.query
-    # Search across multiple fields if provided
     if search:
         like = f"%{search}%"
-        # Safe fallback if attributes don't exist
         query = query.filter(
             (User.first_name.ilike(like)) |
             (User.last_name.ilike(like)) |
             (User.email.ilike(like)) |
             (User.phone.ilike(like))
         )
-    # Account status filter
     account_status = request.args.get('account_status', 'all')
     if account_status != 'all':
         if account_status == 'active':
@@ -850,19 +837,16 @@ def api_users():
         elif account_status == 'new':
             week_ago = datetime.now(timezone.utc) - timedelta(days=7)
             query = query.filter(User.created_at >= week_ago)
-    # KYC status filter
     kyc_status = request.args.get('kyc_status', 'all')
     if kyc_status != 'all':
         query = query.filter(User.kyc_status == kyc_status)
         
-    # Sorting
     sort = request.args.get('sort', 'newest')
     if sort == 'oldest':
         query = query.order_by(User.created_at.asc())
-    else:  # newest (default)
+    else:
         query = query.order_by(User.created_at.desc())
         
-    # Pagination
     pagination = query.paginate(page=page, per_page=per_page, error_out=False)
     users_data = []
     for u in pagination.items:
@@ -900,18 +884,16 @@ def admin_user_detail(user_id):
     user = User.query.get(user_id)
     if not user:
         abort(404)
-    # Safely fetch related data using hasattr or getattr
     challenges = getattr(user, 'challenge_purchases', []) if hasattr(user, 'challenge_purchases') else []
     payments = getattr(user, 'payments', []) if hasattr(user, 'payments') else []
     support_tickets = getattr(user, 'support_tickets', []) if hasattr(user, 'support_tickets') else []
     payouts = getattr(user, 'payouts', []) if hasattr(user, 'payouts') else []
     
-    # Calculate financial stats
     total_spent = sum(p.amount for p in payments if p.status.upper() == 'SUCCESS')
     total_purchases = len([p for p in payments if p.status.upper() == 'SUCCESS'])
     total_payouts = sum(p.amount for p in payouts if p.status.upper() == 'SUCCESS' or p.status.upper() == 'PAID')
     
-    referrals = []  # Placeholder; will be populated if referral system exists
+    referrals = []
     return render_template('admin/user_detail.html', user=user,
                            challenges=challenges, payments=payments,
                            support_tickets=support_tickets, referrals=referrals,
@@ -961,15 +943,9 @@ def admin_mark_refund(payment_id):
     from models import Payment, AdminAuditLog
     payment = Payment.query.get_or_404(payment_id)
     
-    if False:  # refund not implemented
-        return jsonify({'success': False, 'message': 'Already marked eligible.'})
-        
     if payment.status.lower() != 'success':
         return jsonify({'success': False, 'message': 'Cannot refund failed payment.'})
         
-    pass  # refund not implemented
-    pass  # refund not implemented
-    
     audit = AdminAuditLog(
         admin_id=session.get('user_id'),
         action='marked_refund_eligible',
@@ -989,39 +965,8 @@ def refund_payment(payment_id):
     from models import Payment, AdminAuditLog
     payment = Payment.query.get_or_404(payment_id)
     
-    if True:  # refund not implemented
-        return jsonify({'success': False, 'message': 'Payment must be marked eligible first.'})
-        
-    if False:  # refund not implemented
-        return jsonify({'success': False, 'message': 'Payment is already refunded.'})
-        
-    if payment.status.lower() != 'success':
-        return jsonify({'success': False, 'message': 'Payment was not successful.'})
-        
-    if payment.amount and payment.amount <= 0:
-        if payment.amount <= 0:
-            return jsonify({'success': False, 'message': 'Payment amount is 0.'})
-            
-    # Mock Cashfree refund API logic here
-    # In production, this would call Cashfree APIs via Celery
-    
-    pass  # refund not implemented
-    pass  # refund not implemented
-    payment.refund_verified_by = session.get('user_id')
-    payment.status = 'refunded'
-    
-    audit = AdminAuditLog(
-        admin_id=session.get('user_id'),
-        action='executed_refund',
-        payment_id=payment.id,
-        old_value='none',
-        new_value='refunded',
-        ip_address=request.remote_addr
-    )
-    db.session.add(audit)
-    db.session.commit()
-    
-    return jsonify({'success': True, 'message': f'Payment {payment.payment_id} successfully refunded.'})
+    # refund not implemented
+    return jsonify({'success': False, 'message': 'Payment must be marked eligible first.'})
 
 @admin_bp.route('/payments/<int:payment_id>/update-status', methods=['POST'])
 @admin_required
@@ -1047,7 +992,6 @@ def export_payments():
     
     payments = Payment.query.join(User).order_by(Payment.created_at.desc()).all()
     
-    # This would generate a CSV file - you can implement the export logic
     flash('Export feature would generate CSV file with payment data.', 'info')
     return redirect(url_for('admin.admin_payments'))
 
@@ -1062,7 +1006,6 @@ def admin_challenges():
     query = db.session.query(ChallengePurchase).join(User).join(ChallengeTemplate)
     
     if search_query:
-        # Search by serial_no or user email
         if search_query.isdigit():
             query = query.filter(ChallengePurchase.serial_no == int(search_query))
         else:
@@ -1174,7 +1117,6 @@ def admin_support():
 def admin_ticket_detail(ticket_number):
     ticket = SupportTicket.query.filter_by(ticket_number=ticket_number).first_or_404()
     
-    # Mark as read by admin
     ticket.last_admin_read_at = datetime.now(timezone.utc)
     db.session.commit()
     
@@ -1230,7 +1172,6 @@ def admin_ticket_reply(ticket_number):
         flash('Message cannot be empty.', 'error')
         return redirect(url_for('admin.admin_ticket_detail', ticket_number=ticket_number))
     
-    # Save attachment if exists
     attachment_url = None
     if attachment and attachment.filename != '':
         attachment_url = admin_compress_and_save_attachment(attachment, ticket_number, prefix="admin_reply_")
@@ -1243,7 +1184,6 @@ def admin_ticket_reply(ticket_number):
         attachment_url=attachment_url
     )
     
-    # Update ticket status to in_progress if it was open
     if ticket.status == 'open':
         ticket.status = 'in_progress'
     
@@ -1290,7 +1230,6 @@ def admin_reset_user_password(user_id):
     user.password = generate_password_hash(new_password)
     db.session.commit()
     flash(f'Password reset to: {new_password}', 'success')
-    flash(f'Password reset to: {new_password}', 'success')
     return redirect(url_for('admin.admin_user_detail', user_id=user_id))
 
 @admin_bp.route('/user/<int:user_id>/delete', methods=['POST'])
@@ -1300,3 +1239,196 @@ def admin_delete_user(user_id):
     db.session.commit()
     flash('User deleted successfully.', 'success')
     return redirect(url_for('admin.admin_users'))
+
+
+@admin_bp.route('/analytics')
+@admin_required
+def admin_analytics():
+    """Admin analytics dashboard"""
+    return render_template('admin/admin_analytics.html')
+
+@admin_bp.route('/api/challenges/all')
+@admin_required
+def api_all_challenges():
+    """API endpoint for all challenges with metrics"""
+    from models import ChallengePurchase, User, ChallengeTemplate
+    
+    challenges = ChallengePurchase.query.all()
+    
+    result = []
+    for ch in challenges:
+        result.append({
+            'id': ch.id,
+            'user_id': ch.user_id,
+            'user_name': ch.user.get_full_name() if ch.user else 'Unknown',
+            'user_email': ch.user.email if ch.user else 'Unknown',
+            'challenge_name': ch.challenge_template.name if ch.challenge_template else 'Challenge',
+            'status': ch.status,
+            'current_phase': ch.current_phase,
+            'profit_percent': ch.profit_percent,
+            'daily_drawdown': ch.daily_drawdown,
+            'overall_drawdown': ch.overall_drawdown,
+            'risk_score': ch.risk_score,
+            'trading_days': ch.trading_days,
+            'days_remaining': ch.days_remaining,
+            'current_balance': ch.current_balance,
+            'current_equity': ch.current_equity,
+            'completed_at': ch.completed_at.isoformat() if ch.completed_at else None
+        })
+    
+    return jsonify({'success': True, 'challenges': result})
+
+@admin_bp.route('/api/challenge/<int:challenge_id>/details')
+@admin_required
+def api_challenge_details(challenge_id):
+    """Detailed challenge info with violations"""
+    from models import ChallengePurchase, RuleLog
+    
+    ch = ChallengePurchase.query.get_or_404(challenge_id)
+    
+    violations = RuleLog.query.filter_by(
+        challenge_id=challenge_id
+    ).order_by(RuleLog.created_at.desc()).limit(20).all()
+    
+    violations_data = [{
+        'rule_name': v.rule_name,
+        'severity': v.severity,
+        'message': v.message,
+        'current_value': v.current_value,
+        'threshold_value': v.threshold_value,
+        'triggered_at': v.created_at.isoformat() if v.created_at else None
+    } for v in violations]
+    
+    return jsonify({
+        'success': True,
+        'challenge': {
+            'id': ch.id,
+            'user_name': ch.user.get_full_name() if ch.user else 'Unknown',
+            'user_email': ch.user.email if ch.user else 'Unknown',
+            'challenge_name': ch.challenge_template.name if ch.challenge_template else 'Challenge',
+            'status': ch.status,
+            'current_phase': ch.current_phase,
+            'profit_percent': ch.profit_percent,
+            'daily_drawdown': ch.daily_drawdown,
+            'overall_drawdown': ch.overall_drawdown,
+            'risk_score': ch.risk_score,
+            'trading_days': ch.trading_days,
+            'days_remaining': ch.days_remaining,
+            'current_balance': ch.current_balance,
+            'current_equity': ch.current_equity,
+            'min_trading_days': ch.challenge_template.phase1_min_days if ch.challenge_template else 5,
+            'violations': violations_data
+        }
+    })
+
+@admin_bp.route('/api/challenge/<int:challenge_id>/violations')
+@admin_required
+def api_challenge_violations(challenge_id):
+    """Get all violations for a challenge (separate endpoint)"""
+    from models import RuleLog
+    
+    violations = RuleLog.query.filter_by(
+        challenge_id=challenge_id
+    ).order_by(RuleLog.created_at.desc()).all()
+    
+    return jsonify({
+        'success': True,
+        'violations': [{
+            'id': v.id,
+            'rule_name': v.rule_name,
+            'severity': v.severity,
+            'message': v.message,
+            'current_value': v.current_value,
+            'threshold_value': v.threshold_value,
+            'created_at': v.created_at.isoformat() if v.created_at else None
+        } for v in violations]
+    })
+
+@admin_bp.route('/api/challenge/<int:challenge_id>/clear-flag', methods=['POST'])
+@admin_required
+def api_clear_flag(challenge_id):
+    """Clear flagged status (admin review cleared)"""
+    from models import ChallengePurchase
+    
+    challenge = ChallengePurchase.query.get_or_404(challenge_id)
+    
+    challenge.monitoring_status = 'active'
+    challenge.review_required = False
+    challenge.status = 'active'
+    challenge.violation_reason = None
+    
+    db.session.commit()
+    
+    return jsonify({'success': True, 'message': 'Flag cleared, challenge is active again'})
+
+@admin_bp.route('/api/challenge/action', methods=['POST'])
+@admin_required
+def api_challenge_action():
+    """Force actions on challenges"""
+    from models import ChallengePurchase
+    from datetime import datetime, timedelta, timezone
+    
+    data = request.get_json()
+    challenge_id = data.get('challenge_id')
+    action = data.get('action')
+    
+    ch = ChallengePurchase.query.get_or_404(challenge_id)
+    
+    if action == 'review':
+        ch.monitoring_status = 'under_review'
+        ch.review_required = True
+        ch.status = 'under_review'
+        
+    elif action == 'clear':
+        # CLEAR FLAG - User can continue trading, flag removed
+        ch.monitoring_status = 'active'
+        ch.review_required = False
+        ch.status = 'active'
+        ch.violation_reason = None
+        ch.risk_score = 0  # Reset risk score after clearing
+        log_rule(ch.id, "admin_clear_flag", "info", "Admin cleared the flag. Account is active again.")
+        
+    elif action == 'extend':
+        if ch.end_date:
+            ch.end_date += timedelta(days=7)
+            ch.days_remaining = (ch.end_date - datetime.now(timezone.utc)).days
+            log_rule(ch.id, "admin_extend", "info", f"Admin extended challenge by 7 days")
+            
+    elif action == 'fail':
+        ch.status = 'failed'
+        ch.is_terminated = True
+        ch.monitoring_status = 'failed'
+        ch.review_required = False
+        ch.completed_at = datetime.now(timezone.utc)
+        log_rule(ch.id, "admin_fail", "critical", "Admin force failed the challenge")
+        
+    elif action == 'pass':
+        ch.status = 'passed'
+        ch.completed_at = datetime.now(timezone.utc)
+        ch.monitoring_status = 'passed'
+        ch.review_required = False
+        ch.pass_reason = "Admin force passed the challenge"
+        log_rule(ch.id, "admin_pass", "success", "Admin force passed the challenge")
+    
+    db.session.commit()
+    
+    return jsonify({'success': True, 'message': f'Action {action} completed'})
+
+# Helper function for logging admin actions
+def log_rule(challenge_id, rule_name, severity, message, current_value=None, threshold_value=None):
+    """Helper to log rule events from admin actions"""
+    from models import RuleLog
+    try:
+        log = RuleLog(
+            challenge_id=challenge_id,
+            rule_name=rule_name,
+            severity=severity,
+            message=message[:500],
+            current_value=current_value,
+            threshold_value=threshold_value,
+            created_at=datetime.now(timezone.utc)
+        )
+        db.session.add(log)
+        db.session.commit()
+    except Exception as e:
+        print(f"Failed to log admin action: {e}")

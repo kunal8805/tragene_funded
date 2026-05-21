@@ -12,7 +12,7 @@
         gtag('config', 'G-8SBBXX72M7');
     </script>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>{% block title %}Tragene Funded - User Dashboard{% endblock %}</title>
 
     <!-- Tailwind CSS -->
@@ -110,24 +110,33 @@
             padding: 1rem !important;
             border-radius: 8px !important;
         }
+
         .compact-view .stats-grid {
             gap: 1rem !important;
         }
+
         .compact-view h3 {
             font-size: 1rem !important;
         }
+
         .compact-view .icon-wrapper {
             width: 32px !important;
             height: 32px !important;
             font-size: 0.875rem !important;
         }
-        .compact-view .text-2xl, .compact-view .text-3xl {
+
+        .compact-view .text-2xl,
+        .compact-view .text-3xl {
             font-size: 1.25rem !important;
         }
-        .compact-view .mb-6, .compact-view .mb-8 {
+
+        .compact-view .mb-6,
+        .compact-view .mb-8 {
             margin-bottom: 1rem !important;
         }
-        .compact-view .p-10, .compact-view .p-16 {
+
+        .compact-view .p-10,
+        .compact-view .p-16 {
             padding: 1.5rem !important;
         }
 
@@ -486,8 +495,11 @@
                 <div class="text-right hidden sm:block">
                     <p class="text-sm text-gray-600 dark:text-gray-400">Welcome</p>
                     <div class="flex items-center gap-2">
-                        <p class="font-semibold text-sm text-gray-900 dark:text-white">{{ user.trading_alias if user.trading_alias else user.first_name }}</p>
-                        <span class="bg-emerald-500 text-white text-[8px] font-black uppercase px-1.5 py-0.5 rounded shadow-sm">{{ user.trader_level }}</span>
+                        <p class="font-semibold text-sm text-gray-900 dark:text-white">{{ user.trading_alias if
+                            user.trading_alias else user.first_name }}</p>
+                        <span
+                            class="bg-emerald-500 text-white text-[8px] font-black uppercase px-1.5 py-0.5 rounded shadow-sm">{{
+                            user.trader_level }}</span>
                     </div>
                 </div>
                 <a href="/logout"
@@ -524,6 +536,13 @@
             <a href="/user/dashboard" class="nav-item {% if request.endpoint == 'user.dashboard' %}active{% endif %}">
                 <i class="fas fa-tachometer-alt"></i>
                 <span>Dashboard</span>
+            </a>
+
+            <!-- NEW: Trading Analytics Link -->
+            <a href="/user/user_analytics"
+                class="nav-item {% if request.endpoint == 'user.user_analytics' %}active{% endif %}">
+                <i class="fas fa-chart-pie"></i>
+                <span>Trading Analytics</span>
             </a>
 
             <a href="/user/challenges"
@@ -617,6 +636,14 @@
                 <span>Dashboard</span>
             </a>
 
+            <!-- NEW: Trading Analytics Link (Mobile) -->
+            <a href="/user/user_analytics"
+                class="nav-item {% if request.endpoint == 'user.user_analytics' %}active{% endif %}"
+                onclick="toggleSidebar()">
+                <i class="fas fa-chart-pie"></i>
+                <span>Trading Analytics</span>
+            </a>
+
             <a href="/user/challenges" class="nav-item {% if request.endpoint == 'user.challenges' %}active{% endif %}"
                 onclick="toggleSidebar()">
                 <i class="fas fa-trophy"></i>
@@ -691,8 +718,11 @@
                     <div class="text-right">
                         <p class="text-sm text-gray-600 dark:text-gray-400">Welcome back</p>
                         <div class="flex items-center gap-2">
-                            <p class="font-semibold text-gray-900 dark:text-white">{{ user.trading_alias if user.trading_alias else user.get_full_name() }}</p>
-                            <span class="bg-emerald-500 text-white text-[10px] font-black uppercase px-2 py-1 rounded shadow-md border-2 border-white dark:border-black">{{ user.trader_level }}</span>
+                            <p class="font-semibold text-gray-900 dark:text-white">{{ user.trading_alias if
+                                user.trading_alias else user.get_full_name() }}</p>
+                            <span
+                                class="bg-emerald-500 text-white text-[10px] font-black uppercase px-2 py-1 rounded shadow-md border-2 border-white dark:border-black">{{
+                                user.trader_level }}</span>
                         </div>
                     </div>
                     <a href="/logout"

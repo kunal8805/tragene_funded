@@ -1,0 +1,412 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Admin Analytics | Tragene Funded{% endblock %}
+{% block header_title %}Challenge Analytics{% endblock %}
+{% block header_subtitle %}Monitor all active challenges, rule breaches, and trader performance{% endblock %}
+
+{% block header_actions %}
+<div class="flex items-center gap-3">
+    <div class="auto-refresh text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1.5">
+        <i class="fas fa-sync-alt animate-pulse"></i><span>Auto-refresh: 30s</span>
+    </div>
+    <button class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-semibold transition flex items-center gap-2" onclick="refreshAllData()">
+        <i class="fas fa-sync-alt"></i> Refresh
+    </button>
+</div>
+{% endblock %}
+
+{% block head %}
+<style>
+.modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:1000; justify-content:center; align-items:center; }
+.modal.active { display:flex; }
+.modal-content { max-width:860px; width:90%; max-height:88vh; overflow-y:auto; }
+
+/* Violation card */
+.violation-card { padding: 12px 16px; border-radius: 12px; border-left: 4px solid; margin-bottom: 10px; }
+.violation-critical { background: rgba(239,68,68,0.08); border-color: #ef4444; }
+.violation-warning { background: rgba(245,158,11,0.08); border-color: #f59e0b; }
+.violation-info { background: rgba(59,130,246,0.08); border-color: #3b82f6; }
+
+/* Status dots */
+.dot-active { color: #10b981; }
+.dot-flagged { color: #f59e0b; }
+.dot-under_review { color: #f59e0b; }
+.dot-failed { color: #6b7280; }
+.dot-passed { color: #10b981; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="admin-analytics-container">
+    <!-- Stats Cards -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div class="glass-card p-6 text-center" data-aos="fade-up" data-aos-delay="0">
+            <div class="w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 text-xl mx-auto mb-3"><i class="fas fa-play-circle"></i></div>
+            <div class="text-3xl font-bold text-blue-600 dark:text-blue-400 mb-1" id="activeChallenges">0</div>
+            <div class="text-sm font-semibold text-gray-600 dark:text-gray-400">Active</div>
+        </div>
+        <div class="glass-card p-6 text-center" data-aos="fade-up" data-aos-delay="100">
+            <div class="w-12 h-12 rounded-full bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center text-yellow-600 dark:text-yellow-400 text-xl mx-auto mb-3"><i class="fas fa-flag"></i></div>
+            <div class="text-3xl font-bold text-yellow-600 dark:text-yellow-400 mb-1" id="flaggedChallenges">0</div>
+            <div class="text-sm font-semibold text-gray-600 dark:text-gray-400">Flagged / Review</div>
+        </div>
+        <div class="glass-card p-6 text-center" data-aos="fade-up" data-aos-delay="200">
+            <div class="w-12 h-12 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center text-green-600 dark:text-green-400 text-xl mx-auto mb-3"><i class="fas fa-chart-line"></i></div>
+            <div class="text-3xl font-bold text-green-600 dark:text-green-400 mb-1" id="avgProfit">0%</div>
+            <div class="text-sm font-semibold text-gray-600 dark:text-gray-400">Avg Profit</div>
+        </div>
+        <div class="glass-card p-6 text-center" data-aos="fade-up" data-aos-delay="300">
+            <div class="w-12 h-12 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center text-purple-600 dark:text-purple-400 text-xl mx-auto mb-3"><i class="fas fa-trophy"></i></div>
+            <div class="text-3xl font-bold text-purple-600 dark:text-purple-400 mb-1" id="passedToday">0</div>
+            <div class="text-sm font-semibold text-gray-600 dark:text-gray-400">Passed Today</div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="glass-card p-6 mb-8 flex flex-col md:flex-row flex-wrap gap-4 items-center justify-between" data-aos="fade-up">
+        <div class="flex flex-wrap gap-4 w-full md:w-auto">
+            <div class="flex items-center gap-2">
+                <label class="text-sm text-gray-600 dark:text-gray-400 font-semibold">Status:</label>
+                <select id="statusFilter" onchange="applyFilters()" class="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="all">All</option>
+                    <option value="active">Active</option>
+                    <option value="flagged">Flagged</option>
+                    <option value="under_review">Under Review</option>
+                    <option value="passed">Passed</option>
+                    <option value="failed">Failed</option>
+                </select>
+            </div>
+            <div class="flex items-center gap-2">
+                <label class="text-sm text-gray-600 dark:text-gray-400 font-semibold">Risk:</label>
+                <select id="riskFilter" onchange="applyFilters()" class="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="all">All</option>
+                    <option value="low">Low (0-30)</option>
+                    <option value="medium">Medium (31-60)</option>
+                    <option value="high">High (61+)</option>
+                </select>
+            </div>
+            <div class="flex items-center gap-2">
+                <label class="text-sm text-gray-600 dark:text-gray-400 font-semibold">Sort:</label>
+                <select id="sortBy" onchange="applyFilters()" class="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="flagged_first">Flagged First</option>
+                    <option value="risk">Highest Risk</option>
+                    <option value="profit">Highest Profit</option>
+                    <option value="drawdown">Highest Drawdown</option>
+                    <option value="days">Least Days Left</option>
+                </select>
+            </div>
+        </div>
+        <div class="relative w-full md:w-80">
+            <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-gray-400"><i class="fas fa-search"></i></span>
+            <input type="text" id="searchInput" placeholder="Search by name or email..." onkeyup="applyFilters()" class="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white pl-10 pr-4 py-2 rounded-lg text-sm w-full focus:outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+    </div>
+
+    <!-- Table -->
+    <div class="glass-card overflow-hidden" data-aos="fade-up">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead class="bg-gray-50 dark:bg-gray-900/40">
+                    <tr>
+                        <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">User</th>
+                        <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Challenge</th>
+                        <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Phase</th>
+                        <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Profit</th>
+                        <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Daily DD</th>
+                        <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Overall DD</th>
+                        <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Risk</th>
+                        <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Days Left</th>
+                        <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
+                        <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="challengesTableBody" class="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800">
+                    <tr><td colspan="10" class="px-6 py-12 text-center text-gray-500 dark:text-gray-400"><i class="fas fa-spinner fa-spin mr-2"></i>Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Detail Modal -->
+<div id="detailModal" class="modal">
+    <div class="modal-content bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-2xl">
+        <div class="modal-header px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-900/50 rounded-t-2xl">
+            <h2 id="modalTitle" class="text-xl font-bold text-gray-900 dark:text-white">Challenge Details</h2>
+            <button class="text-gray-400 hover:text-gray-600 dark:hover:text-white text-2xl transition" onclick="closeModal()">&times;</button>
+        </div>
+        <div class="modal-body p-6" id="modalBody"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let allChallenges = [];
+let refreshInterval;
+
+async function fetchAllChallenges() {
+    try {
+        const r = await fetch('/admin/api/challenges/all', { credentials: 'include', headers: { 'Accept': 'application/json' } });
+        if (!r.ok) throw new Error('Failed');
+        const d = await r.json();
+        return d.success ? d.challenges : [];
+    } catch (e) { console.error(e); return []; }
+}
+
+function applyFilters() {
+    const status = document.getElementById('statusFilter').value;
+    const risk   = document.getElementById('riskFilter').value;
+    const sort   = document.getElementById('sortBy').value;
+    const search = document.getElementById('searchInput').value.toLowerCase();
+    let filtered = [...allChallenges];
+
+    if (status !== 'all') filtered = filtered.filter(c => c.status === status);
+    if (risk === 'low')    filtered = filtered.filter(c => (c.risk_score||0) <= 30);
+    if (risk === 'medium') filtered = filtered.filter(c => (c.risk_score||0) > 30 && (c.risk_score||0) <= 60);
+    if (risk === 'high')   filtered = filtered.filter(c => (c.risk_score||0) > 60);
+    if (search) filtered = filtered.filter(c => c.user_name?.toLowerCase().includes(search) || c.user_email?.toLowerCase().includes(search));
+
+    filtered.sort((a, b) => {
+        if (sort === 'flagged_first') {
+            const flagOrder = { 'flagged': 0, 'under_review': 1, 'active': 2, 'passed': 3, 'failed': 4 };
+            return (flagOrder[a.status]||2) - (flagOrder[b.status]||2);
+        }
+        if (sort === 'risk')     return (b.risk_score||0) - (a.risk_score||0);
+        if (sort === 'profit')   return (b.profit_percent||0) - (a.profit_percent||0);
+        if (sort === 'drawdown') return (b.overall_drawdown||0) - (a.overall_drawdown||0);
+        if (sort === 'days')     return (a.days_remaining||0) - (b.days_remaining||0);
+        return 0;
+    });
+
+    renderTable(filtered);
+    updateStats(filtered);
+}
+
+function renderTable(challenges) {
+    const tbody = document.getElementById('challengesTableBody');
+    if (!challenges.length) {
+        tbody.innerHTML = '<tr><td colspan="10" class="px-6 py-12 text-center text-gray-500 dark:text-gray-400">No challenges found</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = challenges.map(ch => {
+        const profit   = ch.profit_percent || 0;
+        const dailyDD  = ch.daily_drawdown || 0;
+        const overallDD= ch.overall_drawdown || 0;
+        const risk     = ch.risk_score || 0;
+        const daysLeft = ch.days_remaining || 0;
+
+        const profitColor = profit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400';
+        const profitSign  = profit > 0 ? '+' : '';
+
+        let riskClass = 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
+        if (risk > 60)      riskClass = 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400';
+        else if (risk > 30) riskClass = 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400';
+
+        const statusMap = {
+            'active':       ['bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',   'fa-play',                'Active'],
+            'flagged':      ['bg-yellow-100 text-yellow-900 dark:bg-yellow-900/40 dark:text-yellow-300', 'fa-flag',           '⚠ Flagged'],
+            'under_review': ['bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400','fa-eye',            'Under Review'],
+            'passed':       ['bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400','fa-check-circle',       'Passed'],
+            'failed':       ['bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400',       'fa-times-circle',       'Failed'],
+        };
+        const [sClass, sIcon, sText] = statusMap[ch.status] || statusMap['active'];
+
+        // Row highlight for flagged
+        const rowClass = (ch.status === 'flagged' || ch.status === 'under_review')
+            ? 'bg-yellow-50 dark:bg-yellow-900/10 hover:bg-yellow-100 dark:hover:bg-yellow-900/20'
+            : 'hover:bg-gray-50 dark:hover:bg-gray-700/50';
+
+        // Violation snippet
+        const violationSnippet = ch.violation_reason
+            ? `<div class="text-xs text-yellow-600 dark:text-yellow-400 font-semibold mt-0.5 truncate max-w-[160px]"><i class="fas fa-exclamation-circle mr-1"></i>${ch.violation_reason}</div>`
+            : '';
+
+        return `
+        <tr class="${rowClass} transition">
+            <td class="px-6 py-4 whitespace-nowrap">
+                <div class="font-semibold text-gray-900 dark:text-white">${ch.user_name||'N/A'}</div>
+                <div class="text-xs text-gray-500 dark:text-gray-400">${ch.user_email||''}</div>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap">
+                <div class="text-sm text-gray-700 dark:text-gray-300">${ch.challenge_name||'Challenge'}</div>
+                ${violationSnippet}
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">${ch.current_phase||1}</td>
+            <td class="px-6 py-4 whitespace-nowrap">
+                <div class="${profitColor} font-bold text-sm">${profitSign}${profit.toFixed(2)}%</div>
+                <div class="w-24 bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 mt-1.5 overflow-hidden">
+                    <div class="${profit < 0 ? 'bg-red-500' : profit < 4 ? 'bg-orange-500' : 'bg-green-500'} h-full" style="width:${Math.min(100, Math.abs(profit)*5)}%"></div>
+                </div>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold ${dailyDD > 4 ? 'text-red-600 dark:text-red-400' : dailyDD > 3 ? 'text-yellow-600 dark:text-yellow-400' : 'text-green-600 dark:text-green-400'}">${dailyDD.toFixed(2)}%</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold ${overallDD > 8 ? 'text-red-600 dark:text-red-400' : overallDD > 5 ? 'text-yellow-600 dark:text-yellow-400' : 'text-green-600 dark:text-green-400'}">${overallDD.toFixed(2)}%</td>
+            <td class="px-6 py-4 whitespace-nowrap">
+                <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg font-bold text-xs ${riskClass}">${risk}</span>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold ${daysLeft < 5 ? 'text-red-600 dark:text-red-400' : daysLeft < 10 ? 'text-yellow-600 dark:text-yellow-400' : 'text-green-600 dark:text-green-400'}">${daysLeft}</td>
+            <td class="px-6 py-4 whitespace-nowrap">
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${sClass}">
+                    <i class="fas ${sIcon} text-[10px]"></i>${sText}
+                </span>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm">
+                <button class="bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 text-blue-600 dark:text-blue-400 px-3 py-1.5 rounded-lg font-semibold text-xs transition flex items-center gap-1" onclick="viewChallengeDetails(${ch.id})">
+                    <i class="fas fa-eye"></i> View
+                </button>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+function updateStats(challenges) {
+    const active   = challenges.filter(c => ['active','phase1_active','phase2_active'].includes(c.status)).length;
+    const flagged  = challenges.filter(c => ['flagged','under_review'].includes(c.status)).length;
+    const avgProfit= challenges.reduce((s,c) => s + (c.profit_percent||0), 0) / (challenges.length||1);
+    const passedToday = challenges.filter(c => {
+        if (!c.completed_at) return false;
+        return new Date(c.completed_at).toDateString() === new Date().toDateString();
+    }).length;
+    document.getElementById('activeChallenges').innerText = active;
+    document.getElementById('flaggedChallenges').innerText = flagged;
+    document.getElementById('avgProfit').innerHTML = `${avgProfit > 0 ? '+' : ''}${avgProfit.toFixed(1)}%`;
+    document.getElementById('passedToday').innerText = passedToday;
+}
+
+async function viewChallengeDetails(id) {
+    try {
+        const r = await fetch(`/admin/api/challenge/${id}/details`, { credentials: 'include' });
+        const d = await r.json();
+        if (!d.success) return;
+        const ch = d.challenge;
+        const isFlagged = ch.status === 'flagged' || ch.status === 'under_review';
+
+        // Violation banner in modal
+        const flagAlert = isFlagged && ch.violation_reason ? `
+            <div class="mb-6 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-300 dark:border-yellow-700 rounded-xl flex items-start gap-3">
+                <i class="fas fa-exclamation-triangle text-yellow-500 text-2xl flex-shrink-0 mt-0.5"></i>
+                <div>
+                    <div class="font-bold text-yellow-800 dark:text-yellow-300 text-base mb-1">⚠️ Violation Detected — Awaiting Admin Review</div>
+                    <div class="text-yellow-700 dark:text-yellow-400 font-semibold text-sm">${ch.violation_reason}</div>
+                    <div class="text-yellow-600 dark:text-yellow-500 text-xs mt-1">Risk Score: ${ch.risk_score}/100 · Account is flagged but still trading. Use Force Fail below to terminate.</div>
+                </div>
+            </div>` : '';
+
+        // Violations list
+        let violationsHtml = '<div class="p-4 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800/50 rounded-xl text-center text-sm text-green-600"><i class="fas fa-check-circle mr-2"></i>No violations recorded</div>';
+        if (ch.violations && ch.violations.length > 0) {
+            violationsHtml = `<div class="space-y-2">${ch.violations.map(v => {
+                const isC = v.severity === 'critical';
+                const isW = v.severity === 'warning';
+                const cls = isC ? 'violation-card violation-critical' : isW ? 'violation-card violation-warning' : 'violation-card violation-info';
+                const iconCls = isC ? 'text-red-500' : isW ? 'text-yellow-500' : 'text-blue-500';
+                return `<div class="${cls}">
+                    <div class="flex items-start justify-between gap-2">
+                        <div class="flex items-start gap-2">
+                            <i class="fas fa-${isC ? 'skull' : isW ? 'exclamation-triangle' : 'info-circle'} ${iconCls} mt-0.5"></i>
+                            <div>
+                                <div class="font-bold text-gray-900 dark:text-white text-sm">${v.rule_name?.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase())}</div>
+                                <div class="text-xs text-gray-600 dark:text-gray-400 mt-0.5">${v.message}</div>
+                            </div>
+                        </div>
+                        <div class="text-[10px] text-gray-400 dark:text-gray-500 whitespace-nowrap flex-shrink-0">${v.triggered_at ? new Date(v.triggered_at).toLocaleString() : ''}</div>
+                    </div>
+                    ${v.current_value != null ? `<div class="text-xs text-gray-500 dark:text-gray-400 mt-1.5 ml-6">Value: <strong>${parseFloat(v.current_value).toFixed(2)}</strong>${v.threshold_value != null ? ` / Threshold: <strong>${parseFloat(v.threshold_value).toFixed(2)}</strong>` : ''}</div>` : ''}
+                </div>`;
+            }).join('')}</div>`;
+        }
+
+        document.getElementById('modalBody').innerHTML = `
+            ${flagAlert}
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <div class="bg-gray-50 dark:bg-gray-850 border border-gray-200 dark:border-gray-700 p-4 rounded-xl">
+                    <div class="text-xs text-gray-500 mb-1">User</div>
+                    <div class="text-lg font-bold text-gray-900 dark:text-white">${ch.user_name||'N/A'}</div>
+                    <small class="text-gray-500">${ch.user_email||''}</small>
+                </div>
+                <div class="bg-gray-50 dark:bg-gray-850 border border-gray-200 dark:border-gray-700 p-4 rounded-xl">
+                    <div class="text-xs text-gray-500 mb-1">Challenge</div>
+                    <div class="text-lg font-bold text-gray-900 dark:text-white">${ch.challenge_name||'Challenge'}</div>
+                    <small class="text-gray-500">ID: ${ch.id} · Phase ${ch.current_phase||1}</small>
+                </div>
+                <div class="bg-gray-50 dark:bg-gray-850 border border-gray-200 dark:border-gray-700 p-4 rounded-xl">
+                    <div class="text-xs text-gray-500 mb-1">Profit</div>
+                    <div class="text-lg font-bold ${(ch.profit_percent||0) >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}">${(ch.profit_percent||0) > 0 ? '+' : ''}${(ch.profit_percent||0).toFixed(2)}%</div>
+                </div>
+                <div class="bg-gray-50 dark:bg-gray-850 border border-gray-200 dark:border-gray-700 p-4 rounded-xl">
+                    <div class="text-xs text-gray-500 mb-1">Balance / Equity</div>
+                    <div class="text-lg font-bold text-gray-900 dark:text-white">$${(ch.current_balance||0).toLocaleString()} / $${(ch.current_equity||0).toLocaleString()}</div>
+                </div>
+                <div class="bg-gray-50 dark:bg-gray-850 border border-gray-200 dark:border-gray-700 p-4 rounded-xl">
+                    <div class="text-xs text-gray-500 mb-1">Drawdowns</div>
+                    <div class="text-lg font-bold text-gray-900 dark:text-white">Daily: ${(ch.daily_drawdown||0).toFixed(2)}% / Overall: ${(ch.overall_drawdown||0).toFixed(2)}%</div>
+                </div>
+                <div class="bg-gray-50 dark:bg-gray-850 border border-gray-200 dark:border-gray-700 p-4 rounded-xl">
+                    <div class="text-xs text-gray-500 mb-1">Risk Score</div>
+                    <div class="text-lg font-bold" style="color:${(ch.risk_score||0)>60?'#ef4444':(ch.risk_score||0)>30?'#f59e0b':'#10b981'}">${ch.risk_score||0}/100</div>
+                </div>
+                <div class="bg-gray-50 dark:bg-gray-850 border border-gray-200 dark:border-gray-700 p-4 rounded-xl">
+                    <div class="text-xs text-gray-500 mb-1">Trading Days</div>
+                    <div class="text-lg font-bold text-gray-900 dark:text-white">${ch.trading_days||0} / ${ch.min_trading_days||5}</div>
+                </div>
+                <div class="bg-gray-50 dark:bg-gray-850 border border-gray-200 dark:border-gray-700 p-4 rounded-xl">
+                    <div class="text-xs text-gray-500 mb-1">Days Remaining</div>
+                    <div class="text-lg font-bold" style="color:${(ch.days_remaining||0)<5?'#ef4444':'#10b981'}">${ch.days_remaining||0}</div>
+                </div>
+            </div>
+
+            <div class="mt-4">
+                <h4 class="font-bold text-gray-900 dark:text-white mb-3 flex items-center gap-2 text-base">
+                    <i class="fas fa-exclamation-triangle text-yellow-500"></i> Rule Violations Log
+                </h4>
+                ${violationsHtml}
+            </div>
+
+            <div class="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
+                <div class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Admin Actions</div>
+                <div class="flex flex-wrap gap-3">
+                    <button class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl font-semibold text-sm transition flex items-center gap-1.5" onclick="forceAction(${ch.id},'review')"><i class="fas fa-eye"></i> Mark Under Review</button>
+                    <button class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl font-semibold text-sm transition flex items-center gap-1.5" onclick="forceAction(${ch.id},'clear')"><i class="fas fa-check-circle"></i> Clear Flag</button>
+                    <button class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-xl font-semibold text-sm transition flex items-center gap-1.5" onclick="forceAction(${ch.id},'extend')"><i class="fas fa-clock"></i> Extend 7 Days</button>
+                    <button class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl font-semibold text-sm transition flex items-center gap-1.5" onclick="forceAction(${ch.id},'fail')"><i class="fas fa-times"></i> Force Fail</button>
+                    <button class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-xl font-semibold text-sm transition flex items-center gap-1.5" onclick="forceAction(${ch.id},'pass')"><i class="fas fa-check"></i> Force Pass</button>
+                </div>
+                <p class="text-xs text-gray-400 dark:text-gray-500 mt-3"><i class="fas fa-info-circle mr-1"></i>Force Fail will permanently terminate this challenge and hide it from the user's dashboard. It will move to their history page.</p>
+            </div>`;
+
+        document.getElementById('modalTitle').innerHTML = `Challenge #${ch.id} — ${ch.user_name} <span class="text-sm font-normal text-gray-500">${ch.status}</span>`;
+        document.getElementById('detailModal').classList.add('active');
+    } catch (e) { console.error(e); }
+}
+
+async function forceAction(id, action) {
+    const labels = { review:'mark under review', clear:'clear the flag', extend:'extend by 7 days', fail:'PERMANENTLY FAIL', pass:'force pass' };
+    if (!confirm(`Are you sure you want to ${labels[action]||action} challenge #${id}?`)) return;
+    try {
+        const r = await fetch('/admin/api/challenge/action', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ challenge_id: id, action })
+        });
+        const d = await r.json();
+        if (d.success) { refreshAllData(); closeModal(); }
+        else alert('Action failed: ' + d.message);
+    } catch (e) { alert('Request failed'); }
+}
+
+function closeModal() { document.getElementById('detailModal').classList.remove('active'); }
+
+async function refreshAllData() {
+    allChallenges = await fetchAllChallenges();
+    applyFilters();
+}
+
+function startAutoRefresh() {
+    if (refreshInterval) clearInterval(refreshInterval);
+    refreshInterval = setInterval(refreshAllData, 30000);
+}
+
+document.addEventListener('DOMContentLoaded', () => { refreshAllData(); startAutoRefresh(); });
+</script>
+{% endblock %}
