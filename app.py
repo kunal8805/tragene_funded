@@ -428,12 +428,14 @@ with app.app_context():
         from user_routes import user_bp
         from blog import blog_bp
         from admin_blog import admin_blog_bp
+        from mt5_receiver import receiver_bp
 
         app.register_blueprint(auth_bp)
         app.register_blueprint(admin_bp)
         app.register_blueprint(user_bp)
         app.register_blueprint(blog_bp)
         app.register_blueprint(admin_blog_bp)
+        app.register_blueprint(receiver_bp)
         if DEV_MODE:
             print("[OK] Blueprints registered successfully")
     except ImportError as e:

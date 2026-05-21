@@ -1,6 +1,6 @@
 import os
 import sys
-from flask import Flask, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from datetime import datetime, timezone
 import json
 
@@ -8,15 +8,17 @@ import json
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 try:
-    from app import app, db
-    from models import TradingJourney, AccountSnapshot
+    from models import db, ChallengePurchase, AccountSnapshot
     from rule_engine import process_sync
     HAS_APP_CONTEXT = True
 except ImportError as e:
     print(f"⚠️ Could not import: {e}")
     HAS_APP_CONTEXT = False
 
-receiver_app = Flask(__name__)
+receiver_bp = Blueprint(
+    "receiver",
+    __name__
+)
 
 def clean_raw_data(raw_data):
     """Clean binary data, remove null bytes, convert to string"""
@@ -36,7 +38,7 @@ def clean_raw_data(raw_data):
         print(f"⚠️ Clean error: {e}")
         return {}
 
-@receiver_app.route("/api/mt5/sync", methods=["POST"])
+@receiver_bp.route("/api/mt5/sync", methods=["POST"])
 def mt5_sync():
     # Get raw data
     raw_data = request.get_data()
@@ -68,8 +70,8 @@ def mt5_sync():
         
     if HAS_APP_CONTEXT:
         try:
-            with app.app_context():
-                journey = TradingJourney.query.filter_by(challenge_token=token).first()
+            with current_app.app_context():
+                journey = ChallengePurchase.query.filter_by(challenge_token=token).first()
                 if not journey:
                     return jsonify({"status": "error", "message": "Invalid challenge token"}), 401
                 
@@ -158,14 +160,3 @@ def mt5_sync():
     else:
         # Mock mode
         return jsonify({"status": "ok", "message": "Mock sync successful"}), 200
-
-if __name__ == "__main__":
-    port = int(os.getenv("MT5_PORT", 5000))
-    print(f"\n{'='*60}")
-    print(f"MT5 RECEIVER SERVER (FIXED)")
-    print(f"{'='*60}")
-    print(f"Port: {port}")
-    print(f"Rule Engine: {'ENABLED' if HAS_APP_CONTEXT else 'DISABLED'}")
-    print(f"Endpoint: http://0.0.0.0:{port}/api/mt5/sync")
-    print(f"{'='*60}\n")
-    receiver_app.run(host="0.0.0.0", port=port, debug=True)
