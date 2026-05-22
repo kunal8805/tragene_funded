@@ -1356,6 +1356,9 @@ def api_clear_flag(challenge_id):
     challenge.review_required = False
     challenge.status = 'active'
     challenge.violation_reason = None
+        
+    challenge.manipulation_check_baseline = challenge.current_balance
+    challenge.manipulation_baseline_set_at = datetime.now(timezone.utc)
     
     db.session.commit()
     
@@ -1386,6 +1389,8 @@ def api_challenge_action():
         ch.status = 'active'
         ch.violation_reason = None
         ch.risk_score = 0  # Reset risk score after clearing
+        ch.manipulation_check_baseline = ch.current_balance
+        ch.manipulation_baseline_set_at = datetime.now(timezone.utc)
         log_rule(ch.id, "admin_clear_flag", "info", "Admin cleared the flag. Account is active again.")
         
     elif action == 'extend':
