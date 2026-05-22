@@ -1,6 +1,14 @@
 """
 TRAGENE FUNDED - RULE ENGINE (COMPLETE REWRITE)
 All rules implemented, fixed metrics, proper anti-cheat, dashboard-ready
+
+CHANGES FROM PREVIOUS VERSION:
+- Balance manipulation check is SKIPPED if challenge is already flagged
+  (prevents re-flagging on every sync until admin clears the flag)
+- When admin clears the flag, they must set `manipulation_check_baseline`
+  and `manipulation_baseline_set_at` on the challenge — the engine will
+  then only count trades closed AFTER that timestamp, giving a true fresh start
+- All other logic is UNCHANGED
 """
 
 from datetime import datetime, timezone, date, timedelta
@@ -517,8 +525,14 @@ def _handle_phase_progression(challenge):
 def check_anti_cheat(challenge, data):
     """
     All 12 anti-cheat checks.
-    Logic: challenge_amount is the ground truth — NOT last_verified_balance.
-    We sum all closed trade profits from DB to compute expected balance.
+
+    BALANCE MANIPULATION LOGIC (updated):
+    - If the challenge is currently FLAGGED (admin hasn't cleared yet),
+      skip the balance manipulation check entirely to prevent spam re-flagging.
+    - When admin clears the flag, they set `manipulation_check_baseline`
+      to the current balance and `manipulation_baseline_set_at` to now.
+    - After that, we only count trades closed AFTER `manipulation_baseline_set_at`
+      so old "dirty" history doesn't re-trigger the rule — true fresh start.
     """
     account = data.get('account', {})
 
@@ -537,25 +551,57 @@ def check_anti_cheat(challenge, data):
     # ── 1. Balance Manipulation & Account Reset ──────────────────────────
     starting = _safe_float(challenge.starting_balance)
 
-    if starting > 0 and cur_balance > 0:
-        all_closed = TradeHistory.query.filter_by(
+    # NEW: skip this entire block if challenge is already flagged.
+    # Admin must clear the flag first before checking resumes.
+    already_flagged = (
+        challenge.status == ChallengeState.FLAGGED
+        and challenge.review_required == True
+    )
+
+    if starting > 0 and cur_balance > 0 and not already_flagged:
+        # NEW: use manipulation_check_baseline if admin set it (fresh start after clearing).
+        # Falls back to starting_balance if never set.
+        baseline = _safe_float(
+            getattr(challenge, 'manipulation_check_baseline', None)
+        ) or starting
+
+        # NEW: only count trades closed AFTER the baseline was set.
+        # If baseline was never set (first time), count all trades from the start.
+        baseline_set_at = getattr(challenge, 'manipulation_baseline_set_at', None)
+
+        all_closed_query = TradeHistory.query.filter_by(
             challenge_id=challenge.id,
             is_open=False
-        ).all()
+        )
+
+        if baseline_set_at:
+            baseline_set_at_utc = ensure_utc(baseline_set_at)
+            all_closed = all_closed_query.all()
+            all_closed = [
+                t for t in all_closed
+                if t.close_time and ensure_utc(t.close_time) > baseline_set_at_utc
+            ]
+        else:
+            all_closed = all_closed_query.all()
 
         total_closed_profit = sum(_safe_float(t.profit) for t in all_closed)
-        expected_balance    = starting + total_closed_profit
+        expected_balance    = baseline + total_closed_profit
         diff                = cur_balance - expected_balance  # positive = money was added
 
-        print(f"[BALANCE CHECK] Start: ${starting:.2f} | Closed P&L: ${total_closed_profit:.2f} | "
-              f"Expected: ${expected_balance:.2f} | Actual: ${cur_balance:.2f} | Diff: ${diff:.2f}")
+        print(
+            f"[BALANCE CHECK] Baseline: ${baseline:.2f} | "
+            f"Closed P&L (since baseline): ${total_closed_profit:.2f} | "
+            f"Expected: ${expected_balance:.2f} | Actual: ${cur_balance:.2f} | "
+            f"Diff: ${diff:.2f}"
+            + (" | Fresh-start baseline active" if baseline_set_at else "")
+        )
 
         if diff > 1.0:
             added_risk += RISK_WEIGHTS['balance_manipulation']
             new_flags.append('balance_manipulation')
             log_rule(challenge.id, "balance_manipulation", Severity.CRITICAL,
                      f"Balance top-up detected! Expected ${expected_balance:.2f} "
-                     f"(start ${starting:.2f} + P&L ${total_closed_profit:.2f}) "
+                     f"(baseline ${baseline:.2f} + P&L ${total_closed_profit:.2f}) "
                      f"but got ${cur_balance:.2f}. Extra: ${diff:.2f}",
                      cur_balance, expected_balance)
             print(f"[ANTI-CHEAT] BALANCE MANIPULATION: +${diff:.2f} unexplained")
@@ -572,6 +618,12 @@ def check_anti_cheat(challenge, data):
                          f"${prev:.2f} → ${cur_balance:.2f}",
                          cur_balance, prev)
                 print(f"[ANTI-CHEAT] ACCOUNT RESET: dropped {drop_pct:.1f}%")
+
+    elif already_flagged:
+        print(
+            f"[ANTI-CHEAT] Balance manipulation check SKIPPED — "
+            f"challenge already flagged, waiting for admin to clear."
+        )
 
     challenge.previous_balance_snapshot = cur_balance
 

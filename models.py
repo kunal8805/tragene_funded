@@ -253,27 +253,26 @@ class TradingJourney(db.Model):
     daily_start_equity = db.Column(db.Float, default=0.0)
     daily_start_date = db.Column(db.Date, nullable=True, index=True)
     
-    # NEW: Additional metrics for rule engine
-    highest_equity = db.Column(db.Float, default=0.0)  # All-time highest equity
-    daily_drawdown = db.Column(db.Float, default=0.0)  # Current day's drawdown %
-    overall_drawdown = db.Column(db.Float, default=0.0)  # Overall drawdown from peak %
-    profit_percent = db.Column(db.Float, default=0.0)  # Current profit percentage
-    trading_days = db.Column(db.Integer, default=0)  # Number of days traded
-    lowest_equity_today = db.Column(db.Float, nullable=True)  # Lowest equity for current day
-    highest_equity_today = db.Column(db.Float, nullable=True)  # Highest equity for current day
-    day_start_equity = db.Column(db.Float, nullable=True)  # Equity at start of current day
+    # Additional metrics for rule engine
+    highest_equity = db.Column(db.Float, default=0.0)
+    daily_drawdown = db.Column(db.Float, default=0.0)
+    overall_drawdown = db.Column(db.Float, default=0.0)
+    profit_percent = db.Column(db.Float, default=0.0)
+    trading_days = db.Column(db.Integer, default=0)
+    lowest_equity_today = db.Column(db.Float, nullable=True)
+    highest_equity_today = db.Column(db.Float, nullable=True)
+    day_start_equity = db.Column(db.Float, nullable=True)
     
-    # NEW: Risk and monitoring
-    risk_score = db.Column(db.Integer, default=0)  # 0-100 risk score
-    monitoring_status = db.Column(db.String(30), default=MonitoringStatus.ACTIVE)  # active, offline, under_review, flagged
-    review_required = db.Column(db.Boolean, default=False)  # Admin review flag
+    # Risk and monitoring
+    risk_score = db.Column(db.Integer, default=0)
+    monitoring_status = db.Column(db.String(30), default=MonitoringStatus.ACTIVE)
+    review_required = db.Column(db.Boolean, default=False)
     
-    # NEW: Phase progression tracking
+    # Phase progression tracking
     phase1_completed_at = db.Column(db.DateTime(timezone=True), nullable=True)
     phase2_started_at = db.Column(db.DateTime(timezone=True), nullable=True)
     funded_at = db.Column(db.DateTime(timezone=True), nullable=True)
     
-    # ===== NEW FIELDS FOR PHASE TRACKING (Preserves lifetime stats) =====
     # Phase tracking (preserves lifetime stats)
     phase_start_balance = db.Column(db.Float, default=0.0)
     phase_start_equity = db.Column(db.Float, default=0.0)
@@ -293,13 +292,16 @@ class TradingJourney(db.Model):
 
     # Last trade date
     last_trade_date = db.Column(db.Date, nullable=True)
-    # ===== END NEW FIELDS =====
     
-    # CRITICAL FIX: Tracker for balance manipulation detection
+    # Tracker for balance manipulation detection
     last_verified_balance = db.Column(db.Float, default=0.0)
     last_verified_equity = db.Column(db.Float, default=0.0)
     last_balance_check_time = db.Column(db.DateTime(timezone=True), nullable=True)
     balance_check_hash = db.Column(db.String(64), default='')
+    
+    # NEW: Fresh start baseline for manipulation checks
+    manipulation_check_baseline = db.Column(db.Float, nullable=True)
+    manipulation_baseline_set_at = db.Column(db.DateTime(timezone=True), nullable=True)
     
     # Persistent State Fields
     challenge_type = db.Column(db.String(20), nullable=False, default='one_phase', index=True)
@@ -339,7 +341,7 @@ class TradingJourney(db.Model):
     ea_trades = db.relationship('EATrade', backref='challenge', lazy=True, cascade='all, delete-orphan')
     rule_violations = db.relationship('RuleViolation', backref='challenge', lazy=True, cascade='all, delete-orphan')
     
-    # NEW: Rule engine relationships
+    # Rule engine relationships
     rule_logs = db.relationship('RuleLog', backref='challenge', lazy=True, cascade='all, delete-orphan')
     trade_history = db.relationship('TradeHistory', backref='challenge', lazy=True, cascade='all, delete-orphan')
     
@@ -354,14 +356,12 @@ class TradingJourney(db.Model):
         return self.is_active() and self.has_credentials()
     
     def get_days_remaining(self):
-        """Simple calculation only"""
         if not self.end_date:
             return None
         remaining = (self.end_date - datetime.now(timezone.utc)).days
         return max(0, remaining)
     
     def assign_credentials(self, server, login, password, challenge_token=None):
-        """Assign MT5 credentials"""
         self.mt5_server = server
         self.mt5_login = login
         self.mt5_password = password
@@ -369,7 +369,6 @@ class TradingJourney(db.Model):
         self.status = ChallengeStatus.ACTIVE
         self.monitoring_status = MonitoringStatus.ACTIVE
         
-        # Initialize phase tracking on first assignment
         if self.phase_start_balance == 0:
             self.phase_start_balance = float(self.current_balance) if self.current_balance else float(self.starting_balance)
             self.phase_start_equity = float(self.current_equity) if self.current_equity else float(self.starting_equity)
@@ -381,21 +380,18 @@ class TradingJourney(db.Model):
             self.phase_lowest_equity_today = float(self.current_equity) if self.current_equity else float(self.starting_equity)
             self.phase_daily_start_date = datetime.now(timezone.utc).date()
         
-        # Generate challenge token if not provided
         if challenge_token:
             self.challenge_token = challenge_token
         else:
             import secrets
             self.challenge_token = secrets.token_urlsafe(16)
         
-        # Set start and end dates
         if not self.start_date:
             self.start_date = datetime.now(timezone.utc)
         if not self.end_date and self.challenge_template:
             self.end_date = datetime.now(timezone.utc) + timedelta(days=self.challenge_template.duration_days)
     
     def revoke_credentials(self):
-        """Revoke MT5 access"""
         self.mt5_server = None
         self.mt5_login = None
         self.mt5_password = None
@@ -403,14 +399,12 @@ class TradingJourney(db.Model):
         self.status = ChallengeStatus.REVOKED
     
     def is_heartbeat_alive(self, timeout_seconds=600):
-        """Check if EA is still sending data"""
         if not self.last_heartbeat:
             return False
         elapsed = (datetime.now(timezone.utc) - self.last_heartbeat).total_seconds()
         return elapsed < timeout_seconds
     
     def get_current_state(self):
-        """Return current state dict for engine"""
         return {
             'equity': self.current_equity,
             'balance': self.current_balance,
@@ -422,13 +416,11 @@ class TradingJourney(db.Model):
             'current_profit': self.current_profit,
             'trading_days_completed': self.trading_days_completed,
             'status': self.status,
-            # NEW fields
             'profit_percent': self.profit_percent,
             'daily_drawdown': self.daily_drawdown,
             'overall_drawdown': self.overall_drawdown,
             'risk_score': self.risk_score,
             'monitoring_status': self.monitoring_status,
-            # Phase fields
             'phase_profit_percent': self.phase_profit_percent,
             'phase_trading_days': self.phase_trading_days,
             'distance_to_payout': self.distance_to_payout,
@@ -447,28 +439,18 @@ ChallengePurchase = TradingJourney
 # ========================================================================
 
 class RuleLog(db.Model):
-    """Stores every rule check and violation for audit trail"""
     __tablename__ = 'rule_logs'
     
     id = db.Column(db.Integer, primary_key=True)
     challenge_id = db.Column(db.Integer, db.ForeignKey('challenge_purchase.id'), nullable=False, index=True)
-    
-    # Rule details
     rule_name = db.Column(db.String(100), nullable=False, index=True)
-    severity = db.Column(db.String(20), default='info', index=True)  # info, warning, violation, critical
-    
-    # Message and values
+    severity = db.Column(db.String(20), default='info', index=True)
     message = db.Column(db.Text, nullable=False)
     current_value = db.Column(db.Float, nullable=True)
     threshold_value = db.Column(db.Float, nullable=True)
-    
-    # Context
-    additional_data = db.Column(db.JSON, nullable=True)  # Store extra context as JSON
-    
-    # Timestamps
+    additional_data = db.Column(db.JSON, nullable=True)
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
     
-    # Indexes
     __table_args__ = (
         Index('idx_rulelog_challenge_rule', 'challenge_id', 'rule_name'),
         Index('idx_rulelog_severity_date', 'severity', 'created_at'),
@@ -479,40 +461,26 @@ class RuleLog(db.Model):
 
 
 class TradeHistory(db.Model):
-    """Simplified trade history from EA data"""
     __tablename__ = 'trade_history'
     
     id = db.Column(db.Integer, primary_key=True)
     challenge_id = db.Column(db.Integer, db.ForeignKey('challenge_purchase.id'), nullable=False, index=True)
-    
-    # Trade identification
     ticket = db.Column(db.BigInteger, nullable=False)
     symbol = db.Column(db.String(20), nullable=False)
-    
-    # Trade details
     lots = db.Column(db.Float, nullable=False)
     open_price = db.Column(db.Float, nullable=False)
     close_price = db.Column(db.Float, nullable=True)
     profit = db.Column(db.Float, default=0.0)
     sl = db.Column(db.Float, default=0.0)
     tp = db.Column(db.Float, default=0.0)
-    
-    # Timestamps
     open_time = db.Column(db.DateTime(timezone=True), nullable=False, index=True)
     close_time = db.Column(db.DateTime(timezone=True), nullable=True, index=True)
-    
-    # Status
     is_open = db.Column(db.Boolean, default=True, index=True)
-    
-    # Metadata
     magic_number = db.Column(db.BigInteger, default=0)
     comment = db.Column(db.String(200), nullable=True)
-    
-    # Timestamps
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     
-    # Constraints
     __table_args__ = (
         db.UniqueConstraint('challenge_id', 'ticket', name='unique_challenge_ticket_history'),
         Index('idx_tradehistory_challenge_open', 'challenge_id', 'is_open'),
@@ -528,22 +496,15 @@ class TradeHistory(db.Model):
 # ========================================================================
 
 class AccountSnapshot(db.Model):
-    """Store every heartbeat from EA"""
     __tablename__ = 'account_snapshot'
     
     id = db.Column(db.Integer, primary_key=True)
     challenge_purchase_id = db.Column(db.Integer, db.ForeignKey('challenge_purchase.id'), nullable=False, index=True)
-    
-    # Snapshot Metadata
     timestamp = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
     ea_version = db.Column(db.String(20))
     terminal_build = db.Column(db.Integer)
-    
-    # Account Info
     mt5_login = db.Column(db.String(100), index=True)
     broker_server = db.Column(db.String(200))
-    
-    # Financial Data
     balance = db.Column(db.Float, nullable=False)
     equity = db.Column(db.Float, nullable=False)
     free_margin = db.Column(db.Float, default=0.0)
@@ -551,15 +512,9 @@ class AccountSnapshot(db.Model):
     credit = db.Column(db.Float, default=0.0)
     leverage = db.Column(db.Integer)
     currency = db.Column(db.String(10), default='USD')
-    
-    # Calculated values
     profit_from_start = db.Column(db.Float, default=0.0, index=True)
     drawdown_from_peak = db.Column(db.Float, default=0.0, index=True)
-    
-    # Open positions
     open_positions_count = db.Column(db.Integer, default=0)
-    
-    # Retention management
     is_archived = db.Column(db.Boolean, default=False, index=True)
     archived_at = db.Column(db.DateTime(timezone=True), nullable=True)
     
@@ -573,49 +528,29 @@ class AccountSnapshot(db.Model):
 
 
 class EATrade(db.Model):
-    """Store trades from EA"""
     __tablename__ = 'ea_trade'
     
     id = db.Column(db.Integer, primary_key=True)
     challenge_purchase_id = db.Column(db.Integer, db.ForeignKey('challenge_purchase.id'), nullable=False, index=True)
-    
-    # Trade Identifiers
     ticket = db.Column(db.BigInteger, nullable=False, index=True)
     symbol = db.Column(db.String(20), nullable=False, index=True)
     trade_type = db.Column(db.Integer, nullable=False)
-    
-    # Trade Details
     lots = db.Column(db.Float, nullable=False)
     open_price = db.Column(db.Float, default=0.0)
     close_price = db.Column(db.Float, default=0.0)
     current_price = db.Column(db.Float, default=0.0)
-    
-    # Profit/Loss
     profit = db.Column(db.Float, default=0.0)
     floating_pnl = db.Column(db.Float, default=0.0)
-    
-    # Stop Loss / Take Profit
     sl = db.Column(db.Float, default=0.0)
     tp = db.Column(db.Float, default=0.0)
-    
-    # Magic Number
     magic = db.Column(db.BigInteger, default=0, index=True)
-    
-    # Timestamps
     open_time = db.Column(db.DateTime(timezone=True), nullable=True, index=True)
     close_time = db.Column(db.DateTime(timezone=True), nullable=True, index=True)
-    
-    # Status
     status = db.Column(db.String(20), default='open', index=True)
-    
-    # Metadata
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
     updated_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
-    
-    # Retention
     is_archived = db.Column(db.Boolean, default=False, index=True)
     
-    # Constraints
     __table_args__ = (
         db.UniqueConstraint('challenge_purchase_id', 'ticket', name='unique_challenge_ticket'),
         Index('idx_trade_challenge_status', 'challenge_purchase_id', 'status'),
@@ -634,32 +569,19 @@ class EATrade(db.Model):
 
 
 class RuleViolation(db.Model):
-    """Log every rule violation"""
     __tablename__ = 'rule_violation'
     
     id = db.Column(db.Integer, primary_key=True)
     challenge_purchase_id = db.Column(db.Integer, db.ForeignKey('challenge_purchase.id'), nullable=False, index=True)
-    
-    # Violation Details
     rule_name = db.Column(db.String(100), nullable=False, index=True)
     rule_value_limit = db.Column(db.Float)
     rule_value_actual = db.Column(db.Float)
-    
-    # Context
     violation_message = db.Column(db.Text, nullable=False)
     snapshot_id = db.Column(db.Integer, db.ForeignKey('account_snapshot.id'), nullable=True)
-    
-    # Severity
     severity = db.Column(db.String(20), default='hard_fail', index=True)
     is_hard_fail = db.Column(db.Boolean, default=True, index=True)
-    
-    # Action taken
     action_taken = db.Column(db.String(50), default='logged')
-    
-    # Timestamps
     violated_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
-    
-    # Relationship
     snapshot = db.relationship('AccountSnapshot', backref='violations', lazy=True)
     
     def __repr__(self):
@@ -672,41 +594,27 @@ class RuleViolation(db.Model):
 
 
 class DailySnapshot(db.Model):
-    """Store end-of-day summaries"""
     __tablename__ = 'daily_snapshot'
     
     id = db.Column(db.Integer, primary_key=True)
     challenge_purchase_id = db.Column(db.Integer, db.ForeignKey('challenge_purchase.id'), nullable=False, index=True)
-    
-    # Date (UTC)
     snapshot_date = db.Column(db.Date, nullable=False, index=True)
-    
-    # Day Start/End
     start_equity = db.Column(db.Float, nullable=False)
     end_equity = db.Column(db.Float, nullable=False)
     start_balance = db.Column(db.Float, nullable=False)
     end_balance = db.Column(db.Float, nullable=False)
-    
-    # Day Stats
     lowest_equity = db.Column(db.Float)
     highest_equity = db.Column(db.Float)
-    
-    # Trading Activity
     trades_opened = db.Column(db.Integer, default=0)
     trades_closed = db.Column(db.Integer, default=0)
     closed_profit = db.Column(db.Float, default=0.0)
     closed_loss = db.Column(db.Float, default=0.0)
     net_pnl = db.Column(db.Float, default=0.0)
-    
-    # Flags
     is_trading_day = db.Column(db.Boolean, default=False, index=True)
     violated_daily_dd = db.Column(db.Boolean, default=False, index=True)
     had_manual_trades = db.Column(db.Boolean, default=False, index=True)
-    
-    # Timestamps
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     
-    # Constraints
     __table_args__ = (
         db.UniqueConstraint('challenge_purchase_id', 'snapshot_date', name='unique_challenge_date'),
         Index('idx_daily_challenge_date', 'challenge_purchase_id', 'snapshot_date', 'is_trading_day'),
@@ -721,23 +629,15 @@ class Payout(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
     challenge_purchase_id = db.Column(db.Integer, db.ForeignKey('challenge_purchase.id'), nullable=False, index=True)
-    
-    # Payout Details
     amount = db.Column(db.Float, nullable=False)
     profit_share_percentage = db.Column(db.Float, nullable=False)
-    
-    # Status
     status = db.Column(db.String(20), default='pending', index=True)
     admin_notes = db.Column(db.Text, default='')
-    
-    # Payment Info
     payout_date = db.Column(db.DateTime(timezone=True), index=True)
     due_date = db.Column(db.DateTime(timezone=True), index=True)
     payment_method = db.Column(db.String(50))
     transaction_id = db.Column(db.String(100))
     bank_account_details = db.Column(db.Text)
-    
-    # Timestamps
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
     updated_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     
@@ -749,8 +649,6 @@ class Payment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
     challenge_purchase_id = db.Column(db.Integer, db.ForeignKey('challenge_purchase.id'), nullable=True, index=True)
-    
-    # Payment Details
     payment_id = db.Column(db.String(100), unique=True, nullable=False, index=True)
     amount = db.Column(db.Float, nullable=False)
     expected_amount = db.Column(db.Float, nullable=False, default=0.0)
@@ -759,35 +657,23 @@ class Payment(db.Model):
     payment_method = db.Column(db.String(50), nullable=False)
     gateway = db.Column(db.String(50), default='cashfree')
     challenge_template_id = db.Column(db.Integer, nullable=True, index=True)
-    
-    # Cashfree specific
     cf_order_id = db.Column(db.String(100), index=True)
     cf_payment_id = db.Column(db.String(100))
     payment_session_id = db.Column(db.String(200))
-    
-    # Status
     status = db.Column(db.String(20), default='pending', index=True)
-    
-    # Gateway Info
     gateway_id = db.Column(db.String(100))
     gateway_order_id = db.Column(db.String(100))
     gateway_response = db.Column(db.Text)
     gateway_status = db.Column(db.String(50))
     gateway_message = db.Column(db.Text)
-    
-    # Refund Tracking
     refund_status = db.Column(db.String(20), default='none', index=True)
     refund_eligible = db.Column(db.Boolean, default=False)
     refund_verified_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     refund_requested_at = db.Column(db.DateTime(timezone=True), nullable=True)
     refund_processed_at = db.Column(db.DateTime(timezone=True), nullable=True)
-    
-    # Metadata
     notes = db.Column(db.Text)
     ip_address = db.Column(db.String(50))
     user_agent = db.Column(db.Text)
-    
-    # Timestamps
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
     updated_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     
@@ -797,19 +683,13 @@ class Payment(db.Model):
 
 class WebhookLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    
-    # Payload details
     event_type = db.Column(db.String(100), index=True)
     order_id = db.Column(db.String(100), index=True)
     raw_payload = db.Column(db.Text, nullable=False)
     headers = db.Column(db.Text)
     signature = db.Column(db.String(500))
-    
-    # Processing Status
     status = db.Column(db.String(50), default='pending', index=True)
     error_message = db.Column(db.Text)
-    
-    # Timestamps
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
     processed_at = db.Column(db.DateTime(timezone=True), nullable=True)
     
@@ -826,7 +706,6 @@ class AdminLog(db.Model):
     details = db.Column(db.Text)
     ip_address = db.Column(db.String(50))
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
-    
     admin = db.relationship('User', backref='admin_logs', lazy=True)
     
     def __repr__(self):
@@ -842,7 +721,6 @@ class AdminAuditLog(db.Model):
     new_value = db.Column(db.String(255))
     ip_address = db.Column(db.String(50))
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
-    
     admin = db.relationship('User', foreign_keys=[admin_id], backref='audit_logs', lazy=True)
     payment = db.relationship('Payment', backref='audit_logs', lazy=True)
     
@@ -859,19 +737,14 @@ class SupportTicket(db.Model):
     status = db.Column(db.String(20), default='open', index=True)
     priority = db.Column(db.String(20), default='normal', index=True)
     admin_note = db.Column(db.Text, default='')
-    
     assigned_to = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True, index=True)
     is_deleted = db.Column(db.Boolean, default=False, index=True)
-    
     last_reply_at = db.Column(db.DateTime(timezone=True), nullable=True)
     last_user_read_at = db.Column(db.DateTime(timezone=True), nullable=True)
     last_admin_read_at = db.Column(db.DateTime(timezone=True), nullable=True)
-    
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
     updated_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     resolved_at = db.Column(db.DateTime(timezone=True), nullable=True, index=True)
-    
-    # Relationships
     user = db.relationship('User', foreign_keys=[user_id], backref='support_tickets', lazy=True)
     assignee = db.relationship('User', foreign_keys=[assigned_to], lazy=True)
     messages = db.relationship('TicketMessage', backref='ticket', cascade='all, delete-orphan', lazy='dynamic')
@@ -888,7 +761,6 @@ class TicketMessage(db.Model):
     is_admin_reply = db.Column(db.Boolean, default=False)
     attachment_url = db.Column(db.String(500))
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
-
     sender = db.relationship('User', foreign_keys=[sender_id], lazy=True)
 
     def __repr__(self):
@@ -913,8 +785,6 @@ class FAQ(db.Model):
 class Trade(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     challenge_purchase_id = db.Column(db.Integer, db.ForeignKey('challenge_purchase.id'), nullable=False, index=True)
-    
-    # Trade Details
     trade_id = db.Column(db.String(100), unique=True, index=True)
     symbol = db.Column(db.String(20), nullable=False, index=True)
     trade_type = db.Column(db.String(10), nullable=False)
@@ -925,20 +795,11 @@ class Trade(db.Model):
     close_time = db.Column(db.DateTime(timezone=True), index=True)
     swap = db.Column(db.Float, default=0.0)
     commission = db.Column(db.Float, default=0.0)
-    
-    # Profit/Loss
     profit = db.Column(db.Float, default=0.0)
-    
-    # Status
     status = db.Column(db.String(20), default='open', index=True)
-    
-    # Metadata
     notes = db.Column(db.Text)
-    
-    # Timestamps
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
     updated_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
-    
     challenge_purchase = db.relationship('TradingJourney', backref='trades', lazy=True)
     
     def __repr__(self):
@@ -948,23 +809,14 @@ class Trade(db.Model):
 class Notification(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
-    
-    # Notification Details
     title = db.Column(db.String(200), nullable=False)
     message = db.Column(db.Text, nullable=False)
     notification_type = db.Column(db.String(50), index=True)
-    
-    # Status
     is_read = db.Column(db.Boolean, default=False, index=True)
-    
-    # Metadata
     action_url = db.Column(db.String(500))
     icon = db.Column(db.String(50))
-    
-    # Timestamps
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
     read_at = db.Column(db.DateTime(timezone=True), nullable=True)
-    
     user = db.relationship('User', backref='notifications', lazy=True)
     
     def __repr__(self):
@@ -1003,10 +855,4 @@ class BlogPost(db.Model):
 
     def __repr__(self):
         return f'<BlogPost {self.title}>'
-
-
-
-
-
-
 
