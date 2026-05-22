@@ -40,6 +40,13 @@ def clean_raw_data(raw_data):
 
 @receiver_bp.route("/api/mt5/sync", methods=["POST"])
 def mt5_sync():
+    # ADD THESE TWO CHECKS
+    if request.remote_addr != "13.48.130.215":
+        return jsonify({"status": "error", "message": "Unauthorized"}), 403
+    
+    if request.headers.get("X-Internal-Key") != "TGF_INT_xK92mQ27pL38nR4":
+        return jsonify({"status": "error", "message": "Unauthorized"}), 403
+    
     # Get raw data
     raw_data = request.get_data()
     print(f"🔥 RAW DATA (first 200 chars): {raw_data[:200]}")
