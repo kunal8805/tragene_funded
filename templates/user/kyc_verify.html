@@ -5,6 +5,86 @@
 {% block header_title %}KYC Verification{% endblock %}
 {% block header_subtitle %}Complete verification to start trading{% endblock %}
 
+{% block head %}
+<style>
+    .file-upload-area {
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+    .file-upload-area:hover {
+        border-color: #3b82f6;
+        background: rgba(59, 130, 246, 0.03);
+    }
+    .dark .file-upload-area:hover {
+        background: rgba(59, 130, 246, 0.05);
+    }
+    .file-upload-area.has-file {
+        border-color: #10b981;
+    }
+    .dark .file-upload-area.has-file {
+        border-color: #10b981;
+    }
+    .preview-container {
+        position: relative;
+        display: inline-block;
+    }
+    .preview-image {
+        max-height: 200px;
+        border-radius: 8px;
+        object-fit: contain;
+    }
+    .remove-file-btn {
+        position: absolute;
+        top: -8px;
+        right: -8px;
+        width: 24px;
+        height: 24px;
+        background: #ef4444;
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        cursor: pointer;
+        border: 2px solid white;
+        transition: all 0.2s;
+    }
+    .dark .remove-file-btn {
+        border-color: #1e293b;
+    }
+    .remove-file-btn:hover {
+        background: #dc2626;
+        transform: scale(1.1);
+    }
+    .pdf-preview {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        background: #fef3c7;
+        border: 1px solid #f59e0b;
+        border-radius: 10px;
+        padding: 12px 16px;
+    }
+    .dark .pdf-preview {
+        background: rgba(245, 158, 11, 0.15);
+        border-color: rgba(245, 158, 11, 0.3);
+    }
+    .file-name-display {
+        font-size: 0.85rem;
+        color: #374151;
+        font-weight: 500;
+        word-break: break-all;
+    }
+    .dark .file-name-display {
+        color: #e5e7eb;
+    }
+    .upload-placeholder-content {
+        transition: opacity 0.3s ease;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <!-- Verification Progress -->
 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
@@ -162,34 +242,70 @@
             <div>
                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Front Side of Document
                     *</label>
-                <div
-                    class="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center hover:border-gray-400 dark:hover:border-gray-500 transition">
+                <div id="front_upload_area"
+                    class="file-upload-area border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center transition">
                     <input type="file" name="front_file" id="front_file" accept=".png,.jpg,.jpeg,.pdf" class="hidden"
                         required>
-                    <label for="front_file" class="cursor-pointer">
-                        <i class="fas fa-upload text-gray-400 text-2xl mb-2"></i>
-                        <p class="text-gray-600 dark:text-gray-400">Click to upload front side</p>
-                        <p class="text-gray-400 dark:text-gray-500 text-sm mt-1">PNG, JPG, JPEG, PDF (Max 16MB)</p>
+                    <label for="front_file" class="cursor-pointer block">
+                        <!-- Upload Placeholder (shown when no file selected) -->
+                        <div id="front_placeholder" class="upload-placeholder-content">
+                            <i class="fas fa-cloud-upload-alt text-gray-400 text-3xl mb-3"></i>
+                            <p class="text-gray-600 dark:text-gray-400 font-medium">Click to upload front side</p>
+                            <p class="text-gray-400 dark:text-gray-500 text-sm mt-1">PNG, JPG, JPEG, PDF (Max 16MB)</p>
+                        </div>
+                        <!-- Preview Area (hidden by default) -->
+                        <div id="front_preview" class="hidden">
+                            <div class="preview-container">
+                                <img id="front_preview_img" src="" alt="Front side preview" class="preview-image hidden">
+                                <button type="button" id="front_remove_btn" class="remove-file-btn hidden" title="Remove file">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                            <div id="front_pdf_preview" class="pdf-preview hidden">
+                                <i class="fas fa-file-pdf text-red-500 text-2xl"></i>
+                                <div>
+                                    <p class="font-medium text-gray-800 dark:text-gray-200 text-sm">PDF File Selected</p>
+                                    <p id="front_file_name_display" class="file-name-display text-xs"></p>
+                                </div>
+                            </div>
+                        </div>
                     </label>
                 </div>
-                <p id="front_file_name" class="text-sm text-gray-500 dark:text-gray-400 mt-2"></p>
             </div>
 
             <!-- Back Side -->
             <div>
                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Back Side of Document
                     *</label>
-                <div
-                    class="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center hover:border-gray-400 dark:hover:border-gray-500 transition">
+                <div id="back_upload_area"
+                    class="file-upload-area border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center transition">
                     <input type="file" name="back_file" id="back_file" accept=".png,.jpg,.jpeg,.pdf" class="hidden"
                         required>
-                    <label for="back_file" class="cursor-pointer">
-                        <i class="fas fa-upload text-gray-400 text-2xl mb-2"></i>
-                        <p class="text-gray-600 dark:text-gray-400">Click to upload back side</p>
-                        <p class="text-gray-400 dark:text-gray-500 text-sm mt-1">PNG, JPG, JPEG, PDF (Max 16MB)</p>
+                    <label for="back_file" class="cursor-pointer block">
+                        <!-- Upload Placeholder (shown when no file selected) -->
+                        <div id="back_placeholder" class="upload-placeholder-content">
+                            <i class="fas fa-cloud-upload-alt text-gray-400 text-3xl mb-3"></i>
+                            <p class="text-gray-600 dark:text-gray-400 font-medium">Click to upload back side</p>
+                            <p class="text-gray-400 dark:text-gray-500 text-sm mt-1">PNG, JPG, JPEG, PDF (Max 16MB)</p>
+                        </div>
+                        <!-- Preview Area (hidden by default) -->
+                        <div id="back_preview" class="hidden">
+                            <div class="preview-container">
+                                <img id="back_preview_img" src="" alt="Back side preview" class="preview-image hidden">
+                                <button type="button" id="back_remove_btn" class="remove-file-btn hidden" title="Remove file">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                            <div id="back_pdf_preview" class="pdf-preview hidden">
+                                <i class="fas fa-file-pdf text-red-500 text-2xl"></i>
+                                <div>
+                                    <p class="font-medium text-gray-800 dark:text-gray-200 text-sm">PDF File Selected</p>
+                                    <p id="back_file_name_display" class="file-name-display text-xs"></p>
+                                </div>
+                            </div>
+                        </div>
                     </label>
                 </div>
-                <p id="back_file_name" class="text-sm text-gray-500 dark:text-gray-400 mt-2"></p>
             </div>
         </div>
 
@@ -255,24 +371,132 @@
 
 {% block scripts %}
 <script>
-    // File upload display
-    document.getElementById('front_file')?.addEventListener('change', function (e) {
-        const fileName = e.target.files[0]?.name || 'No file chosen';
-        document.getElementById('front_file_name').textContent = 'Selected: ' + fileName;
+    // ============================================
+    // FRONT FILE UPLOAD HANDLER
+    // ============================================
+    const frontFileInput = document.getElementById('front_file');
+    const frontUploadArea = document.getElementById('front_upload_area');
+    const frontPlaceholder = document.getElementById('front_placeholder');
+    const frontPreview = document.getElementById('front_preview');
+    const frontPreviewImg = document.getElementById('front_preview_img');
+    const frontRemoveBtn = document.getElementById('front_remove_btn');
+    const frontPdfPreview = document.getElementById('front_pdf_preview');
+    const frontFileNameDisplay = document.getElementById('front_file_name_display');
+
+    frontFileInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const fileName = file.name;
+        const fileExtension = fileName.split('.').pop().toLowerCase();
+
+        // Hide placeholder, show preview area
+        frontPlaceholder.classList.add('hidden');
+        frontPreview.classList.remove('hidden');
+        frontUploadArea.classList.add('has-file');
+
+        if (fileExtension === 'pdf') {
+            // PDF file - show PDF icon
+            frontPreviewImg.classList.add('hidden');
+            frontRemoveBtn.classList.add('hidden');
+            frontPdfPreview.classList.remove('hidden');
+            frontFileNameDisplay.textContent = fileName;
+        } else {
+            // Image file - show preview
+            frontPdfPreview.classList.add('hidden');
+            frontPreviewImg.classList.remove('hidden');
+            frontRemoveBtn.classList.remove('hidden');
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                frontPreviewImg.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
     });
 
-    document.getElementById('back_file')?.addEventListener('change', function (e) {
-        const fileName = e.target.files[0]?.name || 'No file chosen';
-        document.getElementById('back_file_name').textContent = 'Selected: ' + fileName;
+    // Remove front file
+    frontRemoveBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        frontFileInput.value = '';
+        frontPlaceholder.classList.remove('hidden');
+        frontPreview.classList.add('hidden');
+        frontPreviewImg.src = '';
+        frontPreviewImg.classList.add('hidden');
+        frontRemoveBtn.classList.add('hidden');
+        frontPdfPreview.classList.add('hidden');
+        frontUploadArea.classList.remove('has-file');
     });
 
-    // Form validation (backend will check verification)
+    // ============================================
+    // BACK FILE UPLOAD HANDLER
+    // ============================================
+    const backFileInput = document.getElementById('back_file');
+    const backUploadArea = document.getElementById('back_upload_area');
+    const backPlaceholder = document.getElementById('back_placeholder');
+    const backPreview = document.getElementById('back_preview');
+    const backPreviewImg = document.getElementById('back_preview_img');
+    const backRemoveBtn = document.getElementById('back_remove_btn');
+    const backPdfPreview = document.getElementById('back_pdf_preview');
+    const backFileNameDisplay = document.getElementById('back_file_name_display');
+
+    backFileInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const fileName = file.name;
+        const fileExtension = fileName.split('.').pop().toLowerCase();
+
+        // Hide placeholder, show preview area
+        backPlaceholder.classList.add('hidden');
+        backPreview.classList.remove('hidden');
+        backUploadArea.classList.add('has-file');
+
+        if (fileExtension === 'pdf') {
+            // PDF file - show PDF icon
+            backPreviewImg.classList.add('hidden');
+            backRemoveBtn.classList.add('hidden');
+            backPdfPreview.classList.remove('hidden');
+            backFileNameDisplay.textContent = fileName;
+        } else {
+            // Image file - show preview
+            backPdfPreview.classList.add('hidden');
+            backPreviewImg.classList.remove('hidden');
+            backRemoveBtn.classList.remove('hidden');
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                backPreviewImg.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+
+    // Remove back file
+    backRemoveBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        backFileInput.value = '';
+        backPlaceholder.classList.remove('hidden');
+        backPreview.classList.add('hidden');
+        backPreviewImg.src = '';
+        backPreviewImg.classList.add('hidden');
+        backRemoveBtn.classList.add('hidden');
+        backPdfPreview.classList.add('hidden');
+        backUploadArea.classList.remove('has-file');
+    });
+
+    // ============================================
+    // FORM SUBMISSION
+    // ============================================
     document.getElementById('kycForm')?.addEventListener('submit', function (e) {
         console.log("Form submitting to:", this.action);
-        // Let it submit - backend will handle verification check
     });
 
-    // Email sending feedback
+    // ============================================
+    // EMAIL SENDING FEEDBACK
+    // ============================================
     document.getElementById('sendEmailBtn')?.addEventListener('click', function (e) {
         const originalText = this.innerHTML;
         this.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Sending...';
