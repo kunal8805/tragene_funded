@@ -24,6 +24,14 @@
     .dark .file-upload-area.has-file {
         border-color: #10b981;
     }
+    .file-upload-area.too-large {
+        border-color: #ef4444 !important;
+        background: rgba(239, 68, 68, 0.05) !important;
+    }
+    .dark .file-upload-area.too-large {
+        border-color: #ef4444 !important;
+        background: rgba(239, 68, 68, 0.08) !important;
+    }
     .preview-container {
         position: relative;
         display: inline-block;
@@ -81,6 +89,24 @@
     }
     .upload-placeholder-content {
         transition: opacity 0.3s ease;
+    }
+    .size-warning {
+        display: none;
+        animation: shake 0.5s ease-in-out;
+    }
+    .size-warning.show {
+        display: flex;
+    }
+    @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        20% { transform: translateX(-6px); }
+        40% { transform: translateX(6px); }
+        60% { transform: translateX(-4px); }
+        80% { transform: translateX(4px); }
+    }
+    .submit-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
     }
 </style>
 {% endblock %}
@@ -208,7 +234,7 @@
     {% endif %}
 
 
-    <!-- WORKING FORM - NO DISABLED ATTRIBUTES -->
+    <!-- WORKING FORM -->
     <form method="POST" action="{{ url_for('user.kyc_verification') }}" enctype="multipart/form-data" id="kycForm">
         <div class="mb-6">
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Select Document Type
@@ -247,13 +273,13 @@
                     <input type="file" name="front_file" id="front_file" accept=".png,.jpg,.jpeg,.pdf" class="hidden"
                         required>
                     <label for="front_file" class="cursor-pointer block">
-                        <!-- Upload Placeholder (shown when no file selected) -->
+                        <!-- Upload Placeholder -->
                         <div id="front_placeholder" class="upload-placeholder-content">
                             <i class="fas fa-cloud-upload-alt text-gray-400 text-3xl mb-3"></i>
                             <p class="text-gray-600 dark:text-gray-400 font-medium">Click to upload front side</p>
-                            <p class="text-gray-400 dark:text-gray-500 text-sm mt-1">PNG, JPG, JPEG, PDF (Max 16MB)</p>
+                            <p class="text-gray-400 dark:text-gray-500 text-sm mt-1">PNG, JPG, JPEG, PDF <strong class="text-amber-600 dark:text-amber-400">(Max 16MB)</strong></p>
                         </div>
-                        <!-- Preview Area (hidden by default) -->
+                        <!-- Preview Area -->
                         <div id="front_preview" class="hidden">
                             <div class="preview-container">
                                 <img id="front_preview_img" src="" alt="Front side preview" class="preview-image hidden">
@@ -271,6 +297,14 @@
                         </div>
                     </label>
                 </div>
+                <!-- SIZE WARNING - FRONT -->
+                <div id="front_size_warning" class="size-warning items-center gap-2 bg-red-50 dark:bg-red-900/20 border border-red-300 dark:border-red-700 rounded-lg p-3 mt-2">
+                    <i class="fas fa-exclamation-circle text-red-500 text-lg shrink-0"></i>
+                    <div>
+                        <p class="text-red-700 dark:text-red-400 text-sm font-semibold">File too large!</p>
+                        <p class="text-red-600 dark:text-red-400 text-xs">Maximum <strong>16MB</strong> allowed. Please <strong>crop your image</strong> or <strong>lower the resolution</strong> and try again.</p>
+                    </div>
+                </div>
             </div>
 
             <!-- Back Side -->
@@ -282,13 +316,13 @@
                     <input type="file" name="back_file" id="back_file" accept=".png,.jpg,.jpeg,.pdf" class="hidden"
                         required>
                     <label for="back_file" class="cursor-pointer block">
-                        <!-- Upload Placeholder (shown when no file selected) -->
+                        <!-- Upload Placeholder -->
                         <div id="back_placeholder" class="upload-placeholder-content">
                             <i class="fas fa-cloud-upload-alt text-gray-400 text-3xl mb-3"></i>
                             <p class="text-gray-600 dark:text-gray-400 font-medium">Click to upload back side</p>
-                            <p class="text-gray-400 dark:text-gray-500 text-sm mt-1">PNG, JPG, JPEG, PDF (Max 16MB)</p>
+                            <p class="text-gray-400 dark:text-gray-500 text-sm mt-1">PNG, JPG, JPEG, PDF <strong class="text-amber-600 dark:text-amber-400">(Max 16MB)</strong></p>
                         </div>
-                        <!-- Preview Area (hidden by default) -->
+                        <!-- Preview Area -->
                         <div id="back_preview" class="hidden">
                             <div class="preview-container">
                                 <img id="back_preview_img" src="" alt="Back side preview" class="preview-image hidden">
@@ -306,6 +340,14 @@
                         </div>
                     </label>
                 </div>
+                <!-- SIZE WARNING - BACK -->
+                <div id="back_size_warning" class="size-warning items-center gap-2 bg-red-50 dark:bg-red-900/20 border border-red-300 dark:border-red-700 rounded-lg p-3 mt-2">
+                    <i class="fas fa-exclamation-circle text-red-500 text-lg shrink-0"></i>
+                    <div>
+                        <p class="text-red-700 dark:text-red-400 text-sm font-semibold">File too large!</p>
+                        <p class="text-red-600 dark:text-red-400 text-xs">Maximum <strong>16MB</strong> allowed. Please <strong>crop your image</strong> or <strong>lower the resolution</strong> and try again.</p>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -318,19 +360,21 @@
             <ul class="text-blue-700 dark:text-blue-400 text-sm space-y-1">
                 <li>• Clear, readable images of your document</li>
                 <li>• All four corners should be visible</li>
-                <li>• File size should be less than 16MB</li>
+                <li>• File size must be under <strong>16MB</strong></li>
                 <li>• Accepted formats: PNG, JPG, JPEG, PDF</li>
             </ul>
         </div>
 
         <!-- Submit Button -->
         <div class="text-center">
-            <button type="submit"
+            <button type="submit" id="submitBtn"
                 class="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-lg font-semibold transition flex items-center mx-auto">
                 <i class="fas fa-paper-plane mr-2"></i>
-                {% if user.kyc_status == 'rejected' %}Resubmit for Verification{% else %}Submit for Verification{% endif
-                %}
+                {% if user.kyc_status == 'rejected' %}Resubmit for Verification{% else %}Submit for Verification{% endif %}
             </button>
+            <p id="submit_error" class="text-red-500 text-sm mt-2 hidden">
+                <i class="fas fa-exclamation-triangle mr-1"></i> Please fix the file size issues before submitting.
+            </p>
         </div>
     </form>
 </div>
@@ -371,6 +415,10 @@
 
 {% block scripts %}
 <script>
+    const MAX_SIZE = 16 * 1024 * 1024; // 16MB
+    let frontFileValid = false;
+    let backFileValid = false;
+
     // ============================================
     // FRONT FILE UPLOAD HANDLER
     // ============================================
@@ -382,27 +430,48 @@
     const frontRemoveBtn = document.getElementById('front_remove_btn');
     const frontPdfPreview = document.getElementById('front_pdf_preview');
     const frontFileNameDisplay = document.getElementById('front_file_name_display');
+    const frontSizeWarning = document.getElementById('front_size_warning');
 
     frontFileInput.addEventListener('change', function(e) {
         const file = e.target.files[0];
         if (!file) return;
 
+        // Check file size FIRST
+        if (file.size > MAX_SIZE) {
+            // Show warning
+            frontSizeWarning.classList.add('show');
+            frontUploadArea.classList.add('too-large');
+            frontUploadArea.classList.remove('has-file');
+            frontPlaceholder.classList.remove('hidden');
+            frontPreview.classList.add('hidden');
+            frontPreviewImg.classList.add('hidden');
+            frontRemoveBtn.classList.add('hidden');
+            frontPdfPreview.classList.add('hidden');
+            frontFileInput.value = '';
+            frontFileValid = false;
+            updateSubmitButton();
+            return;
+        }
+
+        // File is valid
+        frontSizeWarning.classList.remove('show');
+        frontUploadArea.classList.remove('too-large');
+        frontFileValid = true;
+        updateSubmitButton();
+
         const fileName = file.name;
         const fileExtension = fileName.split('.').pop().toLowerCase();
 
-        // Hide placeholder, show preview area
         frontPlaceholder.classList.add('hidden');
         frontPreview.classList.remove('hidden');
         frontUploadArea.classList.add('has-file');
 
         if (fileExtension === 'pdf') {
-            // PDF file - show PDF icon
             frontPreviewImg.classList.add('hidden');
             frontRemoveBtn.classList.add('hidden');
             frontPdfPreview.classList.remove('hidden');
             frontFileNameDisplay.textContent = fileName;
         } else {
-            // Image file - show preview
             frontPdfPreview.classList.add('hidden');
             frontPreviewImg.classList.remove('hidden');
             frontRemoveBtn.classList.remove('hidden');
@@ -415,7 +484,6 @@
         }
     });
 
-    // Remove front file
     frontRemoveBtn.addEventListener('click', function(e) {
         e.preventDefault();
         e.stopPropagation();
@@ -426,7 +494,10 @@
         frontPreviewImg.classList.add('hidden');
         frontRemoveBtn.classList.add('hidden');
         frontPdfPreview.classList.add('hidden');
-        frontUploadArea.classList.remove('has-file');
+        frontUploadArea.classList.remove('has-file', 'too-large');
+        frontSizeWarning.classList.remove('show');
+        frontFileValid = false;
+        updateSubmitButton();
     });
 
     // ============================================
@@ -440,27 +511,47 @@
     const backRemoveBtn = document.getElementById('back_remove_btn');
     const backPdfPreview = document.getElementById('back_pdf_preview');
     const backFileNameDisplay = document.getElementById('back_file_name_display');
+    const backSizeWarning = document.getElementById('back_size_warning');
 
     backFileInput.addEventListener('change', function(e) {
         const file = e.target.files[0];
         if (!file) return;
 
+        // Check file size FIRST
+        if (file.size > MAX_SIZE) {
+            backSizeWarning.classList.add('show');
+            backUploadArea.classList.add('too-large');
+            backUploadArea.classList.remove('has-file');
+            backPlaceholder.classList.remove('hidden');
+            backPreview.classList.add('hidden');
+            backPreviewImg.classList.add('hidden');
+            backRemoveBtn.classList.add('hidden');
+            backPdfPreview.classList.add('hidden');
+            backFileInput.value = '';
+            backFileValid = false;
+            updateSubmitButton();
+            return;
+        }
+
+        // File is valid
+        backSizeWarning.classList.remove('show');
+        backUploadArea.classList.remove('too-large');
+        backFileValid = true;
+        updateSubmitButton();
+
         const fileName = file.name;
         const fileExtension = fileName.split('.').pop().toLowerCase();
 
-        // Hide placeholder, show preview area
         backPlaceholder.classList.add('hidden');
         backPreview.classList.remove('hidden');
         backUploadArea.classList.add('has-file');
 
         if (fileExtension === 'pdf') {
-            // PDF file - show PDF icon
             backPreviewImg.classList.add('hidden');
             backRemoveBtn.classList.add('hidden');
             backPdfPreview.classList.remove('hidden');
             backFileNameDisplay.textContent = fileName;
         } else {
-            // Image file - show preview
             backPdfPreview.classList.add('hidden');
             backPreviewImg.classList.remove('hidden');
             backRemoveBtn.classList.remove('hidden');
@@ -473,7 +564,6 @@
         }
     });
 
-    // Remove back file
     backRemoveBtn.addEventListener('click', function(e) {
         e.preventDefault();
         e.stopPropagation();
@@ -484,14 +574,53 @@
         backPreviewImg.classList.add('hidden');
         backRemoveBtn.classList.add('hidden');
         backPdfPreview.classList.add('hidden');
-        backUploadArea.classList.remove('has-file');
+        backUploadArea.classList.remove('has-file', 'too-large');
+        backSizeWarning.classList.remove('show');
+        backFileValid = false;
+        updateSubmitButton();
     });
 
     // ============================================
-    // FORM SUBMISSION
+    // SUBMIT BUTTON CONTROL
+    // ============================================
+    function updateSubmitButton() {
+        const submitBtn = document.getElementById('submitBtn');
+        const submitError = document.getElementById('submit_error');
+        
+        if (frontFileInput.files.length > 0 && backFileInput.files.length > 0 && frontFileValid && backFileValid) {
+            submitBtn.disabled = false;
+            submitBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            submitError.classList.add('hidden');
+        } else if ((frontFileInput.files.length > 0 && !frontFileValid) || (backFileInput.files.length > 0 && !backFileValid)) {
+            submitBtn.disabled = true;
+            submitBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            submitError.classList.remove('hidden');
+        } else {
+            submitBtn.disabled = false;
+            submitBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            submitError.classList.add('hidden');
+        }
+    }
+
+    // ============================================
+    // FORM SUBMISSION - Final check
     // ============================================
     document.getElementById('kycForm')?.addEventListener('submit', function (e) {
-        console.log("Form submitting to:", this.action);
+        const frontFile = frontFileInput.files[0];
+        const backFile = backFileInput.files[0];
+
+        if (frontFile && frontFile.size > MAX_SIZE) {
+            e.preventDefault();
+            frontSizeWarning.classList.add('show');
+            frontUploadArea.classList.add('too-large');
+            return;
+        }
+        if (backFile && backFile.size > MAX_SIZE) {
+            e.preventDefault();
+            backSizeWarning.classList.add('show');
+            backUploadArea.classList.add('too-large');
+            return;
+        }
     });
 
     // ============================================
