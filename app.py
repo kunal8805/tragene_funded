@@ -96,6 +96,20 @@ app.config['UPLOAD_FOLDER'] = 'static/uploads'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'pdf'}
 
+# File upload configuration
+app.config['UPLOAD_FOLDER'] = 'static/uploads'
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'pdf'}
+
+# ===== ERROR HANDLERS =====
+@app.errorhandler(413)
+def request_entity_too_large(error):
+    """Handle file too large errors gracefully"""
+    flash('Your file is too large. Maximum allowed size is 16MB per file. Please reduce the size and try again.', 'warning')
+    if 'user_id' in session:
+        return redirect(url_for('user.file_too_large'))
+    return redirect(url_for('auth.login'))
+
 # ===== INITIALIZE DATABASE & MIGRATE =====
 from models import db, User, ChallengeTemplate, Payment, ChallengePurchase, WebhookLog, FAQ, BlogPost
 

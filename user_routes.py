@@ -154,6 +154,24 @@ def kyc_verification():
             flash('Please upload back side of your document.', 'error')
             return redirect(url_for('user.kyc_verification'))
         
+        # ===== CHECK FILE SIZES BEFORE PROCESSING =====
+        max_size = 16 * 1024 * 1024  # 16MB per file
+        
+        front_file.seek(0, 2)
+        front_size = front_file.tell()
+        front_file.seek(0)
+        if front_size > max_size:
+            flash('Your front document image is too large. Please reduce the size and try again.', 'warning')
+            return redirect(url_for('user.file_too_large'))
+        
+        back_file.seek(0, 2)
+        back_size = back_file.tell()
+        back_file.seek(0)
+        if back_size > max_size:
+            flash('Your back document image is too large. Please reduce the size and try again.', 'warning')
+            return redirect(url_for('user.file_too_large'))
+        # ===== END FILE SIZE CHECK =====
+        
         # Check file extensions
         def allowed_file(filename):
             return '.' in filename and filename.rsplit('.', 1)[1].lower() in {'png', 'jpg', 'jpeg', 'pdf'}
@@ -254,10 +272,7 @@ def phone_verification():
 
 
 # ===== CHALLENGE ROUTES =====
-
-
-# ===== CHALLENGE ROUTES =====
-@user_bp.route('/buy_challenges')  # ✅ FIXED: Added leading slash
+@user_bp.route('/buy_challenges')
 @login_required
 def user_challenges():
     user = User.query.get(session['user_id'])
@@ -278,18 +293,11 @@ def buy_challenge(challenge_id):
         flash('This challenge is currently unavailable.', 'error')
         return redirect(url_for('user.challenges'))
 
-    # ✅ NO anti-spam here
-    # ✅ NO already_purchased
-    # ✅ NO ownership checks
-    # GET route must ONLY show page
-
     return render_template(
         'user/buy_challenge.html',
         user=user,
         challenge=challenge
     )
-
-# Route removed: Challenges are now provisioned via Cashfree Webhooks only.
 
 # ===== TRADING ROUTES =====
 @user_bp.route('/trading')
@@ -519,8 +527,6 @@ def api_challenge_progress(challenge_id):
     
     return jsonify(progress_data)
 
-
-
 # ===== CHALLENGE ROUTES =====
 @user_bp.route('/challenges')
 @login_required
@@ -528,33 +534,15 @@ def challenges():
     user = User.query.get(session['user_id'])
     available_challenges = ChallengeTemplate.query.filter_by(is_active=True).all()
     
-    # ===== DEEP DEBUG =====
-    print("\n🔍 DEEP CHALLENGE DATA DEBUG:")
-    for i, c in enumerate(available_challenges, 1):
-        print(f"\nChallenge {i}:")
-        print(f"  ID: {c.id}")
-        print(f"  Name: {c.name}")
-        print(f"  Price: ₹{c.price}")
-        print(f"  Account Size: {c.account_size} (type: {type(c.account_size)})")
-        print(f"  Type: {c.challenge_type}")
-        print(f"  Phase1 Target: {c.phase1_target}%")
-        print(f"  Phase2 Target: {c.phase2_target}%")
-        print(f"  Is Active: {c.is_active}")
-    # ===== END DEBUG =====
-    
     return render_template('user/user_challenges.html',
                          user=user, 
                          challenges=available_challenges,
                          user_purchases=[])
 
-
-
 @user_bp.route('/api/challenge/<int:challenge_id>/credentials')
 @login_required
 def get_challenge_credentials(challenge_id):
-    # ✅ FIXED: Using session['user_id'] instead of current_user
     user = User.query.get_or_404(session['user_id'])
-
     challenge = ChallengePurchase.query.filter_by(
         id=challenge_id,
         user_id=user.id
@@ -568,20 +556,17 @@ def get_challenge_credentials(challenge_id):
         'mt5_password': challenge.mt5_password
     })
 
-# Add to user_routes.py
 @user_bp.route('/credentials/<int:challenge_id>')
 @login_required
 def view_credentials(challenge_id):
     """Show MT5 credentials page for a specific challenge"""
     user = User.query.get(session['user_id'])
     
-    # Get challenge purchase
     challenge = ChallengePurchase.query.filter_by(
         id=challenge_id,
         user_id=user.id
     ).first_or_404()
     
-    # Security check: only show if challenge is active and has credentials
     if challenge.status != 'active' or not challenge.mt5_login:
         flash('Credentials not available for this challenge', 'error')
         return redirect(url_for('user.trading'))
@@ -597,7 +582,6 @@ def start_phase2(challenge_id):
     try:
         user = User.query.get(session['user_id'])
         
-        # Get challenge
         challenge = ChallengePurchase.query.filter_by(
             id=challenge_id,
             user_id=user.id,
@@ -605,11 +589,9 @@ def start_phase2(challenge_id):
             status='passed'
         ).first_or_404()
         
-        # Check if already in Phase 2
         if challenge.phase == 2:
             return jsonify({'success': False, 'error': 'Already in Phase 2'})
         
-        # Update to Phase 2
         challenge.phase = 2
         challenge.status = 'active'
         challenge.start_date = datetime.now(timezone.utc)
@@ -641,7 +623,6 @@ def trading_dashboard(challenge_id):
                          user=user,
                          challenge=challenge)
 
-
 # ===== HELP CENTER & SUPPORT ROUTES =====
 @user_bp.route('/help')
 @login_required
@@ -657,14 +638,12 @@ def help():
     else:
         faqs = FAQ.query.order_by(FAQ.is_pinned.desc(), FAQ.created_at.desc()).all()
     
-    # Group FAQs by category
     categories = {}
     for faq in faqs:
         if faq.category not in categories:
             categories[faq.category] = []
         categories[faq.category].append(faq)
     
-    # Get user's tickets
     tickets = SupportTicket.query.filter_by(user_id=user.id).order_by(SupportTicket.updated_at.desc()).all()
     
     return render_template('user/help.html', 
@@ -678,7 +657,7 @@ def help():
 def help_vote():
     data = request.get_json()
     faq_id = data.get('faq_id')
-    vote = data.get('vote') # 'yes' or 'no'
+    vote = data.get('vote')
     
     faq = FAQ.query.get_or_404(faq_id)
     if vote == 'yes':
@@ -704,7 +683,6 @@ def ticket_create():
             flash('All fields are required.', 'error')
             return redirect(url_for('user.ticket_create'))
         
-        # Generate ticket number
         ticket_number = f"TICK-{int(time.time())}-{random.randint(1000, 9999)}"
         
         ticket = SupportTicket(
@@ -716,14 +694,12 @@ def ticket_create():
         )
         
         db.session.add(ticket)
-        db.session.flush() # Get ticket.id
+        db.session.flush()
         
-        # Save attachment if exists
         attachment_url = None
         if attachment and attachment.filename != '':
             attachment_url = compress_and_save_ticket_attachment(attachment, ticket_number)
         
-        # Create initial message
         message = TicketMessage(
             ticket_id=ticket.id,
             sender_id=user.id,
@@ -746,7 +722,6 @@ def ticket_chat(ticket_number):
     user = User.query.get(session['user_id'])
     ticket = SupportTicket.query.filter_by(ticket_number=ticket_number, user_id=user.id).first_or_404()
     
-    # Mark as read by user
     ticket.last_user_read_at = datetime.now(timezone.utc)
     db.session.commit()
     
@@ -767,7 +742,6 @@ def ticket_reply(ticket_number):
         flash('Message cannot be empty.', 'error')
         return redirect(url_for('user.ticket_chat', ticket_number=ticket_number))
     
-    # Save attachment if exists
     attachment_url = None
     if attachment and attachment.filename != '':
         attachment_url = compress_and_save_ticket_attachment(attachment, ticket_number, prefix="reply_")
@@ -780,7 +754,6 @@ def ticket_reply(ticket_number):
         attachment_url=attachment_url
     )
     
-    # Update ticket status if it was resolved
     if ticket.status == 'resolved':
         ticket.status = 'open'
     
@@ -791,19 +764,12 @@ def ticket_reply(ticket_number):
     
     return redirect(url_for('user.ticket_chat', ticket_number=ticket_number))
 
-
-
 @user_bp.route('/user_analytics')
 @login_required
 def user_analytics():
     return render_template('user/user_analytics.html', user=User.query.get(session['user_id']))
 
-
-
-
-
-# ===== ADD THESE ROUTES TO user_routes.py =====
-
+# ===== CHALLENGE API ROUTES =====
 @user_bp.route('/api/challenge/<int:challenge_id>/clear-flag', methods=['POST'])
 @login_required
 def api_user_clear_flag(challenge_id):
@@ -814,7 +780,6 @@ def api_user_clear_flag(challenge_id):
     if not challenge:
         return jsonify({'success': False, 'error': 'Challenge not found'}), 404
     
-    # Only allow clearing if admin has set review_required to False
     if not challenge.review_required and challenge.monitoring_status == 'active':
         challenge.status = 'active'
         challenge.monitoring_status = 'active'
@@ -824,7 +789,6 @@ def api_user_clear_flag(challenge_id):
     
     return jsonify({'success': False, 'error': 'Flag cannot be cleared yet'}), 400
 
-
 @user_bp.route('/history/details/<int:challenge_id>')
 @login_required
 def history_details(challenge_id):
@@ -832,11 +796,7 @@ def history_details(challenge_id):
     user = User.query.get(session['user_id'])
     challenge = ChallengePurchase.query.filter_by(id=challenge_id, user_id=user.id).first_or_404()
     
-    # Get all violations for this challenge
-    from models import RuleLog
     violations = RuleLog.query.filter_by(challenge_id=challenge_id).order_by(RuleLog.created_at.desc()).all()
-    
-    # Get trade history
     trades = TradeHistory.query.filter_by(challenge_id=challenge_id).order_by(TradeHistory.close_time.desc()).limit(50).all()
     
     return render_template('user/history_details.html',
@@ -844,7 +804,6 @@ def history_details(challenge_id):
                          challenge=challenge,
                          violations=violations,
                          trades=trades)
-
 
 @user_bp.route('/api/challenge/<int:challenge_id>/history')
 @login_required
@@ -855,8 +814,6 @@ def api_challenge_history(challenge_id):
     
     if not challenge:
         return jsonify({'error': 'Challenge not found'}), 404
-    
-    from models import RuleLog, TradeHistory
     
     violations = RuleLog.query.filter_by(challenge_id=challenge_id).order_by(RuleLog.created_at.desc()).all()
     trades = TradeHistory.query.filter_by(challenge_id=challenge_id).order_by(TradeHistory.close_time.desc()).limit(50).all()
@@ -895,9 +852,7 @@ def api_challenge_history(challenge_id):
         } for t in trades]
     })
 
-
-
-
+# ===== MT5 GUIDE ROUTES =====
 @user_bp.route('/guide')
 def guide_hub():
     return render_template('user/guide.html')
@@ -908,5 +863,10 @@ def guide_mt5_mobile():
 
 @user_bp.route('/guide/mt5_pc')
 def guide_mt5_pc():
-    return render_template('user/mt5_pc.html')
+    return render_template('user/mt5-pc.html')
 
+# ===== FILE TOO LARGE PAGE =====
+@user_bp.route('/file-too-large')
+@login_required
+def file_too_large():
+    return render_template('user/file_too_large.html')
