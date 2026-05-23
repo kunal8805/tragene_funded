@@ -8,6 +8,7 @@ CHANGES FROM PREVIOUS VERSION:
 - When admin clears the flag, they must set `manipulation_check_baseline`
   and `manipulation_baseline_set_at` on the challenge — the engine will
   then only count trades closed AFTER that timestamp, giving a true fresh start
+- Overall drawdown is now STATIC (anchored to CHALLENGE_ACCOUNT_SIZE, not trailing peak)
 - All other logic is UNCHANGED
 """
 
@@ -53,7 +54,7 @@ RISK_WEIGHTS = {
 }
 
 # ========================================================================
-# SAFE TYPE HELPERS  ← fixes all '>' not supported / int() errors
+# SAFE TYPE HELPERS
 # ========================================================================
 
 def _safe_float(val, fallback=0.0):
@@ -91,7 +92,7 @@ def _parse_leverage(val):
         return 0
 
 # ========================================================================
-# TIMEZONE HELPER - COMPLETELY FIXED
+# TIMEZONE HELPER
 # ========================================================================
 
 def ensure_utc(dt):
@@ -157,9 +158,6 @@ def process_sync(challenge, data):
         traceback.print_exc()
         print("="*80)
 
-        # DO NOT SAVE ENGINE ERRORS TO RULE LOG
-        # only keep server console output
-        
         db.session.rollback()
         
         return False
@@ -351,9 +349,18 @@ def update_metrics(challenge, data):
     psb = _safe_float(challenge.phase_start_balance) or sb
     challenge.phase_profit_percent = ((cur_balance - psb) / psb * 100) if psb > 0 else challenge.profit_percent
 
-    # ── Overall drawdown ─────────────────────────────────────────────────
-    he = _safe_float(challenge.highest_equity) or cur_equity
-    challenge.overall_drawdown = max(0.0, (he - cur_equity) / he * 100) if he > 0 else 0.0
+    # ── Overall drawdown (STATIC - anchored to CHALLENGE_ACCOUNT_SIZE) ──
+    # Uses the challenge template's account_size as the permanent floor.
+    # Growth or profits do NOT trail or alter this floor.
+    account_size = _safe_float(
+        challenge.challenge_template.account_size
+    ) if challenge.challenge_template else sb
+
+    if cur_equity >= account_size:
+        challenge.overall_drawdown = 0.0
+    else:
+        cash_lost = account_size - cur_equity
+        challenge.overall_drawdown = (cash_lost / account_size) * 100 if account_size > 0 else 0.0
 
     # ── Daily drawdown ───────────────────────────────────────────────────
     dse = _safe_float(challenge.day_start_equity) or cur_equity
@@ -391,10 +398,11 @@ def update_metrics(challenge, data):
 
     print(
         f"[METRICS] Balance: ${cur_balance:.2f} │ "
+        f"Account Size: ${account_size:.2f} │ "
         f"Start: ${sb:.2f} │ "
         f"Profit: {challenge.profit_percent:.2f}% │ "
         f"Daily DD: {challenge.daily_drawdown:.2f}% │ "
-        f"Overall DD: {challenge.overall_drawdown:.2f}%"
+        f"Overall DD: {challenge.overall_drawdown:.2f}% (static)"
     )
 
     db.session.commit()
@@ -458,7 +466,7 @@ def check_rules(challenge, data, rules):
         challenge.review_required   = True
         print(f"[VIOLATION] {msg}")
 
-    # ── 3. Overall drawdown breach ───────────────────────────────────────
+    # ── 3. Overall drawdown breach (STATIC) ──────────────────────────────
     if overall_limit > 0 and overall_dd >= overall_limit:
         msg = f"Overall drawdown breached: {overall_dd:.2f}% >= {overall_limit}%"
         log_rule(challenge.id, "overall_drawdown", Severity.VIOLATION, msg, overall_dd, overall_limit)
@@ -551,22 +559,16 @@ def check_anti_cheat(challenge, data):
     # ── 1. Balance Manipulation & Account Reset ──────────────────────────
     starting = _safe_float(challenge.starting_balance)
 
-    # NEW: skip this entire block if challenge is already flagged.
-    # Admin must clear the flag first before checking resumes.
     already_flagged = (
         challenge.status == ChallengeState.FLAGGED
         and challenge.review_required == True
     )
 
     if starting > 0 and cur_balance > 0 and not already_flagged:
-        # NEW: use manipulation_check_baseline if admin set it (fresh start after clearing).
-        # Falls back to starting_balance if never set.
         baseline = _safe_float(
             getattr(challenge, 'manipulation_check_baseline', None)
         ) or starting
 
-        # NEW: only count trades closed AFTER the baseline was set.
-        # If baseline was never set (first time), count all trades from the start.
         baseline_set_at = getattr(challenge, 'manipulation_baseline_set_at', None)
 
         all_closed_query = TradeHistory.query.filter_by(
@@ -586,7 +588,7 @@ def check_anti_cheat(challenge, data):
 
         total_closed_profit = sum(_safe_float(t.profit) for t in all_closed)
         expected_balance    = baseline + total_closed_profit
-        diff                = cur_balance - expected_balance  # positive = money was added
+        diff                = cur_balance - expected_balance
 
         print(
             f"[BALANCE CHECK] Baseline: ${baseline:.2f} | "
@@ -659,7 +661,7 @@ def check_anti_cheat(challenge, data):
     weekend_allowed = rules.get('weekend', True)
     if not weekend_allowed:
         has_trades = bool(data.get('open_trades') or data.get('closed_trades'))
-        is_weekend = now_utc.weekday() >= 5  # Saturday=5, Sunday=6
+        is_weekend = now_utc.weekday() >= 5
         if is_weekend and has_trades:
             added_risk += RISK_WEIGHTS['weekend_trading']
             new_flags.append('weekend_trading')
@@ -788,8 +790,6 @@ def check_anti_cheat(challenge, data):
 
     score = challenge.risk_score or 0
 
-    # Violations NEVER auto-fail — they FLAG the account for admin review.
-    # Admin manually fails from dashboard.
     if added_risk > 0:
         if challenge.status not in (ChallengeState.FAILED, ChallengeState.PASSED, ChallengeState.FUNDED):
             challenge.status            = ChallengeState.FLAGGED
@@ -885,7 +885,6 @@ def log_rule(challenge_id, rule_name, severity, message,
              current_value=None, threshold_value=None):
     """Log a rule event safely without crashing on type conversions."""
     try:
-        # Safe conversions using _safe_float
         current_value_clean   = _safe_float(current_value, None)   if current_value  is not None else None
         threshold_value_clean = _safe_float(threshold_value, None) if threshold_value is not None else None
         
@@ -902,4 +901,3 @@ def log_rule(challenge_id, rule_name, severity, message,
         db.session.commit()
     except Exception as e:
         print(f"[LOG FAIL] {e}")
-        # Don't let logging failure crash the rule engine
