@@ -895,3 +895,18 @@ def api_challenge_history(challenge_id):
         } for t in trades]
     })
 
+
+
+
+@user_bp.route('/guide')
+def guide_hub():
+    return render_template('user/guide.html')
+
+@user_bp.route('/guide/mt5-mobile')
+def guide_mt5_mobile():
+    return render_template('user/mt5_mobile.html')
+
+@user_bp.route('/guide/mt5_pc')
+def guide_mt5_pc():
+    return render_template('user/mt5_pc.html')
+

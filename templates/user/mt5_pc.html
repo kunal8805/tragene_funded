@@ -1,0 +1,311 @@
+{% extends 'user/base.html' %}
+
+{% block title %}MT5 Windows / PC Setup Guide{% endblock %}
+{% block header_title %}MT5 Windows Setup Guide{% endblock %}
+{% block header_subtitle %}Follow these steps to download and login to MT5 on Windows{% endblock %}
+
+{% block head %}
+<style>
+    @keyframes pulse-green {
+        0%, 100% { box-shadow: 0 0 8px rgba(16, 185, 129, 0.4); }
+        50% { box-shadow: 0 0 16px rgba(16, 185, 129, 0.8); }
+    }
+    .progress-dot-active {
+        animation: pulse-green 2s infinite;
+    }
+    .step-card {
+        transition: all 0.3s ease;
+    }
+    .step-card:hover {
+        border-color: #10b981;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    }
+    .dark .step-card:hover {
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        border-color: #10b981;
+    }
+    .download-btn {
+        transition: all 0.3s ease;
+    }
+    .download-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 20px rgba(16, 185, 129, 0.4);
+    }
+    .faq-item {
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+    .faq-item:hover {
+        border-color: #10b981;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto">
+
+    <!-- Back Link -->
+    <a href="{{ url_for('user.guide_hub') }}" class="inline-flex items-center gap-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 mb-8 transition-colors">
+        <span class="text-lg">←</span> Back to Guide Center
+    </a>
+
+    <!-- Header Badge -->
+    <div class="mb-8">
+        <div class="inline-flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/25 text-emerald-500 px-4 py-2 rounded-full text-xs font-semibold uppercase tracking-wider mb-4">
+            💻 Windows / PC Setup
+        </div>
+        <h1 class="text-2xl lg:text-3xl font-extrabold text-gray-900 dark:text-white mb-3 tracking-tight">
+            MT5 Windows Complete Setup Guide
+        </h1>
+        <p class="text-gray-600 dark:text-gray-400">
+            Follow these steps to download and login to MT5 on Windows.
+        </p>
+    </div>
+
+    <!-- Progress Flow -->
+    <div class="flex items-center justify-center gap-2 lg:gap-3 flex-wrap p-4 bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-2xl mb-10">
+        <span class="flex items-center gap-1.5 text-xs font-semibold text-emerald-500">
+            <span class="w-2 h-2 rounded-full bg-emerald-500"></span> Download
+        </span>
+        <span class="text-gray-400 text-xs">→</span>
+        <span class="flex items-center gap-1.5 text-xs font-semibold text-emerald-500">
+            <span class="w-2 h-2 rounded-full bg-emerald-500 progress-dot-active"></span> Install
+        </span>
+        <span class="text-gray-400 text-xs">→</span>
+        <span class="flex items-center gap-1.5 text-xs font-semibold text-gray-400">
+            <span class="w-2 h-2 rounded-full bg-gray-300 dark:bg-gray-600"></span> Credentials
+        </span>
+        <span class="text-gray-400 text-xs">→</span>
+        <span class="flex items-center gap-1.5 text-xs font-semibold text-gray-400">
+            <span class="w-2 h-2 rounded-full bg-gray-300 dark:bg-gray-600"></span> Login
+        </span>
+        <span class="text-gray-400 text-xs">→</span>
+        <span class="flex items-center gap-1.5 text-xs font-semibold text-gray-400">
+            <span class="w-2 h-2 rounded-full bg-gray-300 dark:bg-gray-600"></span> Trade
+        </span>
+    </div>
+
+    <!-- STEP 1: Download -->
+    <div class="step-card bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-2xl p-6 lg:p-8 mb-5">
+        <span class="inline-flex items-center justify-center w-9 h-9 bg-emerald-500/15 text-emerald-500 rounded-xl font-bold text-sm mb-4">01</span>
+        <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-3">Download MT5 for Windows</h2>
+        <p class="text-gray-600 dark:text-gray-400 text-sm mb-5">
+            Download the latest MetaTrader 5 installer from the official website.
+        </p>
+        <a href="https://www.metatrader5.com/en/download" target="_blank" rel="noopener noreferrer" 
+           class="download-btn inline-flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-5 py-3 rounded-xl font-semibold text-sm">
+            <span>⬇</span> Download MT5
+        </a>
+        <div class="mt-4 bg-emerald-500/5 border-l-4 border-emerald-500 rounded-r-lg px-4 py-3 text-xs text-gray-600 dark:text-gray-400">
+            ⚠️ Always download from the official MetaTrader website for security.
+        </div>
+    </div>
+
+    <!-- STEP 2: Install -->
+    <div class="step-card bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-2xl p-6 lg:p-8 mb-5">
+        <span class="inline-flex items-center justify-center w-9 h-9 bg-emerald-500/15 text-emerald-500 rounded-xl font-bold text-sm mb-4">02</span>
+        <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-3">Install MT5</h2>
+        <p class="text-gray-600 dark:text-gray-400 text-sm mb-4">Run the installer and follow the setup wizard:</p>
+        <ol class="space-y-2">
+            <li class="flex items-start gap-3 text-sm text-gray-600 dark:text-gray-400 pl-2">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-2 shrink-0"></span>
+                Open the installer file
+            </li>
+            <li class="flex items-start gap-3 text-sm text-gray-600 dark:text-gray-400 pl-2">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-2 shrink-0"></span>
+                Click <strong class="text-gray-900 dark:text-white">Next</strong>
+            </li>
+            <li class="flex items-start gap-3 text-sm text-gray-600 dark:text-gray-400 pl-2">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-2 shrink-0"></span>
+                Wait for installation to complete
+            </li>
+            <li class="flex items-start gap-3 text-sm text-gray-600 dark:text-gray-400 pl-2">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-2 shrink-0"></span>
+                Open MT5
+            </li>
+        </ol>
+    </div>
+
+    <!-- STEP 3: Get Credentials -->
+    <div class="step-card bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-2xl p-6 lg:p-8 mb-5">
+        <span class="inline-flex items-center justify-center w-9 h-9 bg-emerald-500/15 text-emerald-500 rounded-xl font-bold text-sm mb-4">03</span>
+        <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-3">Get Your Trading Credentials</h2>
+        <p class="text-gray-600 dark:text-gray-400 text-sm mb-4">
+            After purchasing a challenge, your MT5 credentials will automatically be sent to your verified email.
+        </p>
+        
+        <p class="text-sm text-gray-500 dark:text-gray-400 mb-3 font-medium">You will receive:</p>
+        
+        <div class="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl p-5 mb-5">
+            <div class="flex justify-between py-2 border-b border-gray-100 dark:border-gray-700/50 text-sm">
+                <span class="text-gray-500 dark:text-gray-400">Login ID</span>
+                <span class="text-gray-900 dark:text-white font-semibold font-mono">12345678</span>
+            </div>
+            <div class="flex justify-between py-2 border-b border-gray-100 dark:border-gray-700/50 text-sm">
+                <span class="text-gray-500 dark:text-gray-400">Password</span>
+                <span class="text-gray-900 dark:text-white font-semibold font-mono">********</span>
+            </div>
+            <div class="flex justify-between py-2 text-sm">
+                <span class="text-gray-500 dark:text-gray-400">Server</span>
+                <span class="text-gray-900 dark:text-white font-semibold font-mono">Funded-Live01</span>
+            </div>
+        </div>
+
+        <div class="bg-amber-500/10 border border-amber-500/25 rounded-xl p-4 flex gap-3 mb-5">
+            <span class="text-lg shrink-0">📧</span>
+            <div class="text-sm text-amber-600 dark:text-amber-400">
+                <strong class="block mb-1">Please check:</strong>
+                <ul class="space-y-0.5">
+                    <li class="pl-3">• Inbox</li>
+                    <li class="pl-3">• Spam folder</li>
+                    <li class="pl-3">• Promotions folder</li>
+                </ul>
+            </div>
+        </div>
+
+        <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">If you do not receive your credentials:</p>
+        
+        <a href="mailto:tragene.co@gmail.com" 
+           class="inline-flex items-center gap-2 border border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/10 px-5 py-2.5 rounded-xl font-semibold text-sm transition-all">
+            📧 Contact Support
+        </a>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mt-3">
+            Support email: <a href="mailto:tragene.co@gmail.com" class="text-emerald-500 hover:underline">tragene.co@gmail.com</a>
+        </p>
+    </div>
+
+    <!-- STEP 4: Login -->
+    <div class="step-card bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-2xl p-6 lg:p-8 mb-5">
+        <span class="inline-flex items-center justify-center w-9 h-9 bg-emerald-500/15 text-emerald-500 rounded-xl font-bold text-sm mb-4">04</span>
+        <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-3">Login To MT5</h2>
+        <p class="text-gray-600 dark:text-gray-400 text-sm mb-4">Open MT5 and login with your credentials:</p>
+        <ol class="space-y-2 mb-5">
+            <li class="flex items-start gap-3 text-sm text-gray-600 dark:text-gray-400 pl-2">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-2 shrink-0"></span>
+                Open MT5
+            </li>
+            <li class="flex items-start gap-3 text-sm text-gray-600 dark:text-gray-400 pl-2">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-2 shrink-0"></span>
+                Click <strong class="text-gray-900 dark:text-white">File</strong> in the top menu
+            </li>
+            <li class="flex items-start gap-3 text-sm text-gray-600 dark:text-gray-400 pl-2">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-2 shrink-0"></span>
+                Click <strong class="text-gray-900 dark:text-white">Login to Trade Account</strong>
+            </li>
+            <li class="flex items-start gap-3 text-sm text-gray-600 dark:text-gray-400 pl-2">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-2 shrink-0"></span>
+                Enter your <strong class="text-gray-900 dark:text-white">Login ID</strong>
+            </li>
+            <li class="flex items-start gap-3 text-sm text-gray-600 dark:text-gray-400 pl-2">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-2 shrink-0"></span>
+                Enter your <strong class="text-gray-900 dark:text-white">Password</strong>
+            </li>
+            <li class="flex items-start gap-3 text-sm text-gray-600 dark:text-gray-400 pl-2">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-2 shrink-0"></span>
+                Select your <strong class="text-gray-900 dark:text-white">Server</strong>
+            </li>
+            <li class="flex items-start gap-3 text-sm text-gray-600 dark:text-gray-400 pl-2">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-2 shrink-0"></span>
+                Press <strong class="text-gray-900 dark:text-white">Login</strong>
+            </li>
+        </ol>
+        
+                <!-- Screenshot - Login -->
+        <div class="rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 shadow-lg">
+            <img src="{{ url_for('static', filename='images/login_credentials.png') }}" 
+                 alt="MT5 Login Credentials Screen" 
+                 class="w-full h-auto">
+        </div>
+    </div>
+
+    <!-- STEP 5: Verify Connection -->
+    <div class="step-card bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-2xl p-6 lg:p-8 mb-5">
+        <span class="inline-flex items-center justify-center w-9 h-9 bg-emerald-500/15 text-emerald-500 rounded-xl font-bold text-sm mb-4">05</span>
+        <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-3">Verify Connection</h2>
+        <p class="text-gray-600 dark:text-gray-400 text-sm mb-4">Check the connection status in the bottom-right corner of MT5:</p>
+        
+        <div class="flex flex-wrap gap-3 mb-5">
+            <span class="inline-flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 px-4 py-2 rounded-xl text-sm font-semibold">🟢 45 kb</span>
+            <span class="inline-flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 px-4 py-2 rounded-xl text-sm font-semibold">🟢 120 kb</span>
+            <span class="inline-flex items-center gap-1.5 bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400 px-4 py-2 rounded-xl text-sm font-semibold">🔴 No Connection</span>
+        </div>
+
+        <div class="bg-red-500/10 border border-red-500/25 rounded-xl p-4 flex gap-3 mb-5">
+            <span class="text-lg shrink-0">⚠️</span>
+            <div class="text-sm text-red-600 dark:text-red-400">
+                <strong class="block mb-2">Troubleshooting:</strong>
+                <ul class="space-y-1">
+                    <li class="pl-3">• Verify your internet connection</li>
+                    <li class="pl-3">• Verify your password is correct</li>
+                    <li class="pl-3">• Verify you selected the correct server</li>
+                    <li class="pl-3">• Restart MT5 and try again</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Screenshot - Verify Connection -->
+        <div class="rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 shadow-lg">
+            <img src="{{ url_for('static', filename='images/verify_connection.png') }}" 
+                 alt="MT5 Connection Verification" 
+                 class="w-full h-auto">
+        </div>
+    </div>
+
+        <!-- Screenshot Placeholder - VERIFY (keep this one) -->
+        <div class="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl p-8 text-center">
+            <div class="text-3xl mb-3 opacity-40">📸</div>
+            <p class="text-gray-400 dark:text-gray-500 text-sm">[ Insert Screenshot Here ]</p>
+        </div>
+    </div>
+
+    <!-- FAQ Section -->
+    <div class="mt-12 pt-8 border-t border-gray-200 dark:border-dark-border">
+        <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-6">❓ Frequently Asked Questions</h2>
+        
+        <div class="space-y-3">
+            <div class="faq-item bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-xl p-5">
+                <div class="flex items-center gap-2 font-semibold text-gray-900 dark:text-white text-sm mb-2">
+                    <span class="text-emerald-500">Q</span> I cannot login
+                </div>
+                <p class="text-gray-600 dark:text-gray-400 text-sm pl-6">Verify your login ID, password and exact server name. Ensure caps lock is off and no extra spaces are entered.</p>
+            </div>
+            <div class="faq-item bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-xl p-5">
+                <div class="flex items-center gap-2 font-semibold text-gray-900 dark:text-white text-sm mb-2">
+                    <span class="text-emerald-500">Q</span> MT5 says no connection
+                </div>
+                <p class="text-gray-600 dark:text-gray-400 text-sm pl-6">Check your internet connection and restart MT5. If using a firewall, ensure MT5 is allowed through.</p>
+            </div>
+            <div class="faq-item bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-xl p-5">
+                <div class="flex items-center gap-2 font-semibold text-gray-900 dark:text-white text-sm mb-2">
+                    <span class="text-emerald-500">Q</span> Server not found
+                </div>
+                <p class="text-gray-600 dark:text-gray-400 text-sm pl-6">Enter the exact server name received in your email. Type it slowly and select from the dropdown list.</p>
+            </div>
+            <div class="faq-item bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-xl p-5">
+                <div class="flex items-center gap-2 font-semibold text-gray-900 dark:text-white text-sm mb-2">
+                    <span class="text-emerald-500">Q</span> Charts not loading
+                </div>
+                <p class="text-gray-600 dark:text-gray-400 text-sm pl-6">Open Market Watch (Ctrl+M), right-click, and choose <strong>Show All</strong> to display all available symbols.</p>
+            </div>
+            <div class="faq-item bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-xl p-5">
+                <div class="flex items-center gap-2 font-semibold text-gray-900 dark:text-white text-sm mb-2">
+                    <span class="text-emerald-500">Q</span> Where are my credentials?
+                </div>
+                <p class="text-gray-600 dark:text-gray-400 text-sm pl-6">Credentials are automatically sent to your verified email after challenge purchase. Check inbox, spam, and promotions folders.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Navigation -->
+    <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mt-12 pt-8 border-t border-gray-200 dark:border-dark-border">
+        <a href="{{ url_for('user.guide_hub') }}" class="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-sm font-medium transition-colors">
+            ← Back To Guide Center
+        </a>
+        <a href="mailto:tragene.co@gmail.com" 
+           class="inline-flex items-center justify-center gap-2 border border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/10 px-5 py-2.5 rounded-xl font-semibold text-sm transition-all">
+            📧 Contact Support
+        </a>
+    </div>
+
+</div>
+{% endblock %}

@@ -872,6 +872,13 @@ def help_center():
 def refund_policy():
     return render_template('refund.html')
 
+
+# In your user routes file (e.g., routes/user.py or similar)
+
+
+
+
+
 # ===== MAIN =====
 if __name__ == '__main__':
     print("\n" + "="*60)

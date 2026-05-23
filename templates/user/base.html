@@ -538,7 +538,7 @@
                 <span>Dashboard</span>
             </a>
 
-            <!-- NEW: Trading Analytics Link -->
+            <!-- Trading Analytics Link -->
             <a href="/user/user_analytics"
                 class="nav-item {% if request.endpoint == 'user.user_analytics' %}active{% endif %}">
                 <i class="fas fa-chart-pie"></i>
@@ -586,6 +586,13 @@
                 class="nav-item {% if request.endpoint == 'user.help' or request.endpoint == 'user.ticket_create' or request.endpoint == 'user.ticket_chat' %}active{% endif %}">
                 <i class="fas fa-question-circle"></i>
                 <span>Help Center</span>
+            </a>
+
+            <!-- MT5 Setup Guide Link -->
+            <a href="/user/guide"
+                class="nav-item {% if request.endpoint == 'user.guide_hub' or request.endpoint == 'user.guide_mt5_mobile' or request.endpoint == 'user.guide_mt5_pc' %}active{% endif %}">
+                <i class="fas fa-book"></i>
+                <span>MT5 Setup Guide</span>
             </a>
 
             <!-- Spacer to push theme toggle to bottom -->
@@ -636,7 +643,7 @@
                 <span>Dashboard</span>
             </a>
 
-            <!-- NEW: Trading Analytics Link (Mobile) -->
+            <!-- Trading Analytics Link (Mobile) -->
             <a href="/user/user_analytics"
                 class="nav-item {% if request.endpoint == 'user.user_analytics' %}active{% endif %}"
                 onclick="toggleSidebar()">
@@ -689,6 +696,13 @@
                 onclick="toggleSidebar()">
                 <i class="fas fa-question-circle"></i>
                 <span>Help Center</span>
+            </a>
+
+            <!-- MT5 Setup Guide Link (Mobile) -->
+            <a href="/user/guide" class="nav-item {% if request.endpoint == 'user.guide_hub' or request.endpoint == 'user.guide_mt5_mobile' or request.endpoint == 'user.guide_mt5_pc' %}active{% endif %}"
+                onclick="toggleSidebar()">
+                <i class="fas fa-book"></i>
+                <span>MT5 Setup Guide</span>
             </a>
         </nav>
 
