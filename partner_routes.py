@@ -27,26 +27,51 @@ def partner_required(f):
 @partner_bp.route('/dashboard', methods=['GET'])
 @partner_required
 def dashboard():
+    from datetime import datetime
     user = User.query.get(session['user_id'])
     
-    # Calculate summary metrics
-    total_earned = db.session.query(func.sum(PartnerEarnings.partner_share)).filter_by(partner_id=user.id).scalar() or 0.0
-    total_sales = PartnerEarnings.query.filter_by(partner_id=user.id).count()
+    # Calculate summary metrics (excluding hidden)
+    total_earned = db.session.query(func.sum(PartnerEarnings.partner_share)).filter(
+        PartnerEarnings.partner_id == user.id,
+        (PartnerEarnings.is_hidden == False) | (PartnerEarnings.is_hidden == None)
+    ).scalar() or 0.0
+    
+    total_sales = PartnerEarnings.query.filter(
+        PartnerEarnings.partner_id == user.id,
+        (PartnerEarnings.is_hidden == False) | (PartnerEarnings.is_hidden == None)
+    ).count()
     
     # Get recent earnings
-    recent_earnings = PartnerEarnings.query.filter_by(partner_id=user.id).order_by(PartnerEarnings.purchased_at.desc()).limit(10).all()
+    query = PartnerEarnings.query.filter(
+        PartnerEarnings.partner_id == user.id,
+        (PartnerEarnings.is_hidden == False) | (PartnerEarnings.is_hidden == None)
+    )
+    
+    start_date_str = request.args.get('start_date')
+    if start_date_str:
+        try:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
+            query = query.filter(PartnerEarnings.purchased_at >= start_date)
+        except ValueError:
+            pass
+            
+    recent_earnings = query.order_by(PartnerEarnings.purchased_at.desc()).limit(10).all()
     
     return render_template('partner/dashboard.html', 
                            user=user, 
                            total_earned=total_earned, 
                            total_sales=total_sales,
-                           recent_earnings=recent_earnings)
+                           recent_earnings=recent_earnings,
+                           start_date=start_date_str)
 
 @partner_bp.route('/api/challenges', methods=['GET'])
 @partner_required
 def partner_challenges():
     user_id = session['user_id']
-    earnings = PartnerEarnings.query.filter_by(partner_id=user_id).order_by(PartnerEarnings.purchased_at.desc()).all()
+    earnings = PartnerEarnings.query.filter(
+        PartnerEarnings.partner_id == user_id,
+        (PartnerEarnings.is_hidden == False) | (PartnerEarnings.is_hidden == None)
+    ).order_by(PartnerEarnings.purchased_at.desc()).all()
     
     result = []
     for e in earnings:
@@ -64,8 +89,15 @@ def partner_challenges():
 @partner_required
 def partner_summary():
     user_id = session['user_id']
-    total_earned = db.session.query(func.sum(PartnerEarnings.partner_share)).filter_by(partner_id=user_id).scalar() or 0.0
-    total_sales = PartnerEarnings.query.filter_by(partner_id=user_id).count()
+    total_earned = db.session.query(func.sum(PartnerEarnings.partner_share)).filter(
+        PartnerEarnings.partner_id == user_id,
+        (PartnerEarnings.is_hidden == False) | (PartnerEarnings.is_hidden == None)
+    ).scalar() or 0.0
+    
+    total_sales = PartnerEarnings.query.filter(
+        PartnerEarnings.partner_id == user_id,
+        (PartnerEarnings.is_hidden == False) | (PartnerEarnings.is_hidden == None)
+    ).count()
     
     return jsonify({
         "total_challenges_sold": total_sales,

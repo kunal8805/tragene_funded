@@ -67,18 +67,31 @@
 
     <!-- Earnings History -->
     <div class="glass-card overflow-hidden">
-        <div class="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+        <div class="p-6 border-b border-gray-200 dark:border-gray-700 flex flex-col md:flex-row justify-between items-center gap-4">
             <h2 class="text-xl font-bold text-gray-900 dark:text-white">
                 <i class="fas fa-history text-purple-500 mr-2"></i>Recent Earnings
             </h2>
-            <button onclick="window.location.reload()" class="text-sm text-gray-500 hover:text-purple-600 dark:text-gray-400 dark:hover:text-purple-400 transition flex items-center gap-1 px-3 py-1.5 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-900/20">
-                <i class="fas fa-sync-alt"></i> Refresh
-            </button>
+            <div class="flex items-center gap-3">
+                <form action="{{ url_for('partner.dashboard') }}" method="GET" class="flex items-center gap-2">
+                    <label for="start_date" class="text-sm text-gray-600 dark:text-gray-400">From:</label>
+                    <input type="date" id="start_date" name="start_date" value="{{ start_date or '' }}" class="text-sm px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-purple-500 focus:border-purple-500">
+                    <button type="submit" class="bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium py-1.5 px-3 rounded-lg transition">Filter</button>
+                    {% if start_date %}
+                    <a href="{{ url_for('partner.dashboard') }}" class="text-sm text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400 transition" title="Clear Filter">
+                        <i class="fas fa-times"></i>
+                    </a>
+                    {% endif %}
+                </form>
+                <button onclick="window.location.reload()" class="text-sm text-gray-500 hover:text-purple-600 dark:text-gray-400 dark:hover:text-purple-400 transition flex items-center gap-1 px-3 py-1.5 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-900/20">
+                    <i class="fas fa-sync-alt"></i> Refresh
+                </button>
+            </div>
         </div>
         <div class="overflow-x-auto">
             <table class="w-full text-left border-collapse">
                 <thead>
                     <tr class="bg-gray-50 dark:bg-gray-800/50">
+                        <th class="py-4 px-6 text-sm font-semibold text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700">S.No.</th>
                         <th class="py-4 px-6 text-sm font-semibold text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700">Date</th>
                         <th class="py-4 px-6 text-sm font-semibold text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700">Buyer</th>
                         <th class="py-4 px-6 text-sm font-semibold text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700">Challenge</th>
@@ -89,6 +102,9 @@
                 <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
                     {% for earning in recent_earnings %}
                     <tr class="hover:bg-purple-50/50 dark:hover:bg-purple-900/10 transition">
+                        <td class="py-4 px-6 text-sm font-medium text-gray-900 dark:text-white">
+                            {{ loop.index }}
+                        </td>
                         <td class="py-4 px-6 text-sm text-gray-600 dark:text-gray-400">
                             <i class="fas fa-calendar-alt text-purple-400 mr-2"></i>
                             {{ earning.purchased_at.strftime('%b %d, %Y %H:%M') }}
@@ -110,7 +126,7 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="5" class="py-12 px-6 text-center text-gray-500 dark:text-gray-400">
+                        <td colspan="6" class="py-12 px-6 text-center text-gray-500 dark:text-gray-400">
                             <div class="flex flex-col items-center gap-3">
                                 <div class="w-16 h-16 rounded-full bg-purple-100 dark:bg-purple-900/20 flex items-center justify-center">
                                     <i class="fas fa-box-open text-3xl text-purple-400 dark:text-purple-500"></i>

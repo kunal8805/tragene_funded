@@ -138,6 +138,7 @@ class PartnerEarnings(db.Model):
     purchase_amount = db.Column(db.Float, nullable=False)
     partner_share = db.Column(db.Float, nullable=False)
     purchased_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    is_hidden = db.Column(db.Boolean, default=False)
 
     partner = db.relationship('User', foreign_keys=[partner_id], backref='partner_earnings_list')
     user = db.relationship('User', foreign_keys=[user_id])

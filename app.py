@@ -612,6 +612,8 @@ with app.app_context():
         if DEV_MODE:
             print("[OK] Blueprints registered successfully")
     except ImportError as e:
+        import traceback
+        traceback.print_exc()
         print(f"[WARNING] Some blueprints not found: {e}")
 
 # ===== CASHFREE PAYMENT ROUTES =====

@@ -1,0 +1,83 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Partner Earnings - Admin Panel{% endblock %}
+
+{% block header_title %}Earnings: {{ partner.first_name }} {{ partner.last_name }}{% endblock %}
+{% block header_subtitle %}View and manage individual earnings for this partner{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+    <a href="{{ url_for('admin.partners') }}" class="text-purple-600 hover:text-purple-800 dark:text-purple-400 dark:hover:text-purple-300 font-medium">
+        <i class="fas fa-arrow-left mr-2"></i>Back to Partners
+    </a>
+</div>
+
+<div class="glass-card overflow-hidden">
+    <div class="overflow-x-auto">
+        <table class="w-full">
+            <thead>
+                <tr class="bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700">
+                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">Date</th>
+                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">Challenge</th>
+                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">User (Buyer)</th>
+                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">Purchase Amount</th>
+                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">Partner Share</th>
+                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">Visibility</th>
+                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                {% for earning in earnings %}
+                <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition {% if earning.is_hidden %}bg-gray-100 dark:bg-gray-800/80 opacity-75{% endif %}">
+                    <td class="px-6 py-4 text-sm text-gray-900 dark:text-gray-100">
+                        {{ earning.purchased_at.strftime('%Y-%m-%d %H:%M') if earning.purchased_at else 'N/A' }}
+                    </td>
+                    <td class="px-6 py-4 text-sm text-gray-900 dark:text-gray-100">
+                        {{ earning.challenge.name if earning.challenge else 'N/A' }}
+                    </td>
+                    <td class="px-6 py-4 text-sm text-gray-900 dark:text-gray-100">
+                        {{ earning.user.first_name }} {{ earning.user.last_name }}
+                    </td>
+                    <td class="px-6 py-4 text-sm text-gray-900 dark:text-gray-100">
+                        ${{ "%.2f"|format(earning.purchase_amount) }}
+                    </td>
+                    <td class="px-6 py-4 text-sm font-bold text-green-600 dark:text-green-400">
+                        ${{ "%.2f"|format(earning.partner_share) }}
+                    </td>
+                    <td class="px-6 py-4">
+                        {% if earning.is_hidden %}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400">
+                            <i class="fas fa-eye-slash mr-1"></i>Hidden
+                        </span>
+                        {% else %}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400">
+                            <i class="fas fa-eye mr-1"></i>Visible
+                        </span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4">
+                        <form action="{{ url_for('admin.toggle_hide_earning', earning_id=earning.id) }}" method="POST" class="inline">
+                            {% if earning.is_hidden %}
+                            <button type="submit" class="text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-300 text-sm font-medium p-2 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/30 transition" title="Show to Partner">
+                                <i class="fas fa-eye"></i> Show
+                            </button>
+                            {% else %}
+                            <button type="submit" class="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 text-sm font-medium p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/30 transition" title="Hide from Partner">
+                                <i class="fas fa-eye-slash"></i> Hide
+                            </button>
+                            {% endif %}
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="7" class="px-6 py-10 text-center text-gray-500 dark:text-gray-400">
+                        No earnings found for this partner.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

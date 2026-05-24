@@ -6,6 +6,46 @@
 {% block header_subtitle %}Manage partner accounts and view their earnings{% endblock %}
 
 {% block content %}
+<div class="mb-6 flex justify-end">
+    <button onclick="document.getElementById('addPartnerModal').classList.remove('hidden')" class="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-lg transition shadow-sm">
+        <i class="fas fa-plus mr-2"></i>Add Partner
+    </button>
+</div>
+
+<!-- Add Partner Modal -->
+<div id="addPartnerModal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md p-6 relative">
+        <button onclick="document.getElementById('addPartnerModal').classList.add('hidden')" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+            <i class="fas fa-times text-xl"></i>
+        </button>
+        <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-6">Add New Partner</h3>
+        <form action="{{ url_for('admin.create_partner') }}" method="POST" class="space-y-4">
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">First Name</label>
+                    <input type="text" name="first_name" required class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-purple-500 text-gray-900 dark:text-white">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Last Name</label>
+                    <input type="text" name="last_name" required class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-purple-500 text-gray-900 dark:text-white">
+                </div>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label>
+                <input type="email" name="email" required class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-purple-500 text-gray-900 dark:text-white">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Password</label>
+                <input type="password" name="password" required class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-purple-500 text-gray-900 dark:text-white">
+            </div>
+            <div class="pt-4 flex justify-end space-x-3">
+                <button type="button" onclick="document.getElementById('addPartnerModal').classList.add('hidden')" class="px-4 py-2 text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition">Cancel</button>
+                <button type="submit" class="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-6 rounded-lg transition shadow-sm">Create Partner</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <div class="glass-card overflow-hidden">
     <div class="overflow-x-auto">
         <table class="w-full">
@@ -70,6 +110,9 @@
                                     <i class="fas fa-times-circle"></i> Revoke
                                 </button>
                             </form>
+                            <a href="{{ url_for('admin.partner_earnings', partner_id=partner.id) }}" class="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 text-sm font-medium p-2 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/30 transition" title="View Earnings">
+                                <i class="fas fa-eye"></i> Earnings
+                            </a>
                         </div>
                     </td>
                 </tr>

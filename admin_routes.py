@@ -1531,3 +1531,83 @@ def partners():
         }
         
     return render_template('admin/partners.html', partners=all_partners, stats=partner_stats)
+
+@admin_bp.route('/partner/create', methods=['POST'])
+@admin_required
+def create_partner():
+    from werkzeug.security import generate_password_hash
+    from models import AdminLog
+    first_name = request.form.get('first_name')
+    last_name = request.form.get('last_name')
+    email = request.form.get('email')
+    password = request.form.get('password')
+    
+    if not all([first_name, last_name, email, password]):
+        flash('All fields are required', 'error')
+        return redirect(url_for('admin.partners'))
+        
+    existing_user = User.query.filter_by(email=email).first()
+    if existing_user:
+        flash('Email already registered', 'error')
+        return redirect(url_for('admin.partners'))
+        
+    new_partner = User(
+        first_name=first_name,
+        last_name=last_name,
+        email=email,
+        phone='',
+        dob=datetime.now(timezone.utc).date(),
+        country='N/A',
+        password=generate_password_hash(password),
+        role='partner',
+        is_admin=False
+    )
+    db.session.add(new_partner)
+    
+    log = AdminLog(
+        admin_id=session['user_id'],
+        action='create_partner',
+        target_type='partner',
+        target_id=0,
+        details=f'Created new partner {email}',
+        ip_address=request.remote_addr
+    )
+    db.session.add(log)
+    db.session.commit()
+    
+    flash(f'Partner {email} created successfully', 'success')
+    return redirect(url_for('admin.partners'))
+
+@admin_bp.route('/partner/<int:partner_id>/earnings')
+@admin_required
+def partner_earnings(partner_id):
+    from models import PartnerEarnings
+    partner = User.query.get_or_404(partner_id)
+    if partner.role != 'partner':
+        flash('User is not a partner', 'error')
+        return redirect(url_for('admin.partners'))
+        
+    earnings = PartnerEarnings.query.filter_by(partner_id=partner.id).order_by(PartnerEarnings.purchased_at.desc()).all()
+    
+    return render_template('admin/partner_earnings.html', partner=partner, earnings=earnings)
+
+@admin_bp.route('/partner-earning/<int:earning_id>/toggle-hide', methods=['POST'])
+@admin_required
+def toggle_hide_earning(earning_id):
+    from models import PartnerEarnings, AdminLog
+    earning = PartnerEarnings.query.get_or_404(earning_id)
+    earning.is_hidden = not earning.is_hidden
+    
+    log = AdminLog(
+        admin_id=session['user_id'],
+        action='toggle_hide_earning',
+        target_type='partner_earning',
+        target_id=earning.id,
+        details=f'Toggled hide state for earning {earning.id} to {earning.is_hidden}',
+        ip_address=request.remote_addr
+    )
+    db.session.add(log)
+    db.session.commit()
+    
+    flash(f'Earning visibility updated successfully', 'success')
+    return redirect(url_for('admin.partner_earnings', partner_id=earning.partner_id))
