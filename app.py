@@ -1,4 +1,4 @@
-# ===== COMPLETE WORKING app.py WITH RULE ENGINE =====
+# ===== COMPLETE WORKING app.py WITH RULE ENGINE & RATE LIMITING (REDIS) =====
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, g
 from datetime import datetime, date, timedelta, timezone
 import os
@@ -7,6 +7,23 @@ from functools import wraps
 import random
 import time
 from werkzeug.utils import secure_filename
+
+# ===== ADD RATE LIMITING IMPORTS =====
+try:
+    from flask_limiter import Limiter
+    from flask_limiter.util import get_remote_address
+    from flask_limiter.errors import RateLimitExceeded
+except ImportError:
+    # Fallback dummy classes to avoid crash when flask_limiter is not installed
+    class Limiter:
+        def __init__(self, *args, **kwargs):
+            pass
+        def error_handler(self, *args, **kwargs):
+            pass
+    def get_remote_address():
+        return "127.0.0.1"
+    class RateLimitExceeded(Exception):
+        pass
 
 # ===== ADD CASHFREE IMPORTS =====
 from cashfree_pg.models.create_order_request import CreateOrderRequest
@@ -27,6 +44,10 @@ load_dotenv()
 # ===== APP CONFIG FROM ENV =====
 DEV_MODE = os.getenv("DEV_MODE", "false").lower() == "true"
 PRELAUNCH_MODE = False
+
+# ===== REDIS CONFIGURATION =====
+REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
+REDIS_ENABLED = os.getenv('REDIS_ENABLED', 'true').lower() == 'true'
 
 # ===== CASHFREE CONFIGURATION =====
 CASHFREE_APP_ID = os.getenv('CASHFREE_APP_ID')
@@ -52,22 +73,76 @@ except ImportError:
     if DEV_MODE:
         print("[WARNING] Resend package not installed. Email functionality disabled.")
 
-
 # Get the current directory and set template path explicitly
 current_dir = os.path.dirname(os.path.abspath(__file__))
 template_dir = os.path.join(current_dir, 'templates')
 
 app = Flask(__name__, template_folder=template_dir)
 
+# ===== RATE LIMITER CONFIGURATION (PRODUCTION READY) =====
+def get_identifier():
+    """Get unique identifier for rate limiting (IP + user_id if logged in)"""
+    # If user is logged in, use user_id as identifier (prevents user from switching IPs)
+    if 'user_id' in session:
+        return f"user_{session['user_id']}"
+    # Otherwise use IP address
+    forwarded = request.headers.get('X-Forwarded-For')
+    if forwarded:
+        return forwarded.split(',')[0].strip()
+    return request.remote_addr or 'unknown'
+
+# Configure Redis storage for production
+if REDIS_ENABLED and not DEV_MODE:
+    try:
+        storage_uri = REDIS_URL
+        limiter = Limiter(
+            key_func=get_identifier,
+            app=app,
+            default_limits=["200 per day", "50 per hour", "10 per minute"],
+            storage_uri=storage_uri,
+            strategy="fixed-window",
+            storage_options={"socket_connect_timeout": 5},
+        )
+        if DEV_MODE:
+            print("[OK] Redis rate limiter configured")
+    except Exception as e:
+        print(f"[WARNING] Redis connection failed, falling back to memory: {e}")
+        limiter = Limiter(
+            key_func=get_identifier,
+            app=app,
+            default_limits=["200 per day", "50 per hour", "10 per minute"],
+            storage_uri="memory://",
+            strategy="fixed-window",
+        )
+else:
+    # Development mode - use memory storage
+    limiter = Limiter(
+        key_func=get_identifier,
+        app=app,
+        default_limits=["200 per day", "50 per hour", "10 per minute"],
+        storage_uri="memory://",
+        strategy="fixed-window",
+    )
+    if DEV_MODE:
+        print("[OK] Memory rate limiter configured (development mode)")
+
+# Custom error handler for rate limit exceeded
+@app.errorhandler(RateLimitExceeded)
+def handle_rate_limit_exceeded(e):
+    """Handle rate limit exceeded errors"""
+    flash(f"Too many requests. Please slow down. Try again in a moment.", 'error')
+    return redirect(url_for('home'))
+
 # ===== SECRET KEY & DATABASE CONFIG =====
 app.config['SECRET_KEY'] = os.getenv('APP_SECRET_KEY')
 if not app.config['SECRET_KEY']:
     raise ValueError("APP_SECRET_KEY must be set in .env file")
 
-# Session security
-app.config['SESSION_COOKIE_SECURE'] = not DEV_MODE
+# Session security - production settings
+app.config['SESSION_COOKIE_SECURE'] = not DEV_MODE  # True in production
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
 
 db_url = os.getenv('DATABASE_URL', 'sqlite:///tragene_funded_new.db')
 if db_url.startswith("postgres://"):
@@ -75,6 +150,11 @@ if db_url.startswith("postgres://"):
 
 app.config['SQLALCHEMY_DATABASE_URI'] = db_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    'pool_size': 10,
+    'pool_recycle': 3600,
+    'pool_pre_ping': True,
+}
 
 if DEV_MODE:
     print(f"[DB] Database: {db_url[:50]}...")
@@ -96,11 +176,6 @@ app.config['UPLOAD_FOLDER'] = 'static/uploads'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'pdf'}
 
-# File upload configuration
-app.config['UPLOAD_FOLDER'] = 'static/uploads'
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'pdf'}
-
 # ===== ERROR HANDLERS =====
 @app.errorhandler(413)
 def request_entity_too_large(error):
@@ -109,6 +184,17 @@ def request_entity_too_large(error):
     if 'user_id' in session:
         return redirect(url_for('user.file_too_large'))
     return redirect(url_for('auth.login'))
+
+@app.errorhandler(500)
+def internal_server_error(error):
+    """Handle internal server errors"""
+    flash('An internal error occurred. Our team has been notified.', 'error')
+    return render_template('500.html'), 500
+
+@app.errorhandler(404)
+def not_found_error(error):
+    """Handle 404 errors"""
+    return render_template('404.html'), 404
 
 # ===== INITIALIZE DATABASE & MIGRATE =====
 from models import db, User, ChallengeTemplate, Payment, ChallengePurchase, WebhookLog, FAQ, BlogPost
@@ -328,37 +414,26 @@ def provision_challenge(payment, user, challenge_template_id):
     )
     
     # ===== RULE ENGINE FIELD INITIALIZATION =====
-    # Starting balances
     purchase.starting_balance = float(challenge.account_size)
     purchase.starting_equity = float(challenge.account_size)
     purchase.current_balance = float(challenge.account_size)
     purchase.current_equity = float(challenge.account_size)
     purchase.peak_equity = float(challenge.account_size)
     purchase.highest_equity = float(challenge.account_size)
-    
-    # Daily tracking
     purchase.day_start_equity = float(challenge.account_size)
     purchase.lowest_equity_today = float(challenge.account_size)
     purchase.highest_equity_today = float(challenge.account_size)
     purchase.daily_start_date = datetime.now(timezone.utc).date()
-    
-    # Metrics
     purchase.profit_percent = 0.0
     purchase.daily_drawdown = 0.0
     purchase.overall_drawdown = 0.0
     purchase.trading_days = 0
     purchase.risk_score = 0
-    
-    # Monitoring
     purchase.monitoring_status = 'active'
     purchase.review_required = False
-    
-    # Phase progression
     purchase.phase1_completed_at = None
     purchase.phase2_started_at = None
     purchase.funded_at = None
-    
-    # Phase tracking fields
     purchase.phase_start_balance = float(challenge.account_size)
     purchase.phase_start_equity = float(challenge.account_size)
     purchase.phase_start_date = datetime.now(timezone.utc)
@@ -368,12 +443,9 @@ def provision_challenge(payment, user, challenge_template_id):
     purchase.phase_day_start_equity = float(challenge.account_size)
     purchase.phase_lowest_equity_today = float(challenge.account_size)
     purchase.phase_daily_start_date = datetime.now(timezone.utc).date()
-    
-    # Distance metrics
     purchase.distance_to_payout = None
     purchase.distance_to_breach = None
     purchase.last_trade_date = None
-    # ===== END RULE ENGINE FIELD INITIALIZATION =====
     
     purchase.serial_no = get_next_serial_no()
     purchase.challenge_code = generate_challenge_code()
@@ -382,6 +454,22 @@ def provision_challenge(payment, user, challenge_template_id):
     db.session.add(purchase)
     db.session.flush()
     payment.challenge_purchase_id = purchase.id
+    
+    # ===== PARTNER REVENUE SHARE LOGIC =====
+    from models import PartnerEarnings
+    partner = User.query.filter_by(role='partner', is_banned=False).first()
+    if partner:
+        earning = PartnerEarnings(
+            partner_id=partner.id,
+            challenge_id=challenge.id,
+            user_id=user.id,
+            purchase_amount=float(challenge.price),
+            partner_share=round(float(challenge.price) * 0.20, 2),
+            purchased_at=datetime.now(timezone.utc)
+        )
+        db.session.add(earning)
+        if DEV_MODE:
+            print(f"[OK] Added 20% partner revenue share for {partner.email}")
     
     if DEV_MODE:
         print(f"[OK] Challenge purchase created: {purchase.id}")
@@ -420,6 +508,39 @@ with app.app_context():
             if DEV_MODE:
                 print(f"[OK] Default admin created: {admin_email}")
 
+        # ===== SEED PARTNER ACCOUNT =====
+        partner_email = os.getenv("PARTNER_EMAIL")
+        partner_password = os.getenv("PARTNER_PASSWORD")
+        if partner_email and partner_password:
+            if not User.query.filter_by(email=partner_email).first():
+                partner = User(
+                    first_name="Tragene",
+                    last_name="Partner",
+                    email=partner_email,
+                    phone="1111111111",
+                    dob=date(1990, 1, 1),
+                    country="India",
+                    state="Maharashtra",
+                    role="partner",
+                    is_banned=False,
+                    phone_verified=True,
+                    email_verified=True,
+                    kyc_status='approved'
+                )
+                partner.set_password(partner_password)
+                db.session.add(partner)
+                db.session.commit()
+                if DEV_MODE:
+                    print(f"[OK] Default partner created: {partner_email}")
+            else:
+                # Ensure existing partner account has correct role
+                existing_partner = User.query.filter_by(email=partner_email).first()
+                if existing_partner and existing_partner.role != 'partner':
+                    existing_partner.role = 'partner'
+                    db.session.commit()
+                    if DEV_MODE:
+                        print(f"[OK] Updated partner role for: {partner_email}")
+
         if not ChallengeTemplate.query.first():
             default_challenges = [
                 ChallengeTemplate(name="Basic Challenge", price=99, account_size=100, phase=1, phase1_target=8.0, phase1_daily_loss=5.0, phase1_overall_loss=10.0, phase1_min_days=5, phase1_duration=30, phase1_leverage="1:100", challenge_type="one_phase", user_profit_share=80, payout_cycle="biweekly", weekend_trading=True, is_active=True, description="Start your trading journey"),
@@ -435,6 +556,42 @@ with app.app_context():
         if DEV_MODE:
             print(f"[INFO] DB not ready for seeding: {e}")
 
+    # ===== BACKFILL PARTNER EARNINGS FOR PAST PURCHASES =====
+    try:
+        from models import PartnerEarnings
+        partner = User.query.filter_by(role='partner', is_banned=False).first()
+        if partner:
+            # Find all purchases that don't have a matching PartnerEarnings record
+            existing_purchase_ids = db.session.query(PartnerEarnings.user_id, PartnerEarnings.challenge_id).filter_by(partner_id=partner.id).all()
+            existing_set = set((r[0], r[1]) for r in existing_purchase_ids)
+            
+            all_purchases = ChallengePurchase.query.all()
+            backfilled = 0
+            for purchase in all_purchases:
+                key = (purchase.user_id, purchase.challenge_id)
+                if key not in existing_set:
+                    challenge = ChallengeTemplate.query.get(purchase.challenge_id)
+                    if challenge:
+                        earning = PartnerEarnings(
+                            partner_id=partner.id,
+                            challenge_id=challenge.id,
+                            user_id=purchase.user_id,
+                            purchase_amount=float(challenge.price),
+                            partner_share=round(float(challenge.price) * 0.20, 2),
+                            purchased_at=purchase.purchased_at or datetime.now(timezone.utc)
+                        )
+                        db.session.add(earning)
+                        backfilled += 1
+            if backfilled > 0:
+                db.session.commit()
+                if DEV_MODE:
+                    print(f"[OK] Backfilled {backfilled} partner earnings for past purchases")
+            elif DEV_MODE:
+                print("[OK] Partner earnings up to date - no backfill needed")
+    except Exception as e:
+        if DEV_MODE:
+            print(f"[INFO] Partner earnings backfill skipped: {e}")
+
     # Register blueprints
     try:
         from auth import auth_bp
@@ -443,6 +600,7 @@ with app.app_context():
         from blog import blog_bp
         from admin_blog import admin_blog_bp
         from mt5_receiver import receiver_bp
+        from partner_routes import partner_bp
 
         app.register_blueprint(auth_bp)
         app.register_blueprint(admin_bp)
@@ -450,6 +608,7 @@ with app.app_context():
         app.register_blueprint(blog_bp)
         app.register_blueprint(admin_blog_bp)
         app.register_blueprint(receiver_bp)
+        app.register_blueprint(partner_bp)
         if DEV_MODE:
             print("[OK] Blueprints registered successfully")
     except ImportError as e:
@@ -458,6 +617,7 @@ with app.app_context():
 # ===== CASHFREE PAYMENT ROUTES =====
 @app.route('/create-cashfree-order', methods=['POST'])
 @login_required
+@limiter.limit("10 per minute", key_func=lambda: f"payment_{session.get('user_id', 'unknown')}")
 def create_cashfree_order():
     if not CASHFREE_APP_ID:
         return jsonify({'success': False, 'error': 'Payment system not configured'})
@@ -721,11 +881,9 @@ def get_challenge_metrics(challenge_id):
     if not challenge:
         return jsonify({'error': 'Challenge not found'}), 404
     
-    # Check access (admin or owner)
     if challenge.user_id != user_id and not user.is_admin:
         return jsonify({'error': 'Access denied'}), 403
     
-    # Helper function to safely round None values
     def safe_round(value, decimals=2):
         if value is None:
             return None
@@ -776,7 +934,6 @@ def get_challenge_rules_api(challenge_id):
     if not template:
         return jsonify({'error': 'Template not found'}), 404
     
-    # Get active rules based on phase
     if challenge.challenge_type == 'two_phase' and challenge.current_phase == 2:
         rules = {
             'phase': 'Phase 2',
@@ -886,13 +1043,6 @@ def help_center():
 def refund_policy():
     return render_template('refund.html')
 
-
-# In your user routes file (e.g., routes/user.py or similar)
-
-
-
-
-
 # ===== MAIN =====
 if __name__ == '__main__':
     print("\n" + "="*60)
@@ -905,7 +1055,8 @@ if __name__ == '__main__':
         print(f"Template folder: {app.template_folder}")
         print(f"Resend: {'ENABLED' if RESEND_AVAILABLE else 'DISABLED'}")
         cashfree_enabled = bool(CASHFREE_APP_ID and CASHFREE_SECRET_KEY)
-        print(f"Cashfree: {'ENABLED' if cashfree_enabled else 'DISABLED'}")    
+        print(f"Cashfree: {'ENABLED' if cashfree_enabled else 'DISABLED'}")
+        print(f"Redis: {'ENABLED' if REDIS_ENABLED else 'DISABLED'}")
         important_templates = ['index.html', 'user/user_dashboard.html', 'login.html', 
                               'user/payment_status.html', 'user/payment_failed.html']
         for template in important_templates:
@@ -914,5 +1065,10 @@ if __name__ == '__main__':
             print(f"  [{status}] {template}")
     
     print("="*60 + "\n")
+    
+    # Use production WSGI server for production
+    if not DEV_MODE:
+        print("⚠️  For production, use a production WSGI server like Gunicorn or Waitress")
+        print("   Example: waitress-serve --host=0.0.0.0 --port=5003 app:app")
     
     app.run(debug=DEV_MODE, host='0.0.0.0', port=5003)

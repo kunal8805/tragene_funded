@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-8SBBXX72M7"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag() { dataLayer.push(arguments); }
+        gtag('js', new Date());
+        gtag('config', 'G-8SBBXX72M7');
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>{% block title %}Partner Dashboard - Tragene Funded{% endblock %}</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        dark: {
+                            bg: '#0f172a',
+                            card: '#1e293b',
+                            text: '#f1f5f9',
+                            muted: '#94a3b8',
+                            border: '#334155'
+                        },
+                        partner: {
+                            50: '#faf5ff',
+                            100: '#f3e8ff',
+                            200: '#e9d5ff',
+                            300: '#d8b4fe',
+                            400: '#c084fc',
+                            500: '#a855f7',
+                            600: '#9333ea',
+                            700: '#7e22ce',
+                            800: '#6b21a8',
+                            900: '#581c87'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+    <!-- Google Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+
+        html, body {
+            overflow-x: hidden;
+            max-width: 100%;
+        }
+
+        /* Partner Purple Theme */
+        .bg-partner {
+            background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 50%, #ede9fe 100%);
+            min-height: 100vh;
+        }
+
+        .dark .bg-partner {
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #1e293b 100%);
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        }
+
+        .dark .glass-card {
+            background: rgba(30, 41, 59, 0.95);
+            border: 1px solid #334155;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Sidebar */
+        .partner-sidebar {
+            width: 260px;
+            height: 100vh;
+            background: linear-gradient(180deg, #7e22ce 0%, #581c87 100%);
+            position: fixed;
+            left: 0;
+            top: 0;
+            z-index: 30;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 4px 0 20px rgba(126, 34, 206, 0.3);
+        }
+
+        .partner-sidebar .sidebar-header {
+            flex-shrink: 0;
+            padding: 1.5rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+        }
+
+        .partner-sidebar .sidebar-nav {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+        }
+
+        .partner-sidebar .sidebar-footer {
+            flex-shrink: 0;
+            border-top: 1px solid rgba(255, 255, 255, 0.15);
+            padding: 1rem;
+        }
+
+        .partner-nav-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.85rem 1rem;
+            border-radius: 12px;
+            color: rgba(255, 255, 255, 0.7);
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 0.95rem;
+            transition: all 0.2s ease;
+            margin-bottom: 0.35rem;
+        }
+
+        .partner-nav-item:hover {
+            background: rgba(255, 255, 255, 0.15);
+            color: white;
+        }
+
+        .partner-nav-item.active {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+        }
+
+        .partner-nav-item i {
+            width: 1.25rem;
+            text-align: center;
+            font-size: 1rem;
+        }
+
+        .partner-nav-label {
+            padding: 0.5rem 0.75rem;
+            font-size: 0.65rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            color: rgba(255, 255, 255, 0.4);
+            margin-top: 0.75rem;
+        }
+
+        .partner-content {
+            margin-left: 260px;
+            min-height: 100vh;
+            width: calc(100% - 260px);
+        }
+
+        /* Mobile Sidebar */
+        .partner-sidebar-mobile {
+            transform: translateX(-100%);
+            transition: transform 0.3s ease-in-out;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 280px;
+            height: 100vh;
+            z-index: 50;
+            background: linear-gradient(180deg, #7e22ce 0%, #581c87 100%);
+            box-shadow: 4px 0 20px rgba(126, 34, 206, 0.3);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .partner-sidebar-mobile.open {
+            transform: translateX(0);
+        }
+
+        .overlay {
+            display: none;
+            background: rgba(0, 0, 0, 0.5);
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 40;
+        }
+
+        .overlay.active {
+            display: block;
+        }
+
+        /* Theme toggle */
+        .partner-theme-btn {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 0.7rem;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: rgba(255, 255, 255, 0.8);
+            font-weight: 500;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .partner-theme-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .partner-sidebar { display: none; }
+            .partner-content { margin-left: 0; width: 100%; }
+        }
+
+        /* Dark mode text overrides */
+        .dark .text-gray-900 { color: #f1f5f9; }
+        .dark .text-gray-800 { color: #e2e8f0; }
+        .dark .text-gray-700 { color: #cbd5e1; }
+        .dark .text-gray-600 { color: #94a3b8; }
+        .dark .text-gray-500 { color: #64748b; }
+        .dark .bg-white { background-color: #1e293b; }
+        .dark .bg-gray-50 { background-color: #0f172a; }
+        .dark .border-gray-200 { border-color: #334155; }
+
+        /* Partner badge pulse */
+        .partner-badge {
+            animation: badgePulse 2s ease-in-out infinite;
+        }
+        @keyframes badgePulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(168, 85, 247, 0.4); }
+            50% { box-shadow: 0 0 0 6px rgba(168, 85, 247, 0); }
+        }
+
+        /* Fade-in animation */
+        .animate-fade-in {
+            animation: fadeIn 0.5s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+    {% block head %}{% endblock %}
+</head>
+
+<body class="bg-partner text-gray-800 min-h-screen">
+    <!-- Dark Mode Init -->
+    <script>
+        if (localStorage.getItem('color-theme') === 'dark' || (!('color-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    </script>
+
+    <!-- Mobile Overlay -->
+    <div id="overlay" class="overlay" onclick="toggleSidebar()"></div>
+
+    <!-- Mobile Header -->
+    <header class="bg-white dark:bg-dark-card shadow-sm border-b border-gray-200 dark:border-dark-border sticky top-0 z-30 lg:hidden">
+        <div class="flex items-center justify-between p-4">
+            <div class="flex items-center gap-3">
+                <button onclick="toggleSidebar()" class="p-2 rounded-lg bg-purple-100 dark:bg-purple-900/30 hover:bg-purple-200 dark:hover:bg-purple-800/40 transition">
+                    <i class="fas fa-bars text-purple-700 dark:text-purple-300"></i>
+                </button>
+                <div class="w-10 h-10 rounded-full overflow-hidden border border-purple-300 dark:border-purple-600 bg-white flex items-center justify-center shrink-0">
+                    <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo" class="w-full h-full object-contain">
+                </div>
+                <span class="font-bold text-purple-700 dark:text-purple-300 text-sm">PARTNER</span>
+            </div>
+            <div class="flex items-center space-x-3">
+                <button id="theme-toggle-mobile" class="p-2 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
+                    <i class="fas fa-moon hidden dark:block"></i>
+                    <i class="fas fa-sun block dark:hidden"></i>
+                </button>
+                <a href="/logout" class="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg text-sm font-medium transition">
+                    <i class="fas fa-sign-out-alt"></i>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Desktop Sidebar -->
+    <div class="partner-sidebar hidden lg:flex flex-col">
+        <!-- Header -->
+        <div class="sidebar-header">
+            <div class="flex items-center gap-3">
+                <div class="w-12 h-12 rounded-full overflow-hidden border-2 border-white/30 bg-white flex items-center justify-center shrink-0">
+                    <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo" class="w-full h-full object-contain">
+                </div>
+                <div class="leading-tight">
+                    <h1 class="font-bold text-white text-lg tracking-wide">TRAGENE</h1>
+                    <p class="text-purple-200 text-xs tracking-widest font-semibold">PARTNER PANEL</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation -->
+        <nav class="sidebar-nav space-y-1">
+            <div class="partner-nav-label">Overview</div>
+
+            <a href="/partner/dashboard" class="partner-nav-item {% if request.endpoint == 'partner.dashboard' %}active{% endif %}">
+                <i class="fas fa-tachometer-alt"></i>
+                <span>Dashboard</span>
+            </a>
+
+            <div class="partner-nav-label" style="margin-top: 2rem;">Account</div>
+
+            <a href="/logout" class="partner-nav-item">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>Logout</span>
+            </a>
+        </nav>
+
+        <!-- Footer -->
+        <div class="sidebar-footer">
+            <!-- Partner info -->
+            <div class="flex items-center gap-3 mb-3 px-1">
+                <div class="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center text-white font-bold text-sm">
+                    {{ user.first_name[0] if user else 'P' }}
+                </div>
+                <div class="leading-tight">
+                    <p class="text-white text-sm font-semibold">{{ user.first_name if user else 'Partner' }}</p>
+                    <p class="text-purple-200 text-xs">Partner Account</p>
+                </div>
+            </div>
+            <button id="theme-toggle-desktop" class="partner-theme-btn">
+                <i class="fas fa-moon hidden dark:block"></i>
+                <i class="fas fa-sun block dark:hidden"></i>
+                <span class="hidden dark:block">Light Mode</span>
+                <span class="block dark:hidden">Dark Mode</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Mobile Sidebar -->
+    <div id="mobileSidebar" class="partner-sidebar-mobile lg:hidden">
+        <div class="p-6 border-b border-white/15 flex-shrink-0">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 rounded-full overflow-hidden border-2 border-white/30 bg-white flex items-center justify-center shrink-0">
+                        <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo" class="w-full h-full object-contain">
+                    </div>
+                    <div class="leading-tight">
+                        <h1 class="font-bold text-white text-lg">TRAGENE</h1>
+                        <p class="text-purple-200 text-xs tracking-widest font-semibold">PARTNER</p>
+                    </div>
+                </div>
+                <button onclick="toggleSidebar()" class="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition">
+                    <i class="fas fa-times text-white"></i>
+                </button>
+            </div>
+        </div>
+
+        <nav class="flex-1 overflow-y-auto p-4 space-y-1">
+            <div class="partner-nav-label">Overview</div>
+
+            <a href="/partner/dashboard" class="partner-nav-item {% if request.endpoint == 'partner.dashboard' %}active{% endif %}" onclick="toggleSidebar()">
+                <i class="fas fa-tachometer-alt"></i>
+                <span>Dashboard</span>
+            </a>
+
+            <div class="partner-nav-label" style="margin-top: 2rem;">Account</div>
+
+            <a href="/logout" class="partner-nav-item" onclick="toggleSidebar()">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>Logout</span>
+            </a>
+        </nav>
+
+        <div class="flex-shrink-0 border-t border-white/15 p-4">
+            <button id="theme-toggle-mobile-sidebar" class="partner-theme-btn" onclick="toggleSidebar()">
+                <i class="fas fa-moon hidden dark:block"></i>
+                <i class="fas fa-sun block dark:hidden"></i>
+                <span class="hidden dark:block">Light Mode</span>
+                <span class="block dark:hidden">Dark Mode</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="partner-content">
+        <!-- Desktop Header -->
+        <header class="hidden lg:flex bg-white dark:bg-dark-card shadow-sm border-b border-gray-200 dark:border-dark-border sticky top-0 z-20">
+            <div class="flex justify-between items-center p-6 w-full">
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{% block header_title %}Partner Dashboard{% endblock %}</h1>
+                    <p class="text-gray-600 dark:text-gray-400">{% block header_subtitle %}Revenue & Sales Overview{% endblock %}</p>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div class="text-right">
+                        <p class="text-sm text-gray-600 dark:text-gray-400">Welcome back</p>
+                        <div class="flex items-center gap-2">
+                            <p class="font-semibold text-gray-900 dark:text-white">{{ user.first_name if user else 'Partner' }} {{ user.last_name if user else '' }}</p>
+                            <span class="partner-badge bg-purple-600 text-white text-[10px] font-black uppercase px-2 py-1 rounded shadow-md">Partner</span>
+                        </div>
+                    </div>
+                    <a href="/logout" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-medium transition">
+                        <i class="fas fa-sign-out-alt mr-2"></i>Logout
+                    </a>
+                </div>
+            </div>
+        </header>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="p-4 lg:p-6 pb-0">
+            {% for category, message in messages %}
+            <div class="p-4 mb-4 rounded-lg {% if category == 'error' %}bg-red-100 text-red-700 border border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-900/30{% elif category == 'success' %}bg-green-100 text-green-700 border border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-900/30{% else %}bg-blue-100 text-blue-700 border border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-900/30{% endif %}">
+                {{ message }}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
+
+        <main class="p-4 lg:p-6">
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+
+    <script>
+        // Mobile sidebar toggle
+        function toggleSidebar() {
+            const sidebar = document.getElementById('mobileSidebar');
+            const overlay = document.getElementById('overlay');
+            sidebar.classList.toggle('open');
+            overlay.classList.toggle('active');
+        }
+
+        // Dark Mode Logic
+        const themeToggleDesktop = document.getElementById('theme-toggle-desktop');
+        const themeToggleMobile = document.getElementById('theme-toggle-mobile');
+        const themeToggleMobileSidebar = document.getElementById('theme-toggle-mobile-sidebar');
+
+        function toggleTheme() {
+            if (document.documentElement.classList.contains('dark')) {
+                document.documentElement.classList.remove('dark');
+                localStorage.setItem('color-theme', 'light');
+            } else {
+                document.documentElement.classList.add('dark');
+                localStorage.setItem('color-theme', 'dark');
+            }
+        }
+
+        if (themeToggleDesktop) themeToggleDesktop.addEventListener('click', toggleTheme);
+        if (themeToggleMobile) themeToggleMobile.addEventListener('click', toggleTheme);
+        if (themeToggleMobileSidebar) themeToggleMobileSidebar.addEventListener('click', toggleTheme);
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

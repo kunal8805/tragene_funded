@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify, abort
 from functools import wraps
-from models import db, User, ChallengeTemplate, ChallengePurchase, Payout, FAQ, SupportTicket, TicketMessage, Payment
+from models import db, User, ChallengeTemplate, ChallengePurchase, Payout, FAQ, SupportTicket, TicketMessage, Payment, AdminLog
 from datetime import datetime, timedelta, timezone
 import secrets
 
@@ -1437,3 +1437,97 @@ def log_rule(challenge_id, rule_name, severity, message, current_value=None, thr
         db.session.commit()
     except Exception as e:
         print(f"Failed to log admin action: {e}")
+
+@admin_bp.route('/partner/<int:partner_id>/ban', methods=['POST'])
+@admin_required
+def ban_partner(partner_id):
+    partner = User.query.get_or_404(partner_id)
+    if partner.role != 'partner':
+        flash('User is not a partner', 'error')
+        return redirect(url_for('admin.partners'))
+        
+    partner.is_banned = True
+    
+    log = AdminLog(
+        admin_id=session['user_id'],
+        action='ban_partner',
+        target_type='partner',
+        target_id=partner.id,
+        details=f'Partner {partner.email} banned',
+        ip_address=request.remote_addr
+    )
+    db.session.add(log)
+    db.session.commit()
+    
+    flash(f'Partner {partner.email} banned', 'success')
+    return redirect(url_for('admin.partners'))
+
+@admin_bp.route('/partner/<int:partner_id>/unban', methods=['POST'])
+@admin_required
+def unban_partner(partner_id):
+    partner = User.query.get_or_404(partner_id)
+    if partner.role != 'partner':
+        flash('User is not a partner', 'error')
+        return redirect(url_for('admin.partners'))
+        
+    partner.is_banned = False
+    
+    log = AdminLog(
+        admin_id=session['user_id'],
+        action='unban_partner',
+        target_type='partner',
+        target_id=partner.id,
+        details=f'Partner {partner.email} unbanned',
+        ip_address=request.remote_addr
+    )
+    db.session.add(log)
+    db.session.commit()
+    
+    flash(f'Access restored for {partner.email}', 'success')
+    return redirect(url_for('admin.partners'))
+
+@admin_bp.route('/partner/<int:partner_id>/revoke', methods=['POST'])
+@admin_required
+def revoke_partner(partner_id):
+    partner = User.query.get_or_404(partner_id)
+    if partner.role != 'partner':
+        flash('User is not a partner', 'error')
+        return redirect(url_for('admin.partners'))
+        
+    partner.role = 'user'
+    partner.is_banned = True
+    
+    log = AdminLog(
+        admin_id=session['user_id'],
+        action='revoke_partner',
+        target_type='partner',
+        target_id=partner.id,
+        details=f'Partner access fully revoked for {partner.email}',
+        ip_address=request.remote_addr
+    )
+    db.session.add(log)
+    db.session.commit()
+    
+    flash(f'Partner access fully revoked for {partner.email}', 'success')
+    return redirect(url_for('admin.partners'))
+
+@admin_bp.route('/partners')
+@admin_required
+def partners():
+    from models import PartnerEarnings
+    from sqlalchemy import func
+    
+    # Get all partners
+    all_partners = User.query.filter_by(role='partner').all()
+    
+    # Get earnings for each partner
+    partner_stats = {}
+    for p in all_partners:
+        total_earned = db.session.query(func.sum(PartnerEarnings.partner_share)).filter_by(partner_id=p.id).scalar() or 0.0
+        sales_count = PartnerEarnings.query.filter_by(partner_id=p.id).count()
+        partner_stats[p.id] = {
+            'total_earned': total_earned,
+            'sales_count': sales_count
+        }
+        
+    return render_template('admin/partners.html', partners=all_partners, stats=partner_stats)

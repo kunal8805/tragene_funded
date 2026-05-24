@@ -51,6 +51,7 @@ class User(db.Model):
     state = db.Column(db.String(50))
     password = db.Column(db.String(200), nullable=False)
     is_admin = db.Column(db.Boolean, default=False, index=True)
+    role = db.Column(db.String(20), default='user')
     is_banned = db.Column(db.Boolean, default=False, index=True)
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
     
@@ -127,6 +128,20 @@ class User(db.Model):
     
     def __repr__(self):
         return f'<User {self.email}>'
+
+class PartnerEarnings(db.Model):
+    __tablename__ = 'partner_earnings'
+    id = db.Column(db.Integer, primary_key=True)
+    partner_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    challenge_id = db.Column(db.Integer, db.ForeignKey('challenge_template.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    purchase_amount = db.Column(db.Float, nullable=False)
+    partner_share = db.Column(db.Float, nullable=False)
+    purchased_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+    partner = db.relationship('User', foreign_keys=[partner_id], backref='partner_earnings_list')
+    user = db.relationship('User', foreign_keys=[user_id])
+    challenge = db.relationship('ChallengeTemplate')
 
 
 class ChallengeTemplate(db.Model):
