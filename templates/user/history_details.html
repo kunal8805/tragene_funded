@@ -50,13 +50,13 @@
     <div class="stats-grid">
         <div class="stat-card">
             <div class="stat-label">Final Profit</div>
-            <div class="stat-value {{ 'text-green-600' if challenge.profit_percent >= 0 else 'text-red-600' }}">
-                {{ '+' if challenge.profit_percent > 0 else '' }}{{ challenge.profit_percent|round(2) }}%
+            <div class="stat-value {{ 'text-green-600' if (challenge.profit_percent or 0) >= 0 else 'text-red-600' }}">
+                {{ '+' if (challenge.profit_percent or 0) > 0 else '' }}{{ (challenge.profit_percent or 0)|round(2) }}%
             </div>
         </div>
         <div class="stat-card">
             <div class="stat-label">Peak Drawdown</div>
-            <div class="stat-value text-red-600">{{ challenge.overall_drawdown|round(2) }}%</div>
+            <div class="stat-value text-red-600">{{ (challenge.overall_drawdown or 0)|round(2) }}%</div>
         </div>
         <div class="stat-card">
             <div class="stat-label">Trading Days</div>

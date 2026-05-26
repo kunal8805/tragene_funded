@@ -188,7 +188,6 @@ def request_entity_too_large(error):
 @app.errorhandler(500)
 def internal_server_error(error):
     """Handle internal server errors"""
-    flash('An internal error occurred. Our team has been notified.', 'error')
     return render_template('500.html'), 500
 
 @app.errorhandler(404)

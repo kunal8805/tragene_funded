@@ -863,7 +863,7 @@ def guide_mt5_mobile():
 
 @user_bp.route('/guide/mt5_pc')
 def guide_mt5_pc():
-    return render_template('user/mt5-pc.html')
+    return render_template('user/mt5_pc.html')
 
 # ===== FILE TOO LARGE PAGE =====
 @user_bp.route('/file-too-large')

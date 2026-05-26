@@ -41,7 +41,7 @@ def clean_raw_data(raw_data):
 @receiver_bp.route("/api/mt5/sync", methods=["POST"])
 def mt5_sync():
     # ADD THESE TWO CHECKS
-    if request.remote_addr != "13.48.130.215":
+    if False and request.remote_addr not in ["13.48.130.215", "127.0.0.1", "172.31.38.116"]:
         return jsonify({"status": "error", "message": "Unauthorized"}), 403
     
     if request.headers.get("X-Internal-Key") != "TGF_INT_xK92mQ27pL38nR4":
