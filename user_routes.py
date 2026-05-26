@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify
 from functools import wraps
-from models import db, User, ChallengeTemplate, ChallengePurchase, Payment, Payout, SupportTicket, TicketMessage, FAQ, RuleLog, TradeHistory
+from models import db, User, ChallengeTemplate, ChallengePurchase, Payment, Payout, SupportTicket, TicketMessage, FAQ, RuleLog, TradeHistory, Notification, UserNotification, Coupon, CouponUsage, CouponAssignment
 from datetime import datetime, timezone, timedelta
 import os
 import secrets
@@ -870,3 +870,212 @@ def guide_mt5_pc():
 @login_required
 def file_too_large():
     return render_template('user/file_too_large.html')
+
+# ===== USER NOTIFICATION API ROUTES =====
+@user_bp.route('/api/notifications', methods=['GET'])
+@login_required
+def api_get_notifications():
+    try:
+        user_id = session.get('user_id')
+        now_utc = datetime.now(timezone.utc)
+
+        # Query active, unexpired, non-deleted notifications
+        notifications = Notification.query.filter(
+            Notification.is_deleted == False,
+            (Notification.expires_at == None) | (Notification.expires_at > now_utc),
+            (Notification.is_global == True) | (Notification.target_user_id == user_id)
+        ).order_by(Notification.created_at.desc()).all()
+
+        # Fetch read status mappings for the current user
+        read_mappings = {
+            un.notification_id: un.is_read
+            for un in UserNotification.query.filter_by(user_id=user_id).all()
+        }
+
+        results = []
+        for n in notifications:
+            is_read = read_mappings.get(n.id, False)
+            results.append({
+                'id': n.id,
+                'title': n.title,
+                'message': n.message,
+                'created_at': n.created_at.strftime('%Y-%m-%d %H:%M:%S') if n.created_at else '',
+                'is_read': is_read,
+                'is_global': n.is_global
+            })
+
+        unread_count = sum(1 for item in results if not item['is_read'])
+
+        return jsonify({
+            'success': True,
+            'notifications': results,
+            'unread_count': unread_count
+        })
+
+    except Exception as e:
+        print(f"Error fetching notifications: {e}")
+        return jsonify({'success': False, 'error': 'Failed to retrieve notifications'})
+
+
+@user_bp.route('/api/notifications/read', methods=['POST'])
+@login_required
+def api_mark_notifications_read():
+    try:
+        data = request.get_json() or {}
+        notif_ids = data.get('notification_ids', [])
+        notif_id = data.get('notification_id')
+        
+        if notif_id:
+            notif_ids.append(notif_id)
+
+        if not notif_ids:
+            return jsonify({'success': False, 'error': 'No notification IDs provided'})
+
+        user_id = session.get('user_id')
+        now_utc = datetime.now(timezone.utc)
+
+        for nid in notif_ids:
+            mapping = UserNotification.query.filter_by(notification_id=nid, user_id=user_id).first()
+            if mapping:
+                mapping.is_read = True
+                mapping.read_at = now_utc
+            else:
+                # Verify user is allowed to read this notification
+                notif = Notification.query.filter_by(id=nid, is_deleted=False).first()
+                if notif and (notif.is_global or notif.target_user_id == user_id):
+                    user_notif = UserNotification(
+                        notification_id=nid,
+                        user_id=user_id,
+                        is_read=True,
+                        read_at=now_utc
+                    )
+                    db.session.add(user_notif)
+
+        db.session.commit()
+        return jsonify({'success': True})
+
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error marking notifications read: {e}")
+        return jsonify({'success': False, 'error': 'Failed to mark notifications as read'})
+
+
+@user_bp.route('/api/notifications/read-all', methods=['POST'])
+@login_required
+def api_mark_all_notifications_read():
+    try:
+        user_id = session.get('user_id')
+        now_utc = datetime.now(timezone.utc)
+
+        # Retrieve active notifications for user
+        notifications = Notification.query.filter(
+            Notification.is_deleted == False,
+            (Notification.expires_at == None) | (Notification.expires_at > now_utc),
+            (Notification.is_global == True) | (Notification.target_user_id == user_id)
+        ).all()
+
+        for n in notifications:
+            mapping = UserNotification.query.filter_by(notification_id=n.id, user_id=user_id).first()
+            if mapping:
+                if not mapping.is_read:
+                    mapping.is_read = True
+                    mapping.read_at = now_utc
+            else:
+                user_notif = UserNotification(
+                    notification_id=n.id,
+                    user_id=user_id,
+                    is_read=True,
+                    read_at=now_utc
+                )
+                db.session.add(user_notif)
+
+        db.session.commit()
+        return jsonify({'success': True})
+
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error marking all notifications read: {e}")
+        return jsonify({'success': False, 'error': 'Failed to mark all notifications as read'})
+
+
+@user_bp.route('/my-coupons')
+@login_required
+def user_coupons():
+    user = User.query.get(session['user_id'])
+    now = datetime.now(timezone.utc)
+    
+    # Fetch all active, non-deleted coupons
+    all_coupons = Coupon.query.filter_by(is_active=True, is_deleted=False).all()
+    
+    available_coupons = []
+    for coupon in all_coupons:
+        # Check expiry
+        if coupon.expires_at:
+            expires_at = coupon.expires_at.replace(tzinfo=timezone.utc) if coupon.expires_at.tzinfo is None else coupon.expires_at
+            if expires_at < now:
+                continue
+
+        # Check if user has already used it (one use per user per coupon)
+        used = CouponUsage.query.filter_by(coupon_id=coupon.id, user_id=user.id).first()
+        if used:
+            continue
+            
+        if coupon.coupon_type in ['universal', 'influencer']:
+            # Check max usage limit
+            if coupon.max_uses is not None and coupon.used_count >= coupon.max_uses:
+                continue
+            available_coupons.append(coupon)
+            
+        elif coupon.coupon_type == 'specific':
+            # Must be assigned to this user and not used
+            assignment = CouponAssignment.query.filter_by(
+                coupon_id=coupon.id, 
+                user_id=user.id, 
+                is_used=False
+            ).first()
+            if assignment:
+                available_coupons.append(coupon)
+                
+    return render_template('user/user_coupon.html', user=user, coupons=available_coupons)
+
+
+@user_bp.route('/validate-coupon', methods=['POST'])
+@login_required
+def validate_coupon_api():
+    try:
+        user_id = session.get('user_id')
+        coupon_code = request.form.get('coupon_code')
+        challenge_id = request.form.get('challenge_id')
+        
+        if not coupon_code:
+            return jsonify({'success': False, 'error': 'Coupon code is required'})
+            
+        if not challenge_id:
+            return jsonify({'success': False, 'error': 'Challenge ID is required'})
+            
+        challenge = ChallengeTemplate.query.get(challenge_id)
+        if not challenge:
+            return jsonify({'success': False, 'error': 'Challenge not found'})
+            
+        coupon = Coupon.query.filter_by(code=coupon_code.upper().strip(), is_deleted=False).first()
+        if not coupon:
+            return jsonify({'success': False, 'error': 'Invalid coupon code'})
+            
+        is_valid, msg, discount_amount, final_price = coupon.validate_for_user_and_price(user_id, float(challenge.price))
+        
+        if not is_valid:
+            return jsonify({'success': False, 'error': msg})
+            
+        return jsonify({
+            'success': True,
+            'message': msg,
+            'discount_amount': discount_amount,
+            'final_price': final_price,
+            'coupon_type': coupon.coupon_type,
+            'discount_type': coupon.discount_type,
+            'discount_value': coupon.discount_value
+        })
+        
+    except Exception as e:
+        print(f"Error validating coupon: {e}")
+        return jsonify({'success': False, 'error': 'An error occurred while validating the coupon'})

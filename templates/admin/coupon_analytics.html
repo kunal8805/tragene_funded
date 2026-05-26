@@ -1,0 +1,246 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Coupon Campaign Analytics - Tragene Funded{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6" data-aos="fade-up">
+    <!-- Header/Back Nav -->
+    <div class="flex items-center gap-4 mb-6">
+        <a href="/admin/coupons" class="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium inline-flex items-center">
+            <i class="fas fa-arrow-left mr-2"></i> Back to Coupons
+        </a>
+    </div>
+
+    <!-- Title Banner -->
+    <div class="mb-8">
+        <h1 class="text-3xl font-extrabold text-gray-900 dark:text-white flex items-center gap-2.5">
+            <i class="fas fa-chart-line text-blue-600 dark:text-blue-400"></i>
+            Promotional & Coupon Analytics
+        </h1>
+        <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Review the overall performance, conversion frequencies, and financial distributions of coupon campaigns.</p>
+    </div>
+
+    <!-- Analytics Dashboard Cards -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        <!-- Campaign Stats Card -->
+        <div class="glass-card p-6 border dark:border-dark-border flex flex-col justify-between">
+            <div>
+                <span class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider block mb-2">Campaign Counts</span>
+                <div class="space-y-2.5">
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-600 dark:text-gray-400">Total Created:</span>
+                        <span class="font-bold text-gray-900 dark:text-white">{{ total_coupons }}</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-600 dark:text-gray-400">Active Campaign(s):</span>
+                        <span class="font-bold text-green-600 dark:text-green-400">{{ active_coupons }}</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-600 dark:text-gray-400">Expired Campaign(s):</span>
+                        <span class="font-bold text-red-500 dark:text-red-400">{{ expired_coupons }}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="border-t dark:border-gray-700 pt-4 mt-4 flex items-center justify-between text-xs text-gray-500">
+                <span>Updated in real-time</span>
+                <i class="fas fa-ticket-alt text-blue-500"></i>
+            </div>
+        </div>
+
+        <!-- Redemption Metrics Card -->
+        <div class="glass-card p-6 border dark:border-dark-border flex flex-col justify-between">
+            <div>
+                <span class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider block mb-2">Redemptions & Quotas</span>
+                <div class="space-y-2.5">
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-600 dark:text-gray-400">Total Redemptions:</span>
+                        <span class="font-bold text-gray-900 dark:text-white">{{ total_usages }}</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-600 dark:text-gray-400">Avg. Discount Value:</span>
+                        <span class="font-bold text-orange-600 dark:text-orange-400">
+                            ₹{% if total_usages > 0 %}{{ "{:,.2f}".format(total_discount_given / total_usages) }}{% else %}0.00{% endif %}
+                        </span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-600 dark:text-gray-400">Conversion Revenue Share:</span>
+                        <span class="font-bold text-green-600 dark:text-green-400">
+                            {% if total_revenue_generated + total_discount_given > 0 %}
+                                {{ "{:.1f}".format((total_revenue_generated / (total_revenue_generated + total_discount_given)) * 100) }}%
+                            {% else %}
+                                100%
+                            {% endif %}
+                        </span>
+                    </div>
+                </div>
+            </div>
+            <div class="border-t dark:border-gray-700 pt-4 mt-4 flex items-center justify-between text-xs text-gray-500">
+                <span>Tracking redemptions logs</span>
+                <i class="fas fa-clipboard-check text-green-500"></i>
+            </div>
+        </div>
+
+        <!-- Financial Impact Card -->
+        <div class="glass-card p-6 border dark:border-dark-border flex flex-col justify-between">
+            <div>
+                <span class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider block mb-2">Financial telemetry</span>
+                <div class="space-y-2.5">
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-600 dark:text-gray-400">Gross Sales Value:</span>
+                        <span class="font-bold text-gray-900 dark:text-white">₹{{ "{:,.2f}".format(total_revenue_generated + total_discount_given) }}</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-600 dark:text-gray-400">Total Discounts Given:</span>
+                        <span class="font-bold text-red-500 dark:text-red-400">-₹{{ "{:,.2f}".format(total_discount_given) }}</span>
+                    </div>
+                    <div class="flex justify-between text-sm border-t dark:border-gray-700 pt-2 mt-2">
+                        <span class="font-semibold text-gray-800 dark:text-gray-200">Net Conversion Revenue:</span>
+                        <span class="font-black text-green-600 dark:text-green-400 text-base">₹{{ "{:,.2f}".format(total_revenue_generated) }}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="border-t dark:border-gray-700 pt-4 mt-4 flex items-center justify-between text-xs text-gray-500">
+                <span>Successful checkouts payouts</span>
+                <i class="fas fa-wallet text-green-500"></i>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        <!-- Chart.js Timeline Widget (2/3 width) -->
+        <div class="lg:col-span-2 glass-card p-6 border dark:border-dark-border flex flex-col">
+            <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                <i class="far fa-calendar-alt text-blue-600 dark:text-blue-400"></i>
+                Redemptions Timeline (Last 30 Days)
+            </h3>
+            
+            <div class="flex-1 min-h-[300px] relative">
+                <canvas id="redemptionsChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Top Campaigns List (1/3 width) -->
+        <div class="glass-card p-6 border dark:border-dark-border">
+            <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                <i class="fas fa-award text-yellow-600 dark:text-yellow-400"></i>
+                Top Performing Coupons
+            </h3>
+            
+            <div class="space-y-4">
+                {% for top in top_coupons %}
+                <div class="flex items-center justify-between p-3.5 bg-gray-50 dark:bg-gray-800/40 rounded-xl border dark:border-gray-700/60 hover:shadow-md transition">
+                    <div>
+                        <span class="font-mono font-bold text-gray-900 dark:text-white">{{ top.code }}</span>
+                        <div class="flex items-center gap-1.5 mt-1.5">
+                            <span class="text-2xs bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 px-2 py-0.5 rounded-full font-semibold">{{ top.coupon_type|capitalize }}</span>
+                            <span class="text-xs text-gray-500">{{ top.usage_count }} use(s)</span>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-xs text-gray-500 uppercase block">Revenue</span>
+                        <span class="font-extrabold text-green-600 dark:text-green-400 text-sm">₹{{ "{:,.2f}".format(top.revenue) }}</span>
+                    </div>
+                </div>
+                {% else %}
+                <div class="text-center py-12 text-gray-500 dark:text-gray-400">
+                    <span class="text-3xl block mb-2">🏅</span>
+                    <p class="font-semibold text-sm">No campaigns recorded redemptions</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Load Chart.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const labels = {{ timeline_labels|tojson }};
+        const dataValues = {{ timeline_values|tojson }};
+
+        // Fallback for empty analytics
+        if (labels.length === 0) {
+            labels.push(new Date().toISOString().split('T')[0]);
+            dataValues.push(0);
+        }
+
+        const ctx = document.getElementById('redemptionsChart').getContext('2d');
+        
+        // Premium Dark/Light Harmonized configurations
+        const isDark = document.documentElement.classList.contains('dark');
+        const gridColor = isDark ? 'rgba(75, 85, 99, 0.2)' : 'rgba(229, 231, 235, 0.5)';
+        const textColor = isDark ? '#9ca3af' : '#4b5563';
+
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Redemptions',
+                    data: dataValues,
+                    borderColor: '#3b82f6',
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.35,
+                    pointBackgroundColor: '#3b82f6',
+                    pointBorderColor: '#ffffff',
+                    pointHoverRadius: 7,
+                    pointHoverBackgroundColor: '#2563eb',
+                    pointHoverBorderColor: '#ffffff',
+                    pointRadius: 4,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        backgroundColor: isDark ? '#1f2937' : '#ffffff',
+                        titleColor: isDark ? '#ffffff' : '#111827',
+                        bodyColor: isDark ? '#d1d5db' : '#374151',
+                        borderColor: isDark ? '#374151' : '#e5e7eb',
+                        borderWidth: 1,
+                        padding: 12,
+                        displayColors: false,
+                        cornerRadius: 12
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: {
+                            color: gridColor,
+                            drawBorder: false
+                        },
+                        ticks: {
+                            color: textColor,
+                            font: {
+                                size: 11
+                            }
+                        }
+                    },
+                    y: {
+                        grid: {
+                            color: gridColor,
+                            drawBorder: false
+                        },
+                        ticks: {
+                            color: textColor,
+                            font: {
+                                size: 11
+                            },
+                            stepSize: 1,
+                            beginAtZero: true
+                        }
+                    }
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

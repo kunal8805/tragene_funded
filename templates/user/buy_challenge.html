@@ -450,14 +450,35 @@
                     <span class="font-medium text-green-600 dark:text-green-400">{{ challenge.user_profit_share
                         }}%</span>
                 </div>
-                <div class="border-t dark:border-gray-700 pt-3 mt-3">
-                    <div class="flex justify-between text-lg">
-                        <span class="font-semibold text-gray-900 dark:text-white">Total:</span>
-                        <span class="font-bold text-gray-900 dark:text-white">₹{{ challenge.price }}</span>
+                <div class="border-t dark:border-gray-700 pt-3 mt-3 space-y-2">
+                    <div class="flex justify-between text-sm" id="originalPriceRow">
+                        <span class="text-gray-600 dark:text-gray-400">Original Price:</span>
+                        <span class="font-medium text-gray-900 dark:text-white">₹{{ challenge.price }}</span>
                     </div>
-                    <div class="text-right text-sm text-gray-600 dark:text-gray-400">
-                        ≈ ${{ (challenge.price * 0.012)|round(2) }} USD
+                    <div class="flex justify-between text-sm text-green-600 dark:text-green-400 hidden" id="discountRow">
+                        <span>Coupon Discount:</span>
+                        <span id="discountValueText">-₹0.00</span>
                     </div>
+                    <div class="flex justify-between text-lg border-t dark:border-gray-700 pt-2" id="totalPriceRow">
+                        <span class="font-semibold text-gray-900 dark:text-white">Total Payable:</span>
+                        <span class="font-bold text-gray-900 dark:text-white" id="finalPayableText">₹{{ challenge.price }}</span>
+                    </div>
+                    <div class="text-right text-sm text-gray-600 dark:text-gray-400" id="usdPriceRow">
+                        ≈ $<span id="usdPriceText">{{ (challenge.price * 0.012)|round(2) }}</span> USD
+                    </div>
+                </div>
+
+                <!-- Coupon Input Field -->
+                <div class="mt-4 pt-3 border-t dark:border-gray-700">
+                    <label for="couponCodeInput" class="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1.5 uppercase tracking-wider">Have a Coupon?</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="couponCodeInput" placeholder="Enter coupon code" class="flex-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm uppercase font-semibold tracking-wider text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
+                        <button type="button" onclick="applyCoupon()" id="applyCouponBtn" class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold px-4 py-2 rounded-xl transition flex items-center justify-center min-w-[80px]">
+                            <span>Apply</span>
+                            <div id="couponLoader" class="hidden w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        </button>
+                    </div>
+                    <div id="couponMessage" class="text-xs mt-1.5 font-medium hidden"></div>
                 </div>
             </div>
 
@@ -650,6 +671,98 @@
     });
 
     let currentPaymentSessionId = null;
+    let appliedCouponCode = null;
+
+    async function applyCoupon() {
+        const input = document.getElementById('couponCodeInput');
+        const code = input.value.trim();
+        const msgDiv = document.getElementById('couponMessage');
+        const applyBtn = document.getElementById('applyCouponBtn');
+        const loader = document.getElementById('couponLoader');
+        const challengeId = document.getElementById('challenge_id').value;
+
+        if (!code) {
+            msgDiv.textContent = 'Please enter a coupon code';
+            msgDiv.className = 'text-xs mt-1.5 font-medium text-red-600 dark:text-red-400 block';
+            return;
+        }
+
+        msgDiv.classList.add('hidden');
+        applyBtn.disabled = true;
+        loader.classList.remove('hidden');
+        applyBtn.querySelector('span').classList.add('hidden');
+
+        try {
+            const response = await fetch('/user/validate-coupon', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams({
+                    'coupon_code': code,
+                    'challenge_id': challengeId
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                appliedCouponCode = code;
+                
+                msgDiv.textContent = `Coupon applied: ${data.message || 'Discount applied!'}`;
+                msgDiv.className = 'text-xs mt-1.5 font-medium text-green-600 dark:text-green-400 block';
+                
+                document.getElementById('discountRow').classList.remove('hidden');
+                document.getElementById('discountValueText').textContent = `-₹${parseFloat(data.discount_amount).toFixed(2)}`;
+                document.getElementById('finalPayableText').textContent = `₹${parseFloat(data.final_price).toFixed(2)}`;
+                
+                const usdPrice = (data.final_price * 0.012).toFixed(2);
+                document.getElementById('usdPriceText').textContent = usdPrice;
+                
+                input.readOnly = true;
+                input.className = 'flex-1 bg-green-50 dark:bg-green-900/10 border-green-500 rounded-xl px-3 py-2 text-sm uppercase font-semibold tracking-wider text-green-700 dark:text-green-400 focus:outline-none';
+                
+                applyBtn.onclick = removeCoupon;
+                applyBtn.querySelector('span').textContent = 'Remove';
+                applyBtn.className = 'bg-red-600 hover:bg-red-700 text-white text-sm font-bold px-4 py-2 rounded-xl transition flex items-center justify-center min-w-[80px]';
+            } else {
+                msgDiv.textContent = data.error || 'Failed to apply coupon';
+                msgDiv.className = 'text-xs mt-1.5 font-medium text-red-600 dark:text-red-400 block';
+                appliedCouponCode = null;
+            }
+        } catch (error) {
+            console.error('Error applying coupon:', error);
+            msgDiv.textContent = 'Network error. Please try again.';
+            msgDiv.className = 'text-xs mt-1.5 font-medium text-red-600 dark:text-red-400 block';
+            appliedCouponCode = null;
+        } finally {
+            applyBtn.disabled = false;
+            loader.classList.add('hidden');
+            applyBtn.querySelector('span').classList.remove('hidden');
+        }
+    }
+
+    function removeCoupon() {
+        appliedCouponCode = null;
+        
+        const input = document.getElementById('couponCodeInput');
+        input.value = '';
+        input.readOnly = false;
+        input.className = 'flex-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm uppercase font-semibold tracking-wider text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition';
+        
+        const msgDiv = document.getElementById('couponMessage');
+        msgDiv.classList.add('hidden');
+        
+        document.getElementById('discountRow').classList.add('hidden');
+        document.getElementById('discountValueText').textContent = '-₹0.00';
+        document.getElementById('finalPayableText').textContent = '₹{{ challenge.price }}';
+        document.getElementById('usdPriceText').textContent = '{{ (challenge.price * 0.012)|round(2) }}';
+        
+        const applyBtn = document.getElementById('applyCouponBtn');
+        applyBtn.onclick = applyCoupon;
+        applyBtn.querySelector('span').textContent = 'Apply';
+        applyBtn.className = 'bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold px-4 py-2 rounded-xl transition flex items-center justify-center min-w-[80px]';
+    }
 
     // Cashfree Payment Handler
     async function initiateCashfreePayment() {
@@ -678,15 +791,18 @@
         btnLoader.classList.remove('hidden');
         
         try {
+            const bodyParams = { 'challenge_id': challengeId };
+            if (appliedCouponCode) {
+                bodyParams['coupon_code'] = appliedCouponCode;
+            }
+
             // Create Cashfree order via backend
             const response = await fetch('/create-cashfree-order', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
                 },
-                body: new URLSearchParams({
-                    'challenge_id': challengeId
-                })
+                body: new URLSearchParams(bodyParams)
             });
 
             const data = await response.json();

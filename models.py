@@ -690,9 +690,12 @@ class Payment(db.Model):
     notes = db.Column(db.Text)
     ip_address = db.Column(db.String(50))
     user_agent = db.Column(db.Text)
+    coupon_id = db.Column(db.Integer, db.ForeignKey('coupon.id'), nullable=True)
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
     updated_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     
+    coupon = db.relationship('Coupon', backref='payments')
+
     def __repr__(self):
         return f'<Payment {self.payment_id} - {self.status}>'
 
@@ -823,20 +826,39 @@ class Trade(db.Model):
 
 
 class Notification(db.Model):
+    __tablename__ = 'notification'
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
     title = db.Column(db.String(200), nullable=False)
     message = db.Column(db.Text, nullable=False)
-    notification_type = db.Column(db.String(50), index=True)
-    is_read = db.Column(db.Boolean, default=False, index=True)
-    action_url = db.Column(db.String(500))
-    icon = db.Column(db.String(50))
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
-    read_at = db.Column(db.DateTime(timezone=True), nullable=True)
-    user = db.relationship('User', backref='notifications', lazy=True)
+    expires_at = db.Column(db.DateTime(timezone=True), nullable=True, index=True)
+    is_global = db.Column(db.Boolean, default=True, index=True)
+    target_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True, index=True)
+    created_by_admin_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    is_deleted = db.Column(db.Boolean, default=False, index=True)
+
+    # Relationships
+    target_user = db.relationship('User', foreign_keys=[target_user_id], backref='targeted_notifications', lazy=True)
+    admin = db.relationship('User', foreign_keys=[created_by_admin_id], backref='created_notifications', lazy=True)
     
     def __repr__(self):
         return f'<Notification {self.id} - {self.title}>'
+
+
+class UserNotification(db.Model):
+    __tablename__ = 'user_notification'
+    id = db.Column(db.Integer, primary_key=True)
+    notification_id = db.Column(db.Integer, db.ForeignKey('notification.id', ondelete='CASCADE'), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    is_read = db.Column(db.Boolean, default=False, index=True)
+    read_at = db.Column(db.DateTime(timezone=True), nullable=True)
+
+    notification = db.relationship('Notification', backref=db.backref('user_statuses', cascade='all, delete-orphan', lazy=True))
+    user = db.relationship('User', backref=db.backref('read_statuses', cascade='all, delete-orphan', lazy=True))
+    
+    def __repr__(self):
+        return f'<UserNotification {self.id} - User {self.user_id} - Read: {self.is_read}>'
+
 
 
 class WaitlistLead(db.Model):
@@ -872,3 +894,115 @@ class BlogPost(db.Model):
     def __repr__(self):
         return f'<BlogPost {self.title}>'
 
+
+# ========================================================================
+# COUPON SYSTEM MODELS
+# ========================================================================
+
+class Coupon(db.Model):
+    __tablename__ = 'coupon'
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(50), unique=True, nullable=False, index=True)
+    description = db.Column(db.Text)
+    coupon_type = db.Column(db.String(20), nullable=False, default='universal') # 'universal' / 'specific' / 'influencer'
+    discount_type = db.Column(db.String(20), nullable=False, default='percent') # 'percent' / 'fixed'
+    discount_value = db.Column(db.Float, nullable=False)
+    max_uses = db.Column(db.Integer, nullable=True) # None = unlimited
+    used_count = db.Column(db.Integer, default=0, nullable=False)
+    is_active = db.Column(db.Boolean, default=True, nullable=False, index=True)
+    is_deleted = db.Column(db.Boolean, default=False, nullable=False, index=True)
+    influencer_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    created_by_admin_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    expires_at = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+    influencer = db.relationship('User', foreign_keys=[influencer_id], backref='influencer_coupons')
+    admin = db.relationship('User', foreign_keys=[created_by_admin_id])
+
+    @property
+    def is_expired(self):
+        if not self.expires_at:
+            return False
+        expires_at = self.expires_at
+        if expires_at.tzinfo is None:
+            from datetime import timezone
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+        from datetime import datetime, timezone
+        return expires_at < datetime.now(timezone.utc)
+
+    def validate_for_user_and_price(self, user_id, challenge_price):
+        """
+        Validates the coupon against a specific user and price.
+        Returns (is_valid, error_msg, discount_amount, final_price)
+        """
+        from datetime import datetime, timezone
+        from models import CouponUsage, CouponAssignment
+        
+        if not self.is_active or self.is_deleted:
+            return False, "Coupon is inactive or deleted", 0.0, challenge_price
+            
+        if self.expires_at:
+            # Handle naive/aware datetime comparison
+            expires_at = self.expires_at
+            if expires_at.tzinfo is None:
+                expires_at = expires_at.replace(tzinfo=timezone.utc)
+            if expires_at < datetime.now(timezone.utc):
+                return False, "Coupon has expired", 0.0, challenge_price
+                
+        if self.max_uses is not None and self.used_count >= self.max_uses:
+            return False, "Coupon usage limit reached", 0.0, challenge_price
+            
+        # Check single use limit per user per coupon
+        usage_count = CouponUsage.query.filter_by(coupon_id=self.id, user_id=user_id).count()
+        if usage_count > 0:
+            return False, "You have already used this coupon code", 0.0, challenge_price
+            
+        # Specific check
+        if self.coupon_type == 'specific':
+            assignment = CouponAssignment.query.filter_by(coupon_id=self.id, user_id=user_id).first()
+            if not assignment:
+                return False, "This coupon is not assigned to your account", 0.0, challenge_price
+            if assignment.is_used:
+                return False, "You have already used this assigned coupon code", 0.0, challenge_price
+                
+        # Calculate discount
+        if self.discount_type == 'percent':
+            discount_amount = round(challenge_price * (self.discount_value / 100.0), 2)
+        elif self.discount_type == 'fixed':
+            discount_amount = float(self.discount_value)
+        else:
+            discount_amount = 0.0
+            
+        # Cap price at ₹1 min
+        final_price = max(1.0, challenge_price - discount_amount)
+        discount_amount = round(challenge_price - final_price, 2)
+        
+        return True, "Coupon applied successfully", discount_amount, final_price
+
+
+class CouponUsage(db.Model):
+    __tablename__ = 'coupon_usage'
+    id = db.Column(db.Integer, primary_key=True)
+    coupon_id = db.Column(db.Integer, db.ForeignKey('coupon.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    challenge_purchase_id = db.Column(db.Integer, db.ForeignKey('challenge_purchase.id'), nullable=False)
+    original_price = db.Column(db.Float, nullable=False)
+    discount_amount = db.Column(db.Float, nullable=False)
+    final_price = db.Column(db.Float, nullable=False)
+    used_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+    coupon = db.relationship('Coupon', backref=db.backref('usages', lazy=True))
+    user = db.relationship('User', backref=db.backref('coupon_usages', lazy=True))
+    challenge_purchase = db.relationship('TradingJourney', backref='coupon_usage', uselist=False)
+
+
+class CouponAssignment(db.Model):
+    __tablename__ = 'coupon_assignment'
+    id = db.Column(db.Integer, primary_key=True)
+    coupon_id = db.Column(db.Integer, db.ForeignKey('coupon.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    is_used = db.Column(db.Boolean, default=False, nullable=False)
+    assigned_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+    coupon = db.relationship('Coupon', backref=db.backref('assignments', lazy=True))
+    user = db.relationship('User', backref=db.backref('coupon_assignments', lazy=True))

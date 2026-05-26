@@ -1,0 +1,253 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Notifications Management - Admin Panel{% endblock %}
+
+{% block header_title %}Notifications{% endblock %}
+{% block header_subtitle %}Send custom or template messages to users and manage active alerts{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 xl:grid-cols-3 gap-6 lg:gap-8" data-aos="fade-up">
+    <!-- Left Column: Compose Form -->
+    <div class="xl:col-span-1">
+        <div class="glass-card p-6 border border-gray-200 dark:border-gray-700">
+            <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center">
+                <i class="fas fa-paper-plane text-blue-600 dark:text-blue-400 mr-2"></i>
+                Send New Notification
+            </h3>
+            
+            <form action="{{ url_for('admin.admin_notifications') }}" method="POST" class="space-y-4">
+                <!-- Prebuilt Templates -->
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Pre-built Templates</label>
+                    <select id="templateSelect" onchange="applyTemplate(this.value)"
+                        class="bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 w-full text-gray-900 dark:text-gray-100 transition-colors focus:ring-2 focus:ring-blue-500">
+                        <option value="">-- Select a template to autofill --</option>
+                        <option value="kyc_verified">✅ KYC Verified</option>
+                        <option value="challenge_passed">🏆 Challenge Passed</option>
+                        <option value="payout_processed">💰 Payout Processed</option>
+                        <option value="new_challenge">🎯 New Challenge Available</option>
+                        <option value="rule_warning">⚠️ Rule Violation Warning</option>
+                    </select>
+                </div>
+
+                <!-- Title -->
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Notification Title</label>
+                    <input type="text" name="title" id="notifTitle" required placeholder="Enter notification title..."
+                        class="bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 w-full text-gray-900 dark:text-gray-100 placeholder-gray-500 focus:ring-2 focus:ring-blue-500">
+                </div>
+
+                <!-- Message -->
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Notification Message</label>
+                    <textarea name="message" id="notifMessage" required rows="4" placeholder="Type notification message here..."
+                        class="bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 w-full text-gray-900 dark:text-gray-100 placeholder-gray-500 focus:ring-2 focus:ring-blue-500"></textarea>
+                </div>
+
+                <!-- Target Audience -->
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Target Audience</label>
+                    <div class="flex items-center space-x-4 py-1">
+                        <label class="flex items-center text-sm text-gray-800 dark:text-gray-300">
+                            <input type="radio" name="target_type" value="global" checked onchange="toggleTargetInput(this.value)"
+                                class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2">
+                            Global (Everyone)
+                        </label>
+                        <label class="flex items-center text-sm text-gray-800 dark:text-gray-300">
+                            <input type="radio" name="target_type" value="specific" onchange="toggleTargetInput(this.value)"
+                                class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2">
+                            Specific User
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Target Email Input (hidden initially) -->
+                <div id="targetEmailContainer" class="hidden">
+                    <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Target User Email</label>
+                    <input type="email" name="target_email" id="targetEmail" placeholder="user@example.com"
+                        class="bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 w-full text-gray-900 dark:text-gray-100 placeholder-gray-500 focus:ring-2 focus:ring-blue-500">
+                </div>
+
+                <!-- Expiry Settings -->
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Auto-Delete / Expiry Timer</label>
+                    <select name="expiry_type" id="expiryType" onchange="toggleExpiryInput(this.value)"
+                        class="bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 w-full text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500">
+                        <option value="none">Never (Keep indefinitely)</option>
+                        <option value="7">Delete after 7 days</option>
+                        <option value="15">Delete after 15 days</option>
+                        <option value="30">Delete after 30 days</option>
+                        <option value="60">Delete after 60 days</option>
+                        <option value="custom">Custom days...</option>
+                    </select>
+                </div>
+
+                <!-- Custom Expiry Input (hidden initially) -->
+                <div id="customExpiryContainer" class="hidden">
+                    <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Custom Days</label>
+                    <input type="number" name="expiry_days" id="expiryDays" min="1" placeholder="e.g. 5 days"
+                        class="bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 w-full text-gray-900 dark:text-gray-100 placeholder-gray-500 focus:ring-2 focus:ring-blue-500">
+                </div>
+
+                <!-- Submit Button -->
+                <button type="submit"
+                    class="w-full bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 transition duration-250 flex items-center justify-center gap-2">
+                    <i class="fas fa-paper-plane"></i> Send Notification
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Right Column: Sent Notifications List -->
+    <div class="xl:col-span-2">
+        <div class="glass-card overflow-hidden border border-gray-200 dark:border-gray-700">
+            <div class="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                <h3 class="text-lg font-bold text-gray-900 dark:text-white flex items-center">
+                    <i class="fas fa-list text-blue-600 dark:text-blue-400 mr-2"></i>
+                    Sent Notifications
+                </h3>
+                <span class="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 px-3 py-1 rounded-full text-xs font-semibold">
+                    Total: {{ notifications|length }}
+                </span>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead>
+                        <tr class="bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">
+                            <th class="px-6 py-3">Content</th>
+                            <th class="px-6 py-3">Target</th>
+                            <th class="px-6 py-3">Expires At</th>
+                            <th class="px-6 py-3 text-center">Reads</th>
+                            <th class="px-6 py-3 text-right">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                        {% for notif in notifications %}
+                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition">
+                            <!-- Content Details -->
+                            <td class="px-6 py-4">
+                                <div class="text-sm font-semibold text-gray-900 dark:text-white">{{ notif.title }}</div>
+                                <div class="text-xs text-gray-500 dark:text-gray-400 mt-1 max-w-xs truncate">{{ notif.message }}</div>
+                                <div class="text-[10px] text-gray-400 mt-2">
+                                    <i class="far fa-clock mr-1"></i>{{ notif.created_at.strftime('%Y-%m-%d %H:%M') if notif.created_at else 'N/A' }} UTC
+                                </div>
+                            </td>
+                            <!-- Target Audience -->
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                {% if notif.is_global %}
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-400">
+                                    <i class="fas fa-globe mr-1"></i>Everyone
+                                </span>
+                                {% else %}
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400" title="{{ notif.target_user.email if notif.target_user else 'Specific User' }}">
+                                    <i class="fas fa-user mr-1"></i>{{ notif.target_user.email if notif.target_user else 'User ID: ' ~ notif.target_user_id }}
+                                </span>
+                                {% endif %}
+                            </td>
+                            <!-- Expiry -->
+                            <td class="px-6 py-4 whitespace-nowrap text-xs text-gray-600 dark:text-gray-400">
+                                {% if notif.expires_at %}
+                                <span>{{ notif.expires_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                                {% else %}
+                                <span class="text-gray-400">Never</span>
+                                {% endif %}
+                            </td>
+                            <!-- Read Count Badge -->
+                            <td class="px-6 py-4 whitespace-nowrap text-center">
+                                <div class="text-sm font-bold text-gray-800 dark:text-gray-200">
+                                    {{ notif.read_count }} <span class="text-gray-400">/ {{ notif.total_count }}</span>
+                                </div>
+                                <div class="w-12 bg-gray-200 dark:bg-gray-700 h-1.5 rounded-full mx-auto mt-1 overflow-hidden">
+                                    {% set pct = (notif.read_count / notif.total_count * 100) if notif.total_count > 0 else 0 %}
+                                    <div class="bg-blue-600 h-full" style="width: {{ pct }}%"></div>
+                                </div>
+                            </td>
+                            <!-- Action button -->
+                            <td class="px-6 py-4 whitespace-nowrap text-right">
+                                <form action="{{ url_for('admin.admin_delete_notification', notification_id=notif.id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this notification instantly?');" class="inline">
+                                    <button type="submit" class="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors" title="Delete Notification">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        
+                        {% if not notifications %}
+                        <tr>
+                            <td colspan="5" class="text-center py-12 text-gray-500 dark:text-gray-400">
+                                <div class="text-5xl mb-3">🔔</div>
+                                <p class="text-base font-semibold">No notifications sent yet</p>
+                                <p class="text-xs mt-1">Compose and dispatch your first alert from the sidebar form.</p>
+                            </td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const templates = {
+        kyc_verified: {
+            title: "✅ KYC Verified",
+            message: "Congratulations! Your KYC documents have been reviewed and approved. You are now fully eligible to purchase challenges and start your trading journey."
+        },
+        challenge_passed: {
+            title: "🏆 Challenge Passed",
+            message: "Outstanding performance! You have successfully passed the evaluation phase of your challenge. Your credentials for the next phase are being prepared and will be sent shortly."
+        },
+        payout_processed: {
+            title: "💰 Payout Processed",
+            message: "Success! Your recent payout request has been verified and processed by our finance team. The funds should reflect in your registered account shortly."
+        },
+        new_challenge: {
+            title: "🎯 New Challenge Available",
+            message: "Check it out! A brand new challenge template has been added to our catalog with enhanced leverage and lower drawdown thresholds. Head over to the challenges section to buy now."
+        },
+        rule_warning: {
+            title: "⚠️ Rule Violation Warning",
+            message: "Alert: A minor rule warning has been logged on your active challenge account. Please verify your daily drawdown levels and current open positions to avoid account termination."
+        }
+    };
+
+    function applyTemplate(val) {
+        if (templates[val]) {
+            document.getElementById('notifTitle').value = templates[val].title;
+            document.getElementById('notifMessage').value = templates[val].message;
+        } else {
+            document.getElementById('notifTitle').value = '';
+            document.getElementById('notifMessage').value = '';
+        }
+    }
+
+    function toggleTargetInput(val) {
+        const container = document.getElementById('targetEmailContainer');
+        const input = document.getElementById('targetEmail');
+        if (val === 'specific') {
+            container.classList.remove('hidden');
+            input.setAttribute('required', 'required');
+        } else {
+            container.classList.add('hidden');
+            input.removeAttribute('required');
+            input.value = '';
+        }
+    }
+
+    function toggleExpiryInput(val) {
+        const container = document.getElementById('customExpiryContainer');
+        const input = document.getElementById('expiryDays');
+        if (val === 'custom') {
+            container.classList.remove('hidden');
+            input.setAttribute('required', 'required');
+        } else {
+            container.classList.add('hidden');
+            input.removeAttribute('required');
+            input.value = '';
+        }
+    }
+</script>
+{% endblock %}

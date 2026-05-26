@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify, abort
 from functools import wraps
-from models import db, User, ChallengeTemplate, ChallengePurchase, Payout, FAQ, SupportTicket, TicketMessage, Payment, AdminLog
+from models import db, User, ChallengeTemplate, ChallengePurchase, Payout, FAQ, SupportTicket, TicketMessage, Payment, AdminLog, Notification, UserNotification, Coupon, CouponUsage, CouponAssignment
 from datetime import datetime, timedelta, timezone
 import secrets
 
@@ -26,6 +26,9 @@ def admin_dashboard():
     pending_kyc = User.query.filter_by(kyc_status='submitted').count()
     approved_kyc = User.query.filter_by(kyc_status='approved').count()
     recent_users = User.query.order_by(User.created_at.desc()).limit(5).all()
+    
+    # Count open support tickets
+    open_tickets = SupportTicket.query.filter_by(status='open').count()
     
     # Calculate revenue dynamic
     total_revenue = db.session.query(db.func.coalesce(db.func.sum(Payment.amount), 0)).filter(
@@ -64,7 +67,8 @@ def admin_dashboard():
                          approved_kyc=approved_kyc,
                          recent_users=recent_users,
                          total_revenue=total_revenue,
-                         revenue_change=revenue_change)
+                         revenue_change=revenue_change,
+                         open_tickets=open_tickets)
 
 @admin_bp.route('/users')
 @admin_required
@@ -1610,4 +1614,306 @@ def toggle_hide_earning(earning_id):
     db.session.commit()
     
     flash(f'Earning visibility updated successfully', 'success')
-    return redirect(url_for('admin.partner_earnings', partner_id=earning.partner_id))
+    return redirect(url_for('admin.partner_earnings', partner_id=earning.partner_id))
+
+@admin_bp.route('/notifications', methods=['GET', 'POST'])
+@admin_required
+def admin_notifications():
+    if request.method == 'POST':
+        title = request.form.get('title', '').strip()
+        message = request.form.get('message', '').strip()
+        target_type = request.form.get('target_type', 'global')
+        target_email = request.form.get('target_email', '').strip()
+        expiry_type = request.form.get('expiry_type', 'none')
+        expiry_days = request.form.get('expiry_days', '').strip()
+
+        if not title or not message:
+            flash('Title and message are required.', 'error')
+            return redirect(url_for('admin.admin_notifications'))
+
+        target_user = None
+        if target_type == 'specific':
+            if not target_email:
+                flash('Target user email is required for specific notifications.', 'error')
+                return redirect(url_for('admin.admin_notifications'))
+            target_user = User.query.filter_by(email=target_email).first()
+            if not target_user:
+                flash(f'User with email {target_email} not found.', 'error')
+                return redirect(url_for('admin.admin_notifications'))
+
+        # Calculate expiration date
+        expires_at = None
+        now_utc = datetime.now(timezone.utc)
+        if expiry_type == '7':
+            expires_at = now_utc + timedelta(days=7)
+        elif expiry_type == '15':
+            expires_at = now_utc + timedelta(days=15)
+        elif expiry_type == '30':
+            expires_at = now_utc + timedelta(days=30)
+        elif expiry_type == '60':
+            expires_at = now_utc + timedelta(days=60)
+        elif expiry_type == 'custom':
+            try:
+                days = int(expiry_days)
+                if days <= 0:
+                    raise ValueError()
+                expires_at = now_utc + timedelta(days=days)
+            except ValueError:
+                flash('Please enter a valid positive number of days for custom expiry.', 'error')
+                return redirect(url_for('admin.admin_notifications'))
+
+        try:
+            notification = Notification(
+                title=title,
+                message=message,
+                is_global=(target_type == 'global'),
+                target_user_id=target_user.id if target_user else None,
+                created_by_admin_id=session['user_id'],
+                expires_at=expires_at,
+                is_deleted=False
+            )
+            db.session.add(notification)
+            db.session.flush()
+
+            if not notification.is_global and target_user:
+                user_notif = UserNotification(
+                    notification_id=notification.id,
+                    user_id=target_user.id,
+                    is_read=False
+                )
+                db.session.add(user_notif)
+
+            # Log admin action
+            log = AdminLog(
+                admin_id=session['user_id'],
+                action='create_notification',
+                target_type='notification',
+                target_id=notification.id,
+                details=f'Created {"global" if notification.is_global else f"targeted (user_id={target_user.id})"} notification: "{title}"',
+                ip_address=request.remote_addr
+            )
+            db.session.add(log)
+            db.session.commit()
+
+            flash('Notification sent successfully!', 'success')
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error creating notification: {e}")
+            flash('Error sending notification. Please try again.', 'error')
+
+        return redirect(url_for('admin.admin_notifications'))
+
+    # GET request
+    notifications = Notification.query.filter_by(is_deleted=False).order_by(Notification.created_at.desc()).all()
+    
+    # Calculate read stats dynamically
+    for n in notifications:
+        n.read_count = UserNotification.query.filter_by(notification_id=n.id, is_read=True).count()
+        if n.is_global:
+            n.total_count = User.query.filter_by(is_admin=False, is_banned=False).count()
+        else:
+            n.total_count = 1
+
+    return render_template('admin/notifications.html', notifications=notifications)
+
+@admin_bp.route('/notifications/delete/<int:notification_id>', methods=['POST'])
+@admin_required
+def admin_delete_notification(notification_id):
+    notification = Notification.query.filter_by(id=notification_id, is_deleted=False).first_or_404()
+    notification.is_deleted = True
+
+    log = AdminLog(
+        admin_id=session['user_id'],
+        action='delete_notification',
+        target_type='notification',
+        target_id=notification.id,
+        details=f'Soft-deleted notification: "{notification.title}"',
+        ip_address=request.remote_addr
+    )
+    db.session.add(log)
+    db.session.commit()
+
+    flash('Notification deleted successfully!', 'success')
+    return redirect(url_for('admin.admin_notifications'))
+
+
+@admin_bp.route('/coupons', methods=['GET', 'POST'])
+@admin_required
+def admin_coupons():
+    if request.method == 'POST':
+        try:
+            code = request.form.get('code', '').upper().strip()
+            description = request.form.get('description', '').strip()
+            coupon_type = request.form.get('coupon_type', 'universal')
+            discount_type = request.form.get('discount_type', 'percent')
+            discount_value = float(request.form.get('discount_value', 0))
+            max_uses = request.form.get('max_uses')
+            max_uses = int(max_uses) if max_uses and max_uses.strip() else None
+            expires_at_str = request.form.get('expires_at')
+            
+            expires_at = None
+            if expires_at_str and expires_at_str.strip():
+                expires_at = datetime.fromisoformat(expires_at_str)
+            
+            # Check duplicate code
+            existing = Coupon.query.filter_by(code=code, is_deleted=False).first()
+            if existing:
+                flash(f'Coupon code "{code}" already exists.', 'error')
+                return redirect(url_for('admin.admin_coupons'))
+
+            coupon = Coupon(
+                code=code,
+                description=description,
+                coupon_type=coupon_type,
+                discount_type=discount_type,
+                discount_value=discount_value,
+                max_uses=max_uses,
+                expires_at=expires_at,
+                created_by_admin_id=session['user_id']
+            )
+
+            if coupon_type == 'influencer':
+                influencer_email = request.form.get('influencer_email', '').strip()
+                influencer = User.query.filter_by(email=influencer_email).first()
+                if not influencer:
+                    flash(f'Influencer user with email "{influencer_email}" not found.', 'error')
+                    return redirect(url_for('admin.admin_coupons'))
+                coupon.influencer_id = influencer.id
+
+            db.session.add(coupon)
+            db.session.flush() # get coupon ID
+
+            if coupon_type == 'specific':
+                assigned_emails = request.form.get('assigned_emails', '').strip()
+                if assigned_emails:
+                    email_list = [e.strip() for e in assigned_emails.split(',') if e.strip()]
+                    invalid_emails = []
+                    for email in email_list:
+                        user = User.query.filter_by(email=email).first()
+                        if user:
+                            assignment = CouponAssignment(coupon_id=coupon.id, user_id=user.id)
+                            db.session.add(assignment)
+                        else:
+                            invalid_emails.append(email)
+                    if invalid_emails:
+                        flash(f"Coupon created, but these emails were not found: {', '.join(invalid_emails)}", 'warning')
+
+            log = AdminLog(
+                admin_id=session['user_id'],
+                action='create_coupon',
+                target_type='coupon',
+                target_id=coupon.id,
+                details=f'Created coupon: {code} ({coupon_type})',
+                ip_address=request.remote_addr
+            )
+            db.session.add(log)
+            db.session.commit()
+            
+            flash(f'Coupon "{code}" created successfully!', 'success')
+            return redirect(url_for('admin.admin_coupons'))
+
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error creating coupon: {e}")
+            flash('Error creating coupon. Please verify your input.', 'error')
+            return redirect(url_for('admin.admin_coupons'))
+
+    coupons = Coupon.query.filter_by(is_deleted=False).order_by(Coupon.created_at.desc()).all()
+    return render_template('admin/coupons.html', coupons=coupons)
+
+
+@admin_bp.route('/coupons/<int:coupon_id>')
+@admin_required
+def admin_coupon_detail(coupon_id):
+    coupon = Coupon.query.filter_by(id=coupon_id, is_deleted=False).first_or_404()
+    
+    # Calculate stats
+    usages = CouponUsage.query.filter_by(coupon_id=coupon.id).order_by(CouponUsage.used_at.desc()).all()
+    
+    total_discount_given = sum(u.discount_amount for u in usages)
+    total_revenue_generated = sum(u.final_price for u in usages)
+    
+    return render_template('admin/coupon_detail.html', 
+                           coupon=coupon, 
+                           usages=usages,
+                           total_discount_given=total_discount_given,
+                           total_revenue_generated=total_revenue_generated)
+
+
+@admin_bp.route('/coupons/<int:coupon_id>/delete', methods=['POST'])
+@admin_required
+def admin_delete_coupon(coupon_id):
+    coupon = Coupon.query.filter_by(id=coupon_id, is_deleted=False).first_or_404()
+    coupon.is_deleted = True
+    coupon.is_active = False
+    
+    log = AdminLog(
+        admin_id=session['user_id'],
+        action='delete_coupon',
+        target_type='coupon',
+        target_id=coupon.id,
+        details=f'Soft-deleted coupon: {coupon.code}',
+        ip_address=request.remote_addr
+    )
+    db.session.add(log)
+    db.session.commit()
+    
+    flash(f'Coupon "{coupon.code}" deleted successfully!', 'success')
+    return redirect(url_for('admin.admin_coupons'))
+
+
+@admin_bp.route('/coupons/analytics')
+@admin_required
+def admin_coupon_analytics():
+    # Gather analytics
+    total_coupons = Coupon.query.filter_by(is_deleted=False).count()
+    active_coupons = Coupon.query.filter_by(is_deleted=False, is_active=True).count()
+    
+    now = datetime.now(timezone.utc)
+    expired_coupons = Coupon.query.filter(
+        Coupon.is_deleted == False,
+        Coupon.expires_at != None,
+        Coupon.expires_at < now
+    ).count()
+    
+    usages = CouponUsage.query.order_by(CouponUsage.used_at.asc()).all()
+    total_usages = len(usages)
+    
+    total_discount_given = sum(u.discount_amount for u in usages)
+    total_revenue_generated = sum(u.final_price for u in usages)
+    
+    # Top performing coupons by usage count
+    top_coupons = db.session.query(
+        Coupon.code,
+        Coupon.coupon_type,
+        db.func.count(CouponUsage.id).label('usage_count'),
+        db.func.sum(CouponUsage.final_price).label('revenue')
+    ).join(CouponUsage, CouponUsage.coupon_id == Coupon.id)\
+     .filter(Coupon.is_deleted == False)\
+     .group_by(Coupon.id)\
+     .order_by(db.desc('usage_count'))\
+     .limit(5).all()
+
+    # Timeline data for last 30 days
+    thirty_days_ago = now - timedelta(days=30)
+    timeline_usages = db.session.query(
+        db.func.date(CouponUsage.used_at).label('date'),
+        db.func.count(CouponUsage.id).label('count')
+    ).filter(CouponUsage.used_at >= thirty_days_ago)\
+     .group_by(db.func.date(CouponUsage.used_at))\
+     .order_by('date').all()
+     
+    timeline_labels = [str(t.date) for t in timeline_usages]
+    timeline_values = [int(t.count) for t in timeline_usages]
+    
+    return render_template('admin/coupon_analytics.html',
+                           total_coupons=total_coupons,
+                           active_coupons=active_coupons,
+                           expired_coupons=expired_coupons,
+                           total_usages=total_usages,
+                           total_discount_given=total_discount_given,
+                           total_revenue_generated=total_revenue_generated,
+                           top_coupons=top_coupons,
+                           timeline_labels=timeline_labels,
+                           timeline_values=timeline_values)
+

@@ -196,10 +196,41 @@ def not_found_error(error):
     return render_template('404.html'), 404
 
 # ===== INITIALIZE DATABASE & MIGRATE =====
-from models import db, User, ChallengeTemplate, Payment, ChallengePurchase, WebhookLog, FAQ, BlogPost
+from models import db, User, Notification, ChallengeTemplate, Payment, ChallengePurchase, WebhookLog, FAQ, BlogPost, Coupon, CouponUsage, CouponAssignment
 
 db.init_app(app)
 migrate = Migrate(app, db)
+
+# ===== AUTO-CLEANUP EXPIRED NOTIFICATIONS =====
+# This hook runs before each request but only performs cleanup once every 24 hours to avoid overhead.
+from datetime import datetime, timezone, timedelta
+
+def _cleanup_expired_notifications():
+    now = datetime.now(timezone.utc)
+    # Find notifications that are not deleted and have expired
+    expired_notifications = Notification.query.filter(
+        Notification.is_deleted.is_(False),
+        Notification.expires_at.isnot(None),
+        Notification.expires_at <= now
+    ).all()
+    if expired_notifications:
+        for n in expired_notifications:
+            n.is_deleted = True
+        db.session.commit()
+        if DEV_MODE:
+            print(f"[AUTO-CLEANUP] Soft-deleted {len(expired_notifications)} expired notifications")
+
+# Store last cleanup timestamp on the app instance
+if not hasattr(app, 'last_notification_cleanup'):
+    app.last_notification_cleanup = None
+
+@app.before_request
+def before_request_cleanup():
+    now = datetime.now(timezone.utc)
+    # Perform cleanup if never done or more than 24h ago
+    if app.last_notification_cleanup is None or (now - app.last_notification_cleanup) > timedelta(hours=24):
+        _cleanup_expired_notifications()
+        app.last_notification_cleanup = now
 
 # Custom filter to convert model to dict
 @app.template_filter('to_dict')
@@ -253,7 +284,9 @@ def inject_user():
         'current_user': None,
         'user': None,
         'PRELAUNCH_MODE': PRELAUNCH_MODE,
-        'DEV_MODE': DEV_MODE
+        'DEV_MODE': DEV_MODE,
+        'datetime': datetime,
+        'timezone': timezone
     }
 
     if 'user_id' in session:
@@ -591,29 +624,28 @@ with app.app_context():
         if DEV_MODE:
             print(f"[INFO] Partner earnings backfill skipped: {e}")
 
-    # Register blueprints
-    try:
-        from auth import auth_bp
-        from admin_routes import admin_bp
-        from user_routes import user_bp
-        from blog import blog_bp
-        from admin_blog import admin_blog_bp
-        from mt5_receiver import receiver_bp
-        from partner_routes import partner_bp
-
-        app.register_blueprint(auth_bp)
-        app.register_blueprint(admin_bp)
-        app.register_blueprint(user_bp)
-        app.register_blueprint(blog_bp)
-        app.register_blueprint(admin_blog_bp)
-        app.register_blueprint(receiver_bp)
-        app.register_blueprint(partner_bp)
-        if DEV_MODE:
-            print("[OK] Blueprints registered successfully")
-    except ImportError as e:
-        import traceback
-        traceback.print_exc()
-        print(f"[WARNING] Some blueprints not found: {e}")
+    # Register blueprints individually for robustness
+    blueprints_to_load = [
+        ('auth', 'auth_bp'),
+        ('admin_routes', 'admin_bp'),
+        ('user_routes', 'user_bp'),
+        ('blog', 'blog_bp'),
+        ('admin_blog', 'admin_blog_bp'),
+        ('mt5_receiver', 'receiver_bp'),
+        ('partner_routes', 'partner_bp')
+    ]
+    
+    for module_name, bp_name in blueprints_to_load:
+        try:
+            module = __import__(module_name, fromlist=[bp_name])
+            bp = getattr(module, bp_name)
+            app.register_blueprint(bp)
+            if DEV_MODE:
+                print(f"[OK] Registered blueprint: {bp_name}")
+        except Exception as e:
+            import traceback
+            print(f"[WARNING] Failed to register blueprint {bp_name} from {module_name}: {e}")
+            traceback.print_exc()
 
 # ===== CASHFREE PAYMENT ROUTES =====
 @app.route('/create-cashfree-order', methods=['POST'])
@@ -641,7 +673,22 @@ def create_cashfree_order():
         if user.kyc_status != 'approved':
             return jsonify({'success': False, 'error': 'Please complete KYC verification first'})
         
+        coupon_code = request.form.get('coupon_code')
+        coupon_id = None
         expected_payable_amount = float(challenge.price)
+        
+        if coupon_code:
+            coupon = Coupon.query.filter_by(code=coupon_code.upper().strip(), is_deleted=False).first()
+            if not coupon:
+                return jsonify({'success': False, 'error': 'Invalid coupon code'})
+            
+            is_valid, msg, discount_amount, final_price = coupon.validate_for_user_and_price(user.id, expected_payable_amount)
+            if not is_valid:
+                return jsonify({'success': False, 'error': msg})
+                
+            expected_payable_amount = final_price
+            coupon_id = coupon.id
+            
         internal_order_id = f"ORDER_{user.id}_{int(time.time())}_{secrets.token_hex(4)}"
         
         customer_details = CustomerDetails(
@@ -682,6 +729,7 @@ def create_cashfree_order():
             status='pending',
             gateway='cashfree',
             gateway_id='',
+            coupon_id=coupon_id,
             gateway_response=json.dumps({'payment_session_id': order_response.payment_session_id})
         )
         
@@ -788,6 +836,38 @@ def cashfree_webhook():
                 payment.gateway_response = json.dumps(data)
                 webhook_log.status = 'processed'
                 webhook_log.processed_at = datetime.now(timezone.utc)
+                
+                # Consume coupon if any associated with payment
+                if payment.coupon_id:
+                    coupon = Coupon.query.with_for_update().get(payment.coupon_id)
+                    if coupon:
+                        coupon.used_count += 1
+                        
+                        # Mark assignment as used if specific
+                        if coupon.coupon_type == 'specific':
+                            assignment = CouponAssignment.query.filter_by(
+                                coupon_id=coupon.id,
+                                user_id=payment.user_id,
+                                is_used=False
+                            ).first()
+                            if assignment:
+                                assignment.is_used = True
+                        
+                        # Calculate pricing
+                        original_price = float(payment.challenge_purchase.challenge_template.price) if payment.challenge_purchase and payment.challenge_purchase.challenge_template else float(payment.amount)
+                        discount_amount = max(0.0, original_price - float(payment.amount))
+                        
+                        # Create CouponUsage record
+                        usage = CouponUsage(
+                            coupon_id=coupon.id,
+                            user_id=payment.user_id,
+                            challenge_purchase_id=payment.challenge_purchase_id,
+                            original_price=original_price,
+                            discount_amount=discount_amount,
+                            final_price=float(payment.amount),
+                            used_at=datetime.now(timezone.utc)
+                        )
+                        db.session.add(usage)
             else:
                 payment.status = 'failed'
                 webhook_log.status = 'failed'

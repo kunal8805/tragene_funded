@@ -1,0 +1,161 @@
+{% extends "user/base.html" %}
+
+{% block title %}My Coupons - Tragene Funded{% endblock %}
+
+{% block header_title %}My Coupons{% endblock %}
+{% block header_subtitle %}Available discounts and exclusive offers{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6" data-aos="fade-up">
+    <!-- Stats / Intro Banner -->
+    <div class="glass-card p-6 mb-8 border dark:border-dark-border">
+        <div class="flex flex-col md:flex-row items-center justify-between gap-4">
+            <div class="flex items-center space-x-4">
+                <div class="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center text-blue-600 dark:text-blue-400 text-xl">
+                    <i class="fas fa-ticket-alt"></i>
+                </div>
+                <div>
+                    <h2 class="text-xl font-bold text-gray-900 dark:text-white">Active Discount Codes</h2>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Apply these codes at checkout to discount your trading challenge purchases.</p>
+                </div>
+            </div>
+            <div class="text-center md:text-right shrink-0">
+                <span class="bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 text-sm font-semibold px-4 py-2 rounded-xl border border-blue-200 dark:border-blue-800">
+                    {{ coupons|length }} Coupons Available
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Coupons Grid -->
+    {% if coupons %}
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {% for coupon in coupons %}
+        <div class="glass-card relative overflow-hidden border dark:border-dark-border hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 p-6 flex flex-col justify-between" data-aos="fade-up" data-aos-delay="{{ loop.index0 * 100 }}">
+            <!-- Card Background Gradients for Aesthetics -->
+            <div class="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-blue-500/10 to-transparent rounded-full -mr-8 -mt-8 pointer-events-none"></div>
+            
+            <div>
+                <!-- Coupon Header -->
+                <div class="flex items-center justify-between mb-4">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold {% if coupon.coupon_type == 'specific' %}bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300{% elif coupon.coupon_type == 'influencer' %}bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300{% else %}bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300{% endif %}">
+                        <i class="fas {% if coupon.coupon_type == 'specific' %}fa-user-tag{% elif coupon.coupon_type == 'influencer' %}fa-user-astronaut{% else %}fa-globe{% endif %} mr-1"></i>
+                        {{ coupon.coupon_type|capitalize }}
+                    </span>
+                    
+                    <div class="text-right">
+                        <p class="text-xs text-gray-500 dark:text-gray-400">Discount</p>
+                        <p class="text-xl font-extrabold text-blue-600 dark:text-blue-400">
+                            {% if coupon.discount_type == 'percent' %}
+                                {{ coupon.discount_value|int }}% OFF
+                            {% else %}
+                                ₹{{ coupon.discount_value|int }} OFF
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Coupon Body -->
+                <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-1">{{ coupon.code }}</h3>
+                <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">{{ coupon.description or 'Use this discount code at checkout.' }}</p>
+            </div>
+
+            <!-- Coupon Footer / Action -->
+            <div class="border-t dark:border-gray-700 pt-4 mt-2 flex items-center justify-between">
+                <div class="text-xs text-gray-500 dark:text-gray-400">
+                    <i class="far fa-calendar-alt mr-1"></i>
+                    {% if coupon.expires_at %}
+                        Expires: {{ coupon.expires_at.strftime('%b %d, %Y') }}
+                    {% else %}
+                        No Expiration
+                    {% endif %}
+                </div>
+                
+                <button onclick="copyToClipboard('{{ coupon.code }}', this)" class="bg-gray-100 dark:bg-gray-800 hover:bg-blue-600 hover:text-white dark:hover:bg-blue-600 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border dark:border-gray-700 hover:border-blue-600 dark:hover:border-blue-600">
+                    <i class="far fa-copy"></i>
+                    <span>Copy Code</span>
+                </button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <!-- Empty State -->
+    <div class="glass-card text-center py-16 p-6 border dark:border-dark-border" data-aos="fade-up">
+        <div class="text-6xl mb-6 text-gray-300 dark:text-gray-600">🎟️</div>
+        <h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">No Coupons Available</h3>
+        <p class="text-gray-600 dark:text-gray-400 max-w-md mx-auto mb-8">You don't have any discount coupons available right now. Keep an eye on your inbox and announcements for promotional offers!</p>
+        <a href="/user/challenges" class="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-6 py-3 rounded-xl font-bold transition">
+            Explore Challenges
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Notification Toast Container -->
+<div id="toastContainer" class="fixed bottom-5 right-5 z-50 pointer-events-none"></div>
+
+<script>
+    function copyToClipboard(text, button) {
+        navigator.clipboard.writeText(text).then(() => {
+            // Update button UI temporarily
+            const icon = button.querySelector('i');
+            const span = button.querySelector('span');
+            
+            icon.className = 'fas fa-check text-green-500';
+            span.textContent = 'Copied!';
+            button.classList.add('bg-green-50', 'dark:bg-green-900/20', 'border-green-500', 'text-green-500');
+            
+            // Show toast message
+            showToast(`Coupon code "${text}" copied to clipboard!`, 'success');
+            
+            // Revert state
+            setTimeout(() => {
+                icon.className = 'far fa-copy';
+                span.textContent = 'Copy Code';
+                button.classList.remove('bg-green-50', 'dark:bg-green-900/20', 'border-green-500', 'text-green-500');
+            }, 2000);
+        }).catch(err => {
+            console.error('Failed to copy: ', err);
+            showToast('Failed to copy code. Please copy manually.', 'error');
+        });
+    }
+
+    function showToast(message, type = 'success') {
+        const toast = document.createElement('div');
+        toast.className = `p-4 rounded-xl shadow-lg border text-sm font-semibold mb-3 flex items-center gap-3 animate-fade-in pointer-events-auto transform translate-y-4 transition-all duration-300 ${
+            type === 'success' 
+            ? 'bg-green-50 border-green-200 text-green-800 dark:bg-green-900/20 dark:border-green-800 dark:text-green-300' 
+            : 'bg-red-50 border-red-200 text-red-800 dark:bg-red-900/20 dark:border-red-800 dark:text-red-300'
+        }`;
+        
+        const icon = document.createElement('i');
+        icon.className = type === 'success' ? 'fas fa-check-circle text-green-500' : 'fas fa-exclamation-circle text-red-500';
+        
+        const text = document.createElement('span');
+        text.textContent = message;
+        
+        toast.appendChild(icon);
+        toast.appendChild(text);
+        
+        const container = document.getElementById('toastContainer');
+        container.appendChild(toast);
+        
+        // Remove toast
+        setTimeout(() => {
+            toast.classList.add('opacity-0', 'translate-y-2');
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+
+<style>
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fade-in {
+        animation: fadeIn 0.3s forwards ease-out;
+    }
+</style>
+{% endblock %}

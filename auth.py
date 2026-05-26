@@ -5,18 +5,24 @@ import random
 from functools import wraps
 from models import db, User
 import os
-import redis
 import json
+
+try:
+    import redis
+    REDIS_AVAILABLE = True
+except ImportError:
+    redis = None
+    REDIS_AVAILABLE = False
 
 auth_bp = Blueprint('auth', __name__)
 
 # ===== REDIS RATE LIMITING STORAGE (PRODUCTION) =====
 REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
-USE_REDIS = os.getenv('REDIS_ENABLED', 'true').lower() == 'true'
+USE_REDIS = REDIS_AVAILABLE and (os.getenv('REDIS_ENABLED', 'true').lower() == 'true')
 
 # Initialize Redis connection for production
 redis_client = None
-if USE_REDIS:
+if USE_REDIS and redis is not None:
     try:
         redis_client = redis.Redis.from_url(REDIS_URL, decode_responses=True)
         redis_client.ping()  # Test connection

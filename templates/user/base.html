@@ -487,6 +487,12 @@
             </div>
 
             <div class="flex items-center space-x-3">
+                <!-- Notification Bell (Mobile) -->
+                <button onclick="toggleNotifDrawer()"
+                    class="relative p-2 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
+                    <i class="fas fa-bell text-lg"></i>
+                    <span class="notif-dot absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full hidden animate-pulse"></span>
+                </button>
                 <button id="theme-toggle-mobile"
                     class="p-2 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
                     <i class="fas fa-moon hidden dark:block"></i>
@@ -533,6 +539,12 @@
         <nav class="sidebar-nav space-y-1">
             <div class="nav-section-label">Main Menu</div>
 
+            <a href="javascript:void(0)" onclick="toggleNotifDrawer()" class="nav-item relative">
+                <i class="fas fa-bell text-blue-600 dark:text-blue-400"></i>
+                <span>Notifications</span>
+                <span class="notif-badge absolute right-3 px-1.5 py-0.5 bg-red-500 text-white text-[9px] font-bold rounded-full hidden">0</span>
+            </a>
+
             <a href="/user/dashboard" class="nav-item {% if request.endpoint == 'user.dashboard' %}active{% endif %}">
                 <i class="fas fa-tachometer-alt"></i>
                 <span>Dashboard</span>
@@ -560,6 +572,12 @@
                 class="nav-item {% if request.endpoint == 'user.user_history' %}active{% endif %}">
                 <i class="fas fa-history"></i>
                 <span>History</span>
+            </a>
+
+            <a href="/user/my-coupons"
+                class="nav-item {% if request.endpoint == 'user.user_coupons' %}active{% endif %}">
+                <i class="fas fa-ticket-alt"></i>
+                <span>My Coupons</span>
             </a>
 
             <div class="nav-section-label">Account</div>
@@ -637,6 +655,12 @@
         <nav class="flex-1 overflow-y-auto p-4 space-y-1">
             <div class="nav-section-label">Main Menu</div>
 
+            <a href="javascript:void(0)" onclick="toggleSidebar(); toggleNotifDrawer();" class="nav-item relative">
+                <i class="fas fa-bell text-blue-600 dark:text-blue-400"></i>
+                <span>Notifications</span>
+                <span class="notif-badge absolute right-3 px-1.5 py-0.5 bg-red-500 text-white text-[9px] font-bold rounded-full hidden">0</span>
+            </a>
+
             <a href="/user/dashboard" class="nav-item {% if request.endpoint == 'user.dashboard' %}active{% endif %}"
                 onclick="toggleSidebar()">
                 <i class="fas fa-tachometer-alt"></i>
@@ -668,6 +692,13 @@
                 onclick="toggleSidebar()">
                 <i class="fas fa-history"></i>
                 <span>History</span>
+            </a>
+
+            <a href="/user/my-coupons"
+                class="nav-item {% if request.endpoint == 'user.user_coupons' %}active{% endif %}"
+                onclick="toggleSidebar()">
+                <i class="fas fa-ticket-alt"></i>
+                <span>My Coupons</span>
             </a>
 
             <div class="nav-section-label">Account</div>
@@ -729,6 +760,12 @@
                     <p class="text-gray-600 dark:text-gray-400">{% block header_subtitle %}Overview{% endblock %}</p>
                 </div>
                 <div class="flex items-center space-x-4">
+                    <!-- Notification Bell (Desktop) -->
+                    <button onclick="toggleNotifDrawer()"
+                        class="relative p-2 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition border border-gray-200 dark:border-dark-border mr-2">
+                        <i class="fas fa-bell text-lg"></i>
+                        <span class="notif-badge absolute -top-1.5 -right-1.5 min-w-5 h-5 px-1.5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center hidden border border-white dark:border-slate-900 shadow-sm animate-pulse">0</span>
+                    </button>
                     <div class="text-right">
                         <p class="text-sm text-gray-600 dark:text-gray-400">Welcome back</p>
                         <div class="flex items-center gap-2">
@@ -811,6 +848,10 @@
         if (themeToggleMobile) themeToggleMobile.addEventListener('click', toggleTheme);
         if (themeToggleMobileSidebar) themeToggleMobileSidebar.addEventListener('click', toggleTheme);
     </script>
+
+    <!-- Notifications Drawer Component -->
+    {% include "user/notification.html" %}
+
     {% block scripts %}{% endblock %}
 </body>
 
