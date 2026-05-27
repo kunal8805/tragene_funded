@@ -451,6 +451,77 @@
         .logo-container:hover {
             transform: scale(1.05);
         }
+        
+        /* Notification Bell Animation */
+        @keyframes bellRing {
+            0%, 100% { transform: rotate(0); }
+            10% { transform: rotate(15deg); }
+            20% { transform: rotate(-15deg); }
+            30% { transform: rotate(10deg); }
+            40% { transform: rotate(-10deg); }
+            50% { transform: rotate(5deg); }
+            60% { transform: rotate(-5deg); }
+            70% { transform: rotate(0); }
+        }
+        
+        .notification-bell {
+            position: relative;
+            transition: all 0.3s ease;
+        }
+        
+        .notification-bell:hover {
+            transform: scale(1.15);
+        }
+        
+        .notification-bell.has-notifications i {
+            animation: bellRing 2s ease-in-out infinite;
+            color: #f97316 !important;
+        }
+        
+        .notification-bell.has-notifications .notif-glow {
+            position: absolute;
+            inset: -3px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(249, 115, 22, 0.3) 0%, transparent 70%);
+            animation: pulse 2s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 0.5; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.2); }
+        }
+
+        /* Coupon Bell Styles */
+        @keyframes couponShake {
+            0%, 100% { transform: rotate(0) scale(1); }
+            10% { transform: rotate(10deg) scale(1.1); }
+            20% { transform: rotate(-10deg) scale(1.1); }
+            30% { transform: rotate(8deg) scale(1.05); }
+            40% { transform: rotate(-8deg) scale(1.05); }
+            50% { transform: rotate(0) scale(1); }
+        }
+        
+        .coupon-bell {
+            position: relative;
+            transition: all 0.3s ease;
+        }
+        
+        .coupon-bell:hover {
+            transform: scale(1.15);
+        }
+        
+        .coupon-bell.has-coupons i {
+            animation: couponShake 2s ease-in-out infinite;
+            color: #f59e0b !important;
+        }
+        
+        .coupon-bell.has-coupons .coupon-glow {
+            position: absolute;
+            inset: -3px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(245, 158, 11, 0.3) 0%, transparent 70%);
+            animation: pulse 2s ease-in-out infinite;
+        }
     </style>
     {% block head %}{% endblock %}
 </head>
@@ -487,11 +558,21 @@
             </div>
 
             <div class="flex items-center space-x-3">
-                <!-- Notification Bell (Mobile) -->
+                <!-- Coupon Bell (Mobile) - AMBER PUNCHY STYLE -->
+                <button onclick="window.location.href='/user/my-coupons'"
+                    class="coupon-bell relative p-2.5 text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-xl transition-all duration-300 border-2 border-amber-200 dark:border-amber-800 hover:border-amber-400 dark:hover:border-amber-600 shadow-lg shadow-amber-200/50 dark:shadow-amber-900/30" 
+                    id="couponBellMobile" title="View Coupons">
+                    <div class="coupon-glow absolute inset-0 rounded-xl hidden"></div>
+                    <i class="fas fa-ticket-alt text-xl"></i>
+                    <span class="notif-coupon-dot absolute top-1.5 right-1.5 w-3 h-3 bg-gradient-to-r from-amber-400 to-yellow-500 rounded-full hidden ring-2 ring-white dark:ring-gray-800 animate-bounce shadow-lg"></span>
+                </button>
+
+                <!-- Notification Bell (Mobile) - ORANGE PUNCHY STYLE -->
                 <button onclick="toggleNotifDrawer()"
-                    class="relative p-2 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
-                    <i class="fas fa-bell text-lg"></i>
-                    <span class="notif-dot absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full hidden animate-pulse"></span>
+                    class="notification-bell relative p-2.5 text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-xl transition-all duration-300 border-2 border-orange-200 dark:border-orange-800 hover:border-orange-400 dark:hover:border-orange-600 shadow-lg shadow-orange-200/50 dark:shadow-orange-900/30">
+                    <div class="notif-glow absolute inset-0 rounded-xl hidden"></div>
+                    <i class="fas fa-bell text-xl"></i>
+                    <span class="notif-dot absolute top-1.5 right-1.5 w-3 h-3 bg-gradient-to-r from-orange-400 to-red-500 rounded-full hidden ring-2 ring-white dark:ring-gray-800 animate-bounce shadow-lg"></span>
                 </button>
                 <button id="theme-toggle-mobile"
                     class="p-2 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
@@ -540,9 +621,9 @@
             <div class="nav-section-label">Main Menu</div>
 
             <a href="javascript:void(0)" onclick="toggleNotifDrawer()" class="nav-item relative">
-                <i class="fas fa-bell text-blue-600 dark:text-blue-400"></i>
+                <i class="fas fa-bell text-orange-500 dark:text-orange-400"></i>
                 <span>Notifications</span>
-                <span class="notif-badge absolute right-3 px-1.5 py-0.5 bg-red-500 text-white text-[9px] font-bold rounded-full hidden">0</span>
+                <span class="notif-badge absolute right-3 px-2 py-1 bg-gradient-to-r from-orange-500 to-red-500 text-white text-[10px] font-bold rounded-full hidden shadow-lg shadow-orange-500/50 animate-pulse ring-2 ring-white dark:ring-gray-800">0</span>
             </a>
 
             <a href="/user/dashboard" class="nav-item {% if request.endpoint == 'user.dashboard' %}active{% endif %}">
@@ -576,8 +657,9 @@
 
             <a href="/user/my-coupons"
                 class="nav-item {% if request.endpoint == 'user.user_coupons' %}active{% endif %}">
-                <i class="fas fa-ticket-alt"></i>
+                <i class="fas fa-ticket-alt text-amber-500 dark:text-amber-400"></i>
                 <span>My Coupons</span>
+                <span class="notif-coupon-badge absolute right-3 px-2 py-1 bg-gradient-to-r from-amber-400 to-yellow-500 text-white text-[10px] font-bold rounded-full hidden shadow-lg shadow-amber-500/50 animate-pulse ring-2 ring-white dark:ring-gray-800">0</span>
             </a>
 
             <div class="nav-section-label">Account</div>
@@ -656,9 +738,9 @@
             <div class="nav-section-label">Main Menu</div>
 
             <a href="javascript:void(0)" onclick="toggleSidebar(); toggleNotifDrawer();" class="nav-item relative">
-                <i class="fas fa-bell text-blue-600 dark:text-blue-400"></i>
+                <i class="fas fa-bell text-orange-500 dark:text-orange-400"></i>
                 <span>Notifications</span>
-                <span class="notif-badge absolute right-3 px-1.5 py-0.5 bg-red-500 text-white text-[9px] font-bold rounded-full hidden">0</span>
+                <span class="notif-badge absolute right-3 px-2 py-1 bg-gradient-to-r from-orange-500 to-red-500 text-white text-[10px] font-bold rounded-full hidden shadow-lg shadow-orange-500/50 animate-pulse ring-2 ring-white dark:ring-gray-800">0</span>
             </a>
 
             <a href="/user/dashboard" class="nav-item {% if request.endpoint == 'user.dashboard' %}active{% endif %}"
@@ -697,8 +779,9 @@
             <a href="/user/my-coupons"
                 class="nav-item {% if request.endpoint == 'user.user_coupons' %}active{% endif %}"
                 onclick="toggleSidebar()">
-                <i class="fas fa-ticket-alt"></i>
+                <i class="fas fa-ticket-alt text-amber-500 dark:text-amber-400"></i>
                 <span>My Coupons</span>
+                <span class="notif-coupon-badge absolute right-3 px-2 py-1 bg-gradient-to-r from-amber-400 to-yellow-500 text-white text-[10px] font-bold rounded-full hidden shadow-lg shadow-amber-500/50 animate-pulse ring-2 ring-white dark:ring-gray-800">0</span>
             </a>
 
             <div class="nav-section-label">Account</div>
@@ -760,11 +843,21 @@
                     <p class="text-gray-600 dark:text-gray-400">{% block header_subtitle %}Overview{% endblock %}</p>
                 </div>
                 <div class="flex items-center space-x-4">
-                    <!-- Notification Bell (Desktop) -->
+                    <!-- Coupon Bell (Desktop) - AMBER PUNCHY STYLE -->
+                    <button onclick="window.location.href='/user/my-coupons'"
+                        class="coupon-bell relative p-3 text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-xl transition-all duration-300 border-2 border-amber-200 dark:border-amber-800 hover:border-amber-400 dark:hover:border-amber-600 shadow-lg shadow-amber-200/50 dark:shadow-amber-900/30 mr-2"
+                        id="couponBellDesktop" title="View Coupons">
+                        <div class="coupon-glow absolute inset-0 rounded-xl hidden"></div>
+                        <i class="fas fa-ticket-alt text-xl"></i>
+                        <span class="notif-coupon-badge absolute -top-1.5 -right-1.5 min-w-6 h-6 px-1.5 bg-gradient-to-r from-amber-400 to-yellow-500 text-white text-[11px] font-bold rounded-full flex items-center justify-center hidden shadow-lg shadow-amber-500/50 animate-pulse ring-2 ring-white dark:ring-gray-800">0</span>
+                    </button>
+
+                    <!-- Notification Bell (Desktop) - ORANGE PUNCHY STYLE -->
                     <button onclick="toggleNotifDrawer()"
-                        class="relative p-2 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition border border-gray-200 dark:border-dark-border mr-2">
-                        <i class="fas fa-bell text-lg"></i>
-                        <span class="notif-badge absolute -top-1.5 -right-1.5 min-w-5 h-5 px-1.5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center hidden border border-white dark:border-slate-900 shadow-sm animate-pulse">0</span>
+                        class="notification-bell relative p-3 text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-xl transition-all duration-300 border-2 border-orange-200 dark:border-orange-800 hover:border-orange-400 dark:hover:border-orange-600 shadow-lg shadow-orange-200/50 dark:shadow-orange-900/30 mr-2">
+                        <div class="notif-glow absolute inset-0 rounded-xl hidden"></div>
+                        <i class="fas fa-bell text-xl"></i>
+                        <span class="notif-badge absolute -top-1.5 -right-1.5 min-w-6 h-6 px-1.5 bg-gradient-to-r from-orange-500 to-red-500 text-white text-[11px] font-bold rounded-full flex items-center justify-center hidden shadow-lg shadow-orange-500/50 animate-pulse ring-2 ring-white dark:ring-gray-800">0</span>
                     </button>
                     <div class="text-right">
                         <p class="text-sm text-gray-600 dark:text-gray-400">Welcome back</p>
@@ -847,6 +940,116 @@
         if (themeToggleDesktop) themeToggleDesktop.addEventListener('click', toggleTheme);
         if (themeToggleMobile) themeToggleMobile.addEventListener('click', toggleTheme);
         if (themeToggleMobileSidebar) themeToggleMobileSidebar.addEventListener('click', toggleTheme);
+        
+        // Check for notifications and add animation
+        function checkNotifications() {
+            const badges = document.querySelectorAll('.notif-badge');
+            const dots = document.querySelectorAll('.notif-dot');
+            const bells = document.querySelectorAll('.notification-bell');
+            
+            let hasNotifications = false;
+            
+            badges.forEach(badge => {
+                if (!badge.classList.contains('hidden') && badge.textContent !== '0') {
+                    hasNotifications = true;
+                }
+            });
+            
+            dots.forEach(dot => {
+                if (!dot.classList.contains('hidden')) {
+                    hasNotifications = true;
+                }
+            });
+            
+            bells.forEach(bell => {
+                const glow = bell.querySelector('.notif-glow');
+                if (hasNotifications) {
+                    bell.classList.add('has-notifications');
+                    if (glow) glow.classList.remove('hidden');
+                } else {
+                    bell.classList.remove('has-notifications');
+                    if (glow) glow.classList.add('hidden');
+                }
+            });
+        }
+        
+        // Check for coupons and add animation
+        function checkCoupons() {
+            const couponBadges = document.querySelectorAll('.notif-coupon-badge');
+            const couponDots = document.querySelectorAll('.notif-coupon-dot');
+            const couponBells = document.querySelectorAll('.coupon-bell');
+            
+            let hasCoupons = false;
+            
+            couponBadges.forEach(badge => {
+                if (!badge.classList.contains('hidden') && badge.textContent !== '0') {
+                    hasCoupons = true;
+                }
+            });
+            
+            couponDots.forEach(dot => {
+                if (!dot.classList.contains('hidden')) {
+                    hasCoupons = true;
+                }
+            });
+            
+            couponBells.forEach(bell => {
+                const glow = bell.querySelector('.coupon-glow');
+                if (hasCoupons) {
+                    bell.classList.add('has-coupons');
+                    if (glow) glow.classList.remove('hidden');
+                } else {
+                    bell.classList.remove('has-coupons');
+                    if (glow) glow.classList.add('hidden');
+                }
+            });
+        }
+
+        // Fetch new coupon count from API
+        async function fetchNewCouponCount() {
+            try {
+                const response = await fetch('/api/coupons/new-count');
+                const data = await response.json();
+                const count = data.new_count || 0;
+                
+                updateCouponBadges(count);
+            } catch (error) {
+                console.log('Could not fetch coupon count');
+            }
+        }
+
+        function updateCouponBadges(count) {
+            const badges = document.querySelectorAll('.notif-coupon-badge');
+            const dots = document.querySelectorAll('.notif-coupon-dot');
+            
+            if (count > 0) {
+                badges.forEach(badge => {
+                    badge.textContent = count;
+                    badge.classList.remove('hidden');
+                });
+                dots.forEach(dot => {
+                    dot.classList.remove('hidden');
+                });
+            } else {
+                badges.forEach(badge => {
+                    badge.classList.add('hidden');
+                });
+                dots.forEach(dot => {
+                    dot.classList.add('hidden');
+                });
+            }
+            
+            checkCoupons();
+        }
+        
+        // Run on load and periodically
+        document.addEventListener('DOMContentLoaded', function() {
+            checkNotifications();
+            checkCoupons();
+            fetchNewCouponCount();
+        });
+        setInterval(checkNotifications, 3000);
+        setInterval(fetchNewCouponCount, 30000); // Check for new coupons every 30 seconds
     </script>
 
     <!-- Notifications Drawer Component -->

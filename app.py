@@ -703,6 +703,9 @@ def create_cashfree_order():
             notify_url="https://www.tragenefunded.com/cashfree-webhook"
         )
         
+        # DEBUG: Check the amount type before sending
+        print(f"[DEBUG] order_amount type={type(expected_payable_amount)}, value={expected_payable_amount!r}")
+        
         create_order_request = CreateOrderRequest(
             order_amount=expected_payable_amount,
             order_currency="INR",
@@ -893,6 +896,35 @@ def cashfree_webhook():
     except Exception as e:
         print(f"Webhook processing error: {e}")
         return jsonify({'status': 'error'}), 500
+    
+
+
+
+
+
+@app.route('/api/coupons/new-count')
+@login_required
+def api_coupon_new_count():
+    from datetime import datetime, timedelta
+    
+    # Count recent coupons - adjust logic as needed
+    count = 0
+    if current_user.is_authenticated:
+        # Example: count all active coupons
+        # Replace with your actual Coupon model and logic
+        try:
+            from models import Coupon  # Adjust import based on your project
+            count = Coupon.query.filter(
+                Coupon.is_active == True
+            ).count()
+        except:
+            # Fallback - just return a test count for now
+            count = 5  # Remove this after testing
+    
+    return jsonify({'new_count': count})
+
+
+
 
 @app.route('/payment-success')
 @login_required

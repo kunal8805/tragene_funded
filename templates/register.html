@@ -1,32 +1,27 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-8SBBXX72M7"></script>
     <script>
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
-
       gtag('config', 'G-8SBBXX72M7');
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Register - Tragene Funded</title>
 
-    <!-- Favicon -->
     <link rel="icon" type="image/png" sizes="32x32" href="/static/images/logo.png">
     <link rel="shortcut icon" href="/static/images/logo.png">
     <link rel="apple-touch-icon" sizes="180x180" href="/static/images/logo.png">
 
-    <!-- Primary SEO -->
     <meta name="description" content="Trade with India's most affordable and beginner-friendly prop firm. Low-cost challenges, transparent rules, fast payouts, trusted support, and funding opportunities designed for every trader.">
     <meta name="keywords" content="prop firm India, funded trading account India, affordable prop firm, beginner prop firm, forex funded account, MT5 prop firm, cheap prop firm India, trading challenge, instant funding, trader funding India, forex challenge, Tragene Funded">
     <meta name="author" content="Tragene Funded">
     <meta name="robots" content="index, follow, max-image-preview:large">
     <meta name="theme-color" content="#0f172a">
 
-    <!-- Open Graph -->
     <meta property="og:type" content="website">
     <meta property="og:title" content="Tragene Funded | India's Most Affordable Prop Firm">
     <meta property="og:description" content="Low-cost challenges, beginner-friendly rules, fast and transparent payouts. Built for Indian traders.">
@@ -34,16 +29,13 @@
     <meta property="og:site_name" content="Tragene Funded">
     <meta property="og:image" content="https://www.tragenefunded.com/static/images/tragene_banner.png">
 
-    <!-- Twitter / X -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Tragene Funded | India's Most Affordable Prop Firm">
     <meta name="twitter:description" content="Low-cost challenges. Beginner friendly. Built for Indian traders.">
     <meta name="twitter:image" content="https://www.tragenefunded.com/static/images/tragene_banner.png">
 
-    <!-- Canonical -->
     <link rel="canonical" href="https://www.tragenefunded.com">
 
-    <!-- Organization Schema -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
@@ -61,39 +53,38 @@
             margin: 0;
             padding: 0;
         }
-        
+
         .age-error { display: none; }
         .state-field { display: none; }
-        
+
         .bg-starry-night {
             background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #2d2d2d 100%);
             position: relative;
             min-height: 100vh;
-            /* REMOVED overflow: hidden */
         }
-        
+
         .stars {
-            position: fixed; /* CHANGED from absolute to fixed */
+            position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
             pointer-events: none;
-            z-index: -1; /* ADDED this */
+            z-index: -1;
         }
-        
+
         .star {
             position: absolute;
             background-color: white;
             border-radius: 50%;
             animation: twinkle 5s infinite;
         }
-        
+
         @keyframes twinkle {
             0%, 100% { opacity: 0.3; }
             50% { opacity: 1; }
         }
-        
+
         .liquid-glass {
             background: rgba(255, 255, 255, 0.08);
             backdrop-filter: blur(20px);
@@ -103,7 +94,7 @@
             position: relative;
             overflow: hidden;
         }
-        
+
         .liquid-glass::before {
             content: '';
             position: absolute;
@@ -114,47 +105,186 @@
             background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
             transition: 0.5s;
         }
-        
+
         .liquid-glass:hover::before {
             left: 100%;
         }
-        
+
         .shooting-star {
-            position: fixed; /* CHANGED from absolute to fixed */
+            position: fixed;
             width: 100px;
             height: 1px;
             background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,1) 50%, rgba(255,255,255,0) 100%);
             animation: shootingStar 5s linear infinite;
-            z-index: -1; /* ADDED this */
+            z-index: -1;
         }
-        
+
         @keyframes shootingStar {
-            0% {
-                transform: translateX(-100px) translateY(0) rotate(45deg);
-                opacity: 0;
-            }
-            10% {
-                opacity: 1;
-            }
-            20% {
-                transform: translateX(200px) translateY(200px) rotate(45deg);
-                opacity: 0;
-            }
-            100% {
-                opacity: 0;
-            }
+            0% { transform: translateX(-100px) translateY(0) rotate(45deg); opacity: 0; }
+            10% { opacity: 1; }
+            20% { transform: translateX(200px) translateY(200px) rotate(45deg); opacity: 0; }
+            100% { opacity: 0; }
         }
-        
+
         .glow-text {
             text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+        }
+
+        /* ── Custom DOB Picker ── */
+        .dob-picker-wrapper {
+            position: relative;
+        }
+
+        .dob-display {
+            cursor: pointer;
+            user-select: none;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .dob-display .placeholder-text {
+            color: #9ca3af;
+        }
+
+        .dob-display .selected-text {
+            color: #fff;
+        }
+
+        .dob-dropdown {
+            display: none;
+            position: absolute;
+            top: calc(100% + 8px);
+            left: 0;
+            right: 0;
+            background: #111827;
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 14px;
+            z-index: 9999;
+            padding: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+        }
+
+        .dob-dropdown.open {
+            display: block;
+            animation: fadeSlide 0.18s ease;
+        }
+
+        @keyframes fadeSlide {
+            from { opacity: 0; transform: translateY(-6px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .dob-nav {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .dob-nav button {
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.15);
+            color: #fff;
+            border-radius: 8px;
+            width: 32px;
+            height: 32px;
+            cursor: pointer;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.15s;
+        }
+
+        .dob-nav button:hover {
+            background: rgba(255,255,255,0.18);
+        }
+
+        .dob-nav-center {
+            display: flex;
+            gap: 8px;
+        }
+
+        .dob-nav select {
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: #fff;
+            border-radius: 8px;
+            padding: 4px 8px;
+            font-size: 14px;
+            cursor: pointer;
+            outline: none;
+        }
+
+        .dob-nav select option {
+            background: #1f2937;
+            color: #fff;
+        }
+
+        .dob-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 2px;
+        }
+
+        .dob-day-header {
+            text-align: center;
+            font-size: 11px;
+            color: #6b7280;
+            padding: 4px 0;
+            font-weight: 600;
+        }
+
+        .dob-day {
+            text-align: center;
+            padding: 7px 2px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            color: #d1d5db;
+            transition: background 0.12s, color 0.12s;
+            border: 1px solid transparent;
+        }
+
+        .dob-day:hover:not(.empty):not(.disabled) {
+            background: rgba(59,130,246,0.3);
+            color: #fff;
+        }
+
+        .dob-day.today {
+            border-color: rgba(59,130,246,0.5);
+            color: #93c5fd;
+        }
+
+        .dob-day.selected {
+            background: linear-gradient(135deg, #3b82f6, #06b6d4);
+            color: #fff;
+            font-weight: 600;
+        }
+
+        .dob-day.disabled {
+            color: #374151;
+            cursor: not-allowed;
+        }
+
+        .dob-day.empty {
+            cursor: default;
+        }
+
+        .dob-age-hint {
+            text-align: center;
+            font-size: 12px;
+            color: #6b7280;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid rgba(255,255,255,0.08);
         }
     </style>
 </head>
 <body class="bg-starry-night text-white">
-    <!-- Starry Background -->
     <div class="stars" id="stars"></div>
-    
-    <!-- Shooting Stars -->
+
     <div class="shooting-star" style="top: 20%; left: 10%; animation-delay: 2s;"></div>
     <div class="shooting-star" style="top: 60%; left: 30%; animation-delay: 5s;"></div>
     <div class="shooting-star" style="top: 40%; left: 70%; animation-delay: 8s;"></div>
@@ -202,19 +332,19 @@
                 </p>
             </div>
 
-            <form class="mt-8 space-y-6 liquid-glass p-8 rounded-2xl" action="/register" method="POST">
+            <form class="mt-8 space-y-6 liquid-glass p-8 rounded-2xl" action="/register" method="POST" id="registerForm">
                 <div class="space-y-4">
                     <!-- Name -->
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label for="first_name" class="block text-sm font-medium text-gray-300 mb-2">First Name</label>
-                            <input id="first_name" name="first_name" type="text" required 
+                            <input id="first_name" name="first_name" type="text" required
                                    class="relative block w-full px-4 py-3 bg-gray-900/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200"
                                    placeholder="John">
                         </div>
                         <div>
                             <label for="last_name" class="block text-sm font-medium text-gray-300 mb-2">Last Name</label>
-                            <input id="last_name" name="last_name" type="text" required 
+                            <input id="last_name" name="last_name" type="text" required
                                    class="relative block w-full px-4 py-3 bg-gray-900/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200"
                                    placeholder="Doe">
                         </div>
@@ -223,25 +353,46 @@
                     <!-- Email -->
                     <div>
                         <label for="email" class="block text-sm font-medium text-gray-300 mb-2">Email Address</label>
-                        <input id="email" name="email" type="email" autocomplete="email" required 
+                        <input id="email" name="email" type="email" autocomplete="email" required
                                class="relative block w-full px-4 py-3 bg-gray-900/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200"
                                placeholder="trader@example.com">
                     </div>
 
-                    <!-- Phone -->
+                    <!-- Phone — numbers only -->
                     <div>
                         <label for="phone" class="block text-sm font-medium text-gray-300 mb-2">Phone Number</label>
-                        <input id="phone" name="phone" type="tel" required 
+                        <input id="phone" name="phone" type="tel" required
+                               inputmode="numeric"
+                               pattern="[0-9+\s\-()]{7,15}"
+                               oninput="this.value = this.value.replace(/[^0-9+\s\-()+]/g, '')"
                                class="relative block w-full px-4 py-3 bg-gray-900/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200"
                                placeholder="+91 98765 43210">
                     </div>
 
-                    <!-- Date of Birth with Age Validation -->
+                    <!-- Date of Birth — custom scrollable picker -->
                     <div>
-                        <label for="dob" class="block text-sm font-medium text-gray-300 mb-2">Date of Birth</label>
-                        <input id="dob" name="dob" type="date" required 
-                               class="relative block w-full px-4 py-3 bg-gray-900/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200"
-                               onchange="validateAge()">
+                        <label class="block text-sm font-medium text-gray-300 mb-2">Date of Birth</label>
+                        <input type="hidden" id="dob" name="dob">
+                        <div class="dob-picker-wrapper">
+                            <div id="dobDisplay"
+                                 class="dob-display relative block w-full px-4 py-3 bg-gray-900/50 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200"
+                                 onclick="toggleDobDropdown()">
+                                <span id="dobDisplayText" class="placeholder-text">Select your date of birth</span>
+                                <i class="fas fa-calendar-alt text-gray-400"></i>
+                            </div>
+                            <div id="dobDropdown" class="dob-dropdown">
+                                <div class="dob-nav">
+                                    <button type="button" onclick="changeMonth(-1)">&#8249;</button>
+                                    <div class="dob-nav-center">
+                                        <select id="monthSelect" onchange="onMonthYearChange()"></select>
+                                        <select id="yearSelect" onchange="onMonthYearChange()"></select>
+                                    </div>
+                                    <button type="button" onclick="changeMonth(1)">&#8250;</button>
+                                </div>
+                                <div class="dob-grid" id="dobGrid"></div>
+                                <div class="dob-age-hint" id="dobAgeHint">Must be 18 or older to register</div>
+                            </div>
+                        </div>
                         <div id="age-error" class="age-error mt-2 text-sm text-red-400">
                             ❌ You must be 18 years or older to register.
                         </div>
@@ -251,7 +402,7 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label for="country" class="block text-sm font-medium text-gray-300 mb-2">Country</label>
-                            <select id="country" name="country" required 
+                            <select id="country" name="country" required
                                     class="relative block w-full px-4 py-3 bg-gray-900/50 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200"
                                     onchange="toggleStateField()">
                                 <option value="">Select Country</option>
@@ -265,18 +416,46 @@
                         </div>
                         <div id="state-field" class="state-field">
                             <label for="state" class="block text-sm font-medium text-gray-300 mb-2">State</label>
-                            <select id="state" name="state" 
+                            <select id="state" name="state"
                                     class="relative block w-full px-4 py-3 bg-gray-900/50 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200">
                                 <option value="">Select State</option>
-                                <option value="Maharashtra">Maharashtra</option>
-                                <option value="Delhi">Delhi</option>
-                                <option value="Karnataka">Karnataka</option>
-                                <option value="Tamil Nadu">Tamil Nadu</option>
-                                <option value="Uttar Pradesh">Uttar Pradesh</option>
+                                <option value="Andhra Pradesh">Andhra Pradesh</option>
+                                <option value="Arunachal Pradesh">Arunachal Pradesh</option>
+                                <option value="Assam">Assam</option>
+                                <option value="Bihar">Bihar</option>
+                                <option value="Chhattisgarh">Chhattisgarh</option>
+                                <option value="Goa">Goa</option>
                                 <option value="Gujarat">Gujarat</option>
-                                <option value="West Bengal">West Bengal</option>
+                                <option value="Haryana">Haryana</option>
+                                <option value="Himachal Pradesh">Himachal Pradesh</option>
+                                <option value="Jharkhand">Jharkhand</option>
+                                <option value="Karnataka">Karnataka</option>
+                                <option value="Kerala">Kerala</option>
+                                <option value="Madhya Pradesh">Madhya Pradesh</option>
+                                <option value="Maharashtra">Maharashtra</option>
+                                <option value="Manipur">Manipur</option>
+                                <option value="Meghalaya">Meghalaya</option>
+                                <option value="Mizoram">Mizoram</option>
+                                <option value="Nagaland">Nagaland</option>
+                                <option value="Odisha">Odisha</option>
+                                <option value="Punjab">Punjab</option>
                                 <option value="Rajasthan">Rajasthan</option>
-                                <option value="Other">Other</option>
+                                <option value="Sikkim">Sikkim</option>
+                                <option value="Tamil Nadu">Tamil Nadu</option>
+                                <option value="Telangana">Telangana</option>
+                                <option value="Tripura">Tripura</option>
+                                <option value="Uttar Pradesh">Uttar Pradesh</option>
+                                <option value="Uttarakhand">Uttarakhand</option>
+                                <option value="West Bengal">West Bengal</option>
+                                <!-- Union Territories -->
+                                <option value="Andaman and Nicobar Islands">Andaman and Nicobar Islands</option>
+                                <option value="Chandigarh">Chandigarh</option>
+                                <option value="Dadra and Nagar Haveli and Daman and Diu">Dadra & Nagar Haveli and Daman & Diu</option>
+                                <option value="Delhi">Delhi (NCT)</option>
+                                <option value="Jammu and Kashmir">Jammu and Kashmir</option>
+                                <option value="Ladakh">Ladakh</option>
+                                <option value="Lakshadweep">Lakshadweep</option>
+                                <option value="Puducherry">Puducherry</option>
                             </select>
                         </div>
                     </div>
@@ -284,7 +463,7 @@
                     <!-- Password -->
                     <div>
                         <label for="password" class="block text-sm font-medium text-gray-300 mb-2">Password</label>
-                        <input id="password" name="password" type="password" autocomplete="new-password" required 
+                        <input id="password" name="password" type="password" autocomplete="new-password" required
                                class="relative block w-full px-4 py-3 bg-gray-900/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200"
                                placeholder="••••••••">
                         <p class="mt-1 text-xs text-gray-400">Minimum 8 characters with numbers and letters</p>
@@ -293,26 +472,26 @@
                     <!-- Confirm Password -->
                     <div>
                         <label for="confirm_password" class="block text-sm font-medium text-gray-300 mb-2">Confirm Password</label>
-                        <input id="confirm_password" name="confirm_password" type="password" autocomplete="new-password" required 
+                        <input id="confirm_password" name="confirm_password" type="password" autocomplete="new-password" required
                                class="relative block w-full px-4 py-3 bg-gray-900/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200"
                                placeholder="••••••••">
                     </div>
 
                     <!-- Terms -->
                     <div class="flex items-center">
-                        <input id="terms" name="terms" type="checkbox" required 
+                        <input id="terms" name="terms" type="checkbox" required
                                class="h-4 w-4 text-blue-500 focus:ring-blue-500 border-gray-600 rounded bg-gray-900/50">
                         <label for="terms" class="ml-2 block text-sm text-gray-300">
-                            I agree to the <a href="/terms" target="_blank" class="text-blue-400 hover:text-blue-300">Terms & Conditions</a> and <a href="/privacy" target="_blank" class="text-blue-400 hover:text-blue-300">Privacy Policy</a>
+                            I agree to the <a href="/terms" target="_blank" class="text-blue-400 hover:text-blue-300">Terms &amp; Conditions</a> and <a href="/privacy" target="_blank" class="text-blue-400 hover:text-blue-300">Privacy Policy</a>
                         </label>
                     </div>
                 </div>
 
-                <!-- Submit Button -->
+                <!-- Submit -->
                 <div>
-                    <button type="submit" 
+                    <button type="submit" id="submitBtn"
                             class="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-gradient-to-r from-green-500 to-blue-600 hover:from-green-600 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition duration-200 transform hover:scale-[1.02]">
-                        Create Account & Start Challenge
+                        Create Account &amp; Start Challenge
                     </button>
                 </div>
 
@@ -329,83 +508,37 @@
             <div class="text-center space-y-3">
                 <p class="text-xs text-gray-500">Why join Tragene Funded?</p>
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs text-gray-400">
-                    <div class="flex items-center justify-center">
-                        <span class="mr-1">🚀</span> Instant Setup
-                    </div>
-                    <div class="flex items-center justify-center">
-                        <span class="mr-1">💸</span> 80% Profit Split
-                    </div>
-                    <div class="flex items-center justify-center">
-                        <span class="mr-1">⚡</span> Fast Payouts
-                    </div>
-                    <div class="flex items-center justify-center">
-                        <span class="mr-1">🛡️</span> Risk Management
-                    </div>
+                    <div class="flex items-center justify-center"><span class="mr-1">🚀</span> Instant Setup</div>
+                    <div class="flex items-center justify-center"><span class="mr-1">💸</span> 80% Profit Split</div>
+                    <div class="flex items-center justify-center"><span class="mr-1">⚡</span> Fast Payouts</div>
+                    <div class="flex items-center justify-center"><span class="mr-1">🛡️</span> Risk Management</div>
                 </div>
             </div>
         </div>
     </div>
 
     <script>
-        // Create stars
+        /* ── Stars ── */
         function createStars() {
-            const starsContainer = document.getElementById('stars');
-            const starCount = 100;
-            
-            for (let i = 0; i < starCount; i++) {
-                const star = document.createElement('div');
-                star.classList.add('star');
-                
-                // Random position
-                const left = Math.random() * 100;
-                const top = Math.random() * 100;
-                
-                // Random size
-                const size = Math.random() * 3;
-                
-                // Random animation delay
-                const delay = Math.random() * 5;
-                
-                star.style.left = `${left}%`;
-                star.style.top = `${top}%`;
-                star.style.width = `${size}px`;
-                star.style.height = `${size}px`;
-                star.style.animationDelay = `${delay}s`;
-                
-                starsContainer.appendChild(star);
+            const container = document.getElementById('stars');
+            for (let i = 0; i < 100; i++) {
+                const s = document.createElement('div');
+                s.classList.add('star');
+                s.style.left = Math.random() * 100 + '%';
+                s.style.top  = Math.random() * 100 + '%';
+                const sz = Math.random() * 3;
+                s.style.width  = sz + 'px';
+                s.style.height = sz + 'px';
+                s.style.animationDelay = Math.random() * 5 + 's';
+                container.appendChild(s);
             }
         }
 
-        function validateAge() {
-            const dobInput = document.getElementById('dob');
-            const ageError = document.getElementById('age-error');
-            const submitButton = document.querySelector('button[type="submit"]');
-            
-            if (dobInput.value) {
-                const birthDate = new Date(dobInput.value);
-                const today = new Date();
-                const age = today.getFullYear() - birthDate.getFullYear();
-                const monthDiff = today.getMonth() - birthDate.getMonth();
-                
-                const isAdult = age > 18 || (age === 18 && monthDiff >= 0);
-                
-                if (!isAdult) {
-                    ageError.style.display = 'block';
-                    submitButton.disabled = true;
-                    submitButton.classList.add('opacity-50', 'cursor-not-allowed');
-                } else {
-                    ageError.style.display = 'none';
-                    submitButton.disabled = false;
-                    submitButton.classList.remove('opacity-50', 'cursor-not-allowed');
-                }
-            }
-        }
-
+        /* ── State field toggle ── */
         function toggleStateField() {
-            const country = document.getElementById('country').value;
+            const country    = document.getElementById('country').value;
             const stateField = document.getElementById('state-field');
             const stateInput = document.getElementById('state');
-            
             if (country === 'India') {
                 stateField.style.display = 'block';
                 stateInput.required = true;
@@ -416,17 +549,181 @@
             }
         }
 
-        // Form validation
-        document.querySelector('form').addEventListener('submit', function(e) {
-            const password = document.getElementById('password').value;
+        /* ── DOB Picker ── */
+        const MONTHS = ['January','February','March','April','May','June',
+                        'July','August','September','October','November','December'];
+        const DAY_HEADERS = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+
+        let pickerDate   = { year: 2000, month: 0 };  // current calendar view
+        let selectedDate = null;                        // { year, month, day }
+
+        function buildDropdown() {
+            const mSel = document.getElementById('monthSelect');
+            const ySel = document.getElementById('yearSelect');
+
+            // Months
+            mSel.innerHTML = MONTHS.map((m, i) =>
+                `<option value="${i}" ${i === pickerDate.month ? 'selected' : ''}>${m}</option>`
+            ).join('');
+
+            // Years: 1940 → current year (allow up to today)
+            const now = new Date();
+            ySel.innerHTML = '';
+            for (let y = now.getFullYear(); y >= 1940; y--) {
+                const opt = document.createElement('option');
+                opt.value = y;
+                opt.textContent = y;
+                if (y === pickerDate.year) opt.selected = true;
+                ySel.appendChild(opt);
+            }
+
+            renderGrid();
+        }
+
+        function renderGrid() {
+            const grid = document.getElementById('dobGrid');
+            const now  = new Date();
+
+            // Max allowed date = today minus 18 years
+            const maxDate = new Date(now.getFullYear() - 18, now.getMonth(), now.getDate());
+
+            const firstDay = new Date(pickerDate.year, pickerDate.month, 1).getDay();
+            const daysIn   = new Date(pickerDate.year, pickerDate.month + 1, 0).getDate();
+
+            // Day headers
+            let html = DAY_HEADERS.map(d => `<div class="dob-day-header">${d}</div>`).join('');
+
+            // Empty cells
+            for (let i = 0; i < firstDay; i++) html += `<div class="dob-day empty"></div>`;
+
+            for (let d = 1; d <= daysIn; d++) {
+                const thisDate = new Date(pickerDate.year, pickerDate.month, d);
+                const isDisabled = thisDate > maxDate;
+                const isToday    = thisDate.toDateString() === now.toDateString();
+                const isSelected = selectedDate &&
+                                   selectedDate.year  === pickerDate.year &&
+                                   selectedDate.month === pickerDate.month &&
+                                   selectedDate.day   === d;
+                let cls = 'dob-day';
+                if (isDisabled) cls += ' disabled';
+                if (isToday)    cls += ' today';
+                if (isSelected) cls += ' selected';
+
+                const onclick = isDisabled ? '' : `onclick="selectDay(${d})"`;
+                html += `<div class="${cls}" ${onclick}>${d}</div>`;
+            }
+
+            grid.innerHTML = html;
+
+            // Age hint
+            const hint = document.getElementById('dobAgeHint');
+            if (selectedDate) {
+                const age = calcAge(selectedDate.year, selectedDate.month, selectedDate.day);
+                if (age < 18) {
+                    hint.textContent = '❌ Must be 18 or older to register';
+                    hint.style.color = '#f87171';
+                } else {
+                    hint.textContent = `✓ Age: ${age} years`;
+                    hint.style.color = '#34d399';
+                }
+            } else {
+                hint.textContent = 'Must be 18 or older to register';
+                hint.style.color = '#6b7280';
+            }
+        }
+
+        function calcAge(y, m, d) {
+            const now   = new Date();
+            let age = now.getFullYear() - y;
+            const mDiff = now.getMonth() - m;
+            if (mDiff < 0 || (mDiff === 0 && now.getDate() < d)) age--;
+            return age;
+        }
+
+        function selectDay(d) {
+            selectedDate = { year: pickerDate.year, month: pickerDate.month, day: d };
+            const age = calcAge(selectedDate.year, selectedDate.month, selectedDate.day);
+
+            // Format as YYYY-MM-DD for hidden input
+            const mm  = String(selectedDate.month + 1).padStart(2, '0');
+            const dd  = String(d).padStart(2, '0');
+            document.getElementById('dob').value = `${selectedDate.year}-${mm}-${dd}`;
+
+            // Update display text
+            const displayEl = document.getElementById('dobDisplayText');
+            displayEl.className = 'selected-text';
+            displayEl.textContent = `${d} ${MONTHS[selectedDate.month]} ${selectedDate.year}`;
+
+            // Validate 18+
+            const errEl    = document.getElementById('age-error');
+            const submitBtn = document.getElementById('submitBtn');
+            if (age < 18) {
+                errEl.style.display = 'block';
+                submitBtn.disabled = true;
+                submitBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            } else {
+                errEl.style.display = 'none';
+                submitBtn.disabled = false;
+                submitBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+
+            renderGrid();
+            closeDobDropdown();
+        }
+
+        function toggleDobDropdown() {
+            const dd = document.getElementById('dobDropdown');
+            if (dd.classList.contains('open')) {
+                closeDobDropdown();
+            } else {
+                buildDropdown();
+                dd.classList.add('open');
+            }
+        }
+
+        function closeDobDropdown() {
+            document.getElementById('dobDropdown').classList.remove('open');
+        }
+
+        function changeMonth(delta) {
+            pickerDate.month += delta;
+            if (pickerDate.month > 11) { pickerDate.month = 0;  pickerDate.year++; }
+            if (pickerDate.month < 0)  { pickerDate.month = 11; pickerDate.year--; }
+            document.getElementById('monthSelect').value = pickerDate.month;
+            document.getElementById('yearSelect').value  = pickerDate.year;
+            renderGrid();
+        }
+
+        function onMonthYearChange() {
+            pickerDate.month = parseInt(document.getElementById('monthSelect').value);
+            pickerDate.year  = parseInt(document.getElementById('yearSelect').value);
+            renderGrid();
+        }
+
+        // Close picker when clicking outside
+        document.addEventListener('click', function(e) {
+            const wrapper = document.querySelector('.dob-picker-wrapper');
+            if (!wrapper.contains(e.target)) closeDobDropdown();
+        });
+
+        /* ── Form validation ── */
+        document.getElementById('registerForm').addEventListener('submit', function(e) {
+            // DOB required
+            if (!document.getElementById('dob').value) {
+                e.preventDefault();
+                alert('Please select your date of birth.');
+                return false;
+            }
+
+            const password        = document.getElementById('password').value;
             const confirmPassword = document.getElementById('confirm_password').value;
-            
+
             if (password !== confirmPassword) {
                 e.preventDefault();
                 alert('Passwords do not match!');
                 return false;
             }
-            
+
             if (password.length < 8) {
                 e.preventDefault();
                 alert('Password must be at least 8 characters long!');

@@ -5,13 +5,53 @@
 {% block header_title %}My Coupons{% endblock %}
 {% block header_subtitle %}Available discounts and exclusive offers{% endblock %}
 
+{% block head %}
+<style>
+    /* Coupon Toast Animation */
+    @keyframes slideInRight {
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+    }
+    
+    .coupon-toast {
+        animation: slideInRight 0.5s ease-out;
+    }
+    
+    /* Sparkle animation for new coupon badge */
+    @keyframes sparkle {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.7; transform: scale(1.2); }
+    }
+    
+    .new-coupon-sparkle {
+        animation: sparkle 1.5s ease-in-out infinite;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
+<!-- Coupon Toast Notification -->
+<div id="couponToast" class="hidden fixed top-5 right-5 z-50 coupon-toast">
+    <div class="bg-gradient-to-r from-amber-400 to-orange-500 text-white p-4 rounded-xl shadow-2xl border border-amber-300 flex items-center gap-3 max-w-sm">
+        <div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center text-xl new-coupon-sparkle">
+            🎟️
+        </div>
+        <div class="flex-1">
+            <p class="font-bold text-sm">New Coupon Available! 🎉</p>
+            <p id="couponToastMessage" class="text-xs text-white/90">You have a new discount coupon</p>
+        </div>
+        <button onclick="closeCouponToast()" class="text-white/80 hover:text-white">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+</div>
+
 <div class="container mx-auto px-4 py-6" data-aos="fade-up">
     <!-- Stats / Intro Banner -->
     <div class="glass-card p-6 mb-8 border dark:border-dark-border">
         <div class="flex flex-col md:flex-row items-center justify-between gap-4">
             <div class="flex items-center space-x-4">
-                <div class="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center text-blue-600 dark:text-blue-400 text-xl">
+                <div class="w-12 h-12 bg-gradient-to-br from-amber-400 to-orange-500 rounded-xl flex items-center justify-center text-white text-xl shadow-lg shadow-orange-200 dark:shadow-orange-900/30">
                     <i class="fas fa-ticket-alt"></i>
                 </div>
                 <div>
@@ -20,7 +60,8 @@
                 </div>
             </div>
             <div class="text-center md:text-right shrink-0">
-                <span class="bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 text-sm font-semibold px-4 py-2 rounded-xl border border-blue-200 dark:border-blue-800">
+                <span class="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 text-amber-800 dark:text-amber-300 text-sm font-semibold px-4 py-2 rounded-xl border border-amber-200 dark:border-amber-800 shadow-sm">
+                    <i class="fas fa-ticket-alt mr-2"></i>
                     {{ coupons|length }} Coupons Available
                 </span>
             </div>
@@ -31,9 +72,10 @@
     {% if coupons %}
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {% for coupon in coupons %}
-        <div class="glass-card relative overflow-hidden border dark:border-dark-border hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 p-6 flex flex-col justify-between" data-aos="fade-up" data-aos-delay="{{ loop.index0 * 100 }}">
+        <div class="glass-card relative overflow-hidden border dark:border-dark-border hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 p-6 flex flex-col justify-between group" data-aos="fade-up" data-aos-delay="{{ loop.index0 * 100 }}">
             <!-- Card Background Gradients for Aesthetics -->
-            <div class="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-blue-500/10 to-transparent rounded-full -mr-8 -mt-8 pointer-events-none"></div>
+            <div class="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-amber-400/10 to-orange-500/10 rounded-full -mr-8 -mt-8 pointer-events-none group-hover:scale-150 transition-transform duration-500"></div>
+            <div class="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-amber-400/5 to-transparent rounded-full -ml-8 -mb-8 pointer-events-none"></div>
             
             <div>
                 <!-- Coupon Header -->
@@ -45,7 +87,7 @@
                     
                     <div class="text-right">
                         <p class="text-xs text-gray-500 dark:text-gray-400">Discount</p>
-                        <p class="text-xl font-extrabold text-blue-600 dark:text-blue-400">
+                        <p class="text-xl font-extrabold text-amber-600 dark:text-amber-400">
                             {% if coupon.discount_type == 'percent' %}
                                 {{ coupon.discount_value|int }}% OFF
                             {% else %}
@@ -71,8 +113,8 @@
                     {% endif %}
                 </div>
                 
-                <button onclick="copyToClipboard('{{ coupon.code }}', this)" class="bg-gray-100 dark:bg-gray-800 hover:bg-blue-600 hover:text-white dark:hover:bg-blue-600 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border dark:border-gray-700 hover:border-blue-600 dark:hover:border-blue-600">
-                    <i class="far fa-copy"></i>
+                <button onclick="copyToClipboard('{{ coupon.code }}', this)" class="bg-gray-100 dark:bg-gray-800 hover:bg-gradient-to-r hover:from-amber-500 hover:to-orange-500 hover:text-white dark:hover:from-amber-500 dark:hover:to-orange-500 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border dark:border-gray-700 hover:border-amber-400 dark:hover:border-amber-500 group">
+                    <i class="far fa-copy group-hover:text-white"></i>
                     <span>Copy Code</span>
                 </button>
             </div>
@@ -82,10 +124,10 @@
     {% else %}
     <!-- Empty State -->
     <div class="glass-card text-center py-16 p-6 border dark:border-dark-border" data-aos="fade-up">
-        <div class="text-6xl mb-6 text-gray-300 dark:text-gray-600">🎟️</div>
+        <div class="text-6xl mb-6">🎟️</div>
         <h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">No Coupons Available</h3>
         <p class="text-gray-600 dark:text-gray-400 max-w-md mx-auto mb-8">You don't have any discount coupons available right now. Keep an eye on your inbox and announcements for promotional offers!</p>
-        <a href="/user/challenges" class="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-6 py-3 rounded-xl font-bold transition">
+        <a href="/user/challenges" class="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white px-6 py-3 rounded-xl font-bold transition shadow-lg shadow-orange-200 dark:shadow-orange-900/30">
             Explore Challenges
         </a>
     </div>
@@ -98,22 +140,21 @@
 <script>
     function copyToClipboard(text, button) {
         navigator.clipboard.writeText(text).then(() => {
-            // Update button UI temporarily
             const icon = button.querySelector('i');
             const span = button.querySelector('span');
             
             icon.className = 'fas fa-check text-green-500';
             span.textContent = 'Copied!';
             button.classList.add('bg-green-50', 'dark:bg-green-900/20', 'border-green-500', 'text-green-500');
+            button.classList.remove('hover:bg-gradient-to-r', 'hover:from-amber-500', 'hover:to-orange-500', 'hover:text-white');
             
-            // Show toast message
             showToast(`Coupon code "${text}" copied to clipboard!`, 'success');
             
-            // Revert state
             setTimeout(() => {
                 icon.className = 'far fa-copy';
                 span.textContent = 'Copy Code';
                 button.classList.remove('bg-green-50', 'dark:bg-green-900/20', 'border-green-500', 'text-green-500');
+                button.classList.add('hover:bg-gradient-to-r', 'hover:from-amber-500', 'hover:to-orange-500', 'hover:text-white');
             }, 2000);
         }).catch(err => {
             console.error('Failed to copy: ', err);
@@ -141,12 +182,91 @@
         const container = document.getElementById('toastContainer');
         container.appendChild(toast);
         
-        // Remove toast
         setTimeout(() => {
             toast.classList.add('opacity-0', 'translate-y-2');
             setTimeout(() => toast.remove(), 300);
         }, 3000);
     }
+    
+    // COUPON NOTIFICATION LOGIC
+    function updateCouponBadges(count) {
+        // Update all coupon badges in header
+        const badges = document.querySelectorAll('.notif-coupon-badge');
+        const dots = document.querySelectorAll('.notif-coupon-dot');
+        const bells = document.querySelectorAll('.coupon-bell');
+        
+        if (count > 0) {
+            // Show and update badges
+            badges.forEach(badge => {
+                badge.textContent = count;
+                badge.classList.remove('hidden');
+            });
+            // Show dots
+            dots.forEach(dot => {
+                dot.classList.remove('hidden');
+            });
+            // Add animation to bells
+            bells.forEach(bell => {
+                bell.classList.add('has-coupons');
+                const glow = bell.querySelector('.coupon-glow');
+                if (glow) glow.classList.remove('hidden');
+            });
+        } else {
+            // Hide badges
+            badges.forEach(badge => badge.classList.add('hidden'));
+            // Hide dots
+            dots.forEach(dot => dot.classList.add('hidden'));
+            // Remove animation
+            bells.forEach(bell => {
+                bell.classList.remove('has-coupons');
+                const glow = bell.querySelector('.coupon-glow');
+                if (glow) glow.classList.add('hidden');
+            });
+        }
+    }
+    
+    function checkForNewCoupons() {
+        fetch('/api/coupons/new-count')
+            .then(response => response.json())
+            .then(data => {
+                const count = data.new_count || 0;
+                updateCouponBadges(count);
+                
+                // Show toast if there are new coupons
+                if (count > 0) {
+                    showCouponToast(count);
+                }
+            })
+            .catch(err => console.log('Error checking coupons:', err));
+    }
+    
+    function showCouponToast(count) {
+        const toast = document.getElementById('couponToast');
+        const message = document.getElementById('couponToastMessage');
+        
+        if (toast && message) {
+            message.textContent = `You have ${count} new coupon${count > 1 ? 's' : ''} available! 🎉`;
+            toast.classList.remove('hidden');
+            
+            setTimeout(() => {
+                closeCouponToast();
+            }, 5000);
+        }
+    }
+    
+    function closeCouponToast() {
+        const toast = document.getElementById('couponToast');
+        if (toast) {
+            toast.classList.add('hidden');
+        }
+    }
+    
+    // Run on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        checkForNewCoupons();
+        // Check for new coupons every 30 seconds
+        setInterval(checkForNewCoupons, 30000);
+    });
 </script>
 
 <style>
