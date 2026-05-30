@@ -1,4 +1,4 @@
-# ===== COMPLETE WORKING app.py WITH RULE ENGINE & RATE LIMITING (REDIS) =====
+# ===== COMPLETE WORKING app.py WITH RULE ENGINE, RATE LIMITING & N8N AUTOMATION =====
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, g
 from datetime import datetime, date, timedelta, timezone
 import os
@@ -14,7 +14,6 @@ try:
     from flask_limiter.util import get_remote_address
     from flask_limiter.errors import RateLimitExceeded
 except ImportError:
-    # Fallback dummy classes to avoid crash when flask_limiter is not installed
     class Limiter:
         def __init__(self, *args, **kwargs):
             pass
@@ -82,16 +81,13 @@ app = Flask(__name__, template_folder=template_dir)
 # ===== RATE LIMITER CONFIGURATION (PRODUCTION READY) =====
 def get_identifier():
     """Get unique identifier for rate limiting (IP + user_id if logged in)"""
-    # If user is logged in, use user_id as identifier (prevents user from switching IPs)
     if 'user_id' in session:
         return f"user_{session['user_id']}"
-    # Otherwise use IP address
     forwarded = request.headers.get('X-Forwarded-For')
     if forwarded:
         return forwarded.split(',')[0].strip()
     return request.remote_addr or 'unknown'
 
-# Configure Redis storage for production
 if REDIS_ENABLED and not DEV_MODE:
     try:
         storage_uri = REDIS_URL
@@ -115,7 +111,6 @@ if REDIS_ENABLED and not DEV_MODE:
             strategy="fixed-window",
         )
 else:
-    # Development mode - use memory storage
     limiter = Limiter(
         key_func=get_identifier,
         app=app,
@@ -126,10 +121,8 @@ else:
     if DEV_MODE:
         print("[OK] Memory rate limiter configured (development mode)")
 
-# Custom error handler for rate limit exceeded
 @app.errorhandler(RateLimitExceeded)
 def handle_rate_limit_exceeded(e):
-    """Handle rate limit exceeded errors"""
     flash(f"Too many requests. Please slow down. Try again in a moment.", 'error')
     return redirect(url_for('home'))
 
@@ -138,8 +131,7 @@ app.config['SECRET_KEY'] = os.getenv('APP_SECRET_KEY')
 if not app.config['SECRET_KEY']:
     raise ValueError("APP_SECRET_KEY must be set in .env file")
 
-# Session security - production settings
-app.config['SESSION_COOKIE_SECURE'] = not DEV_MODE  # True in production
+app.config['SESSION_COOKIE_SECURE'] = not DEV_MODE
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
@@ -171,7 +163,6 @@ if RESEND_AVAILABLE and RESEND_API_KEY:
         print(f"[ERROR] Failed to configure Resend: {e}")
         RESEND_AVAILABLE = False
 
-# File upload configuration
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'pdf'}
@@ -179,7 +170,6 @@ ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'pdf'}
 # ===== ERROR HANDLERS =====
 @app.errorhandler(413)
 def request_entity_too_large(error):
-    """Handle file too large errors gracefully"""
     flash('Your file is too large. Maximum allowed size is 16MB per file. Please reduce the size and try again.', 'warning')
     if 'user_id' in session:
         return redirect(url_for('user.file_too_large'))
@@ -187,12 +177,10 @@ def request_entity_too_large(error):
 
 @app.errorhandler(500)
 def internal_server_error(error):
-    """Handle internal server errors"""
     return render_template('500.html'), 500
 
 @app.errorhandler(404)
 def not_found_error(error):
-    """Handle 404 errors"""
     return render_template('404.html'), 404
 
 # ===== INITIALIZE DATABASE & MIGRATE =====
@@ -202,12 +190,8 @@ db.init_app(app)
 migrate = Migrate(app, db)
 
 # ===== AUTO-CLEANUP EXPIRED NOTIFICATIONS =====
-# This hook runs before each request but only performs cleanup once every 24 hours to avoid overhead.
-from datetime import datetime, timezone, timedelta
-
 def _cleanup_expired_notifications():
     now = datetime.now(timezone.utc)
-    # Find notifications that are not deleted and have expired
     expired_notifications = Notification.query.filter(
         Notification.is_deleted.is_(False),
         Notification.expires_at.isnot(None),
@@ -220,19 +204,16 @@ def _cleanup_expired_notifications():
         if DEV_MODE:
             print(f"[AUTO-CLEANUP] Soft-deleted {len(expired_notifications)} expired notifications")
 
-# Store last cleanup timestamp on the app instance
 if not hasattr(app, 'last_notification_cleanup'):
     app.last_notification_cleanup = None
 
 @app.before_request
 def before_request_cleanup():
     now = datetime.now(timezone.utc)
-    # Perform cleanup if never done or more than 24h ago
     if app.last_notification_cleanup is None or (now - app.last_notification_cleanup) > timedelta(hours=24):
         _cleanup_expired_notifications()
         app.last_notification_cleanup = now
 
-# Custom filter to convert model to dict
 @app.template_filter('to_dict')
 def to_dict_filter(obj):
     if hasattr(obj, 'to_dict'):
@@ -408,7 +389,6 @@ def generate_challenge_token():
             return token
 
 def provision_challenge(payment, user, challenge_template_id):
-    """Helper to provision a challenge after successful payment"""
     from models import db, ChallengePurchase, ChallengeTemplate
     
     challenge = ChallengeTemplate.query.get(challenge_template_id)
@@ -459,7 +439,6 @@ def provision_challenge(payment, user, challenge_template_id):
         days_remaining=initial_duration
     )
     
-    # ===== RULE ENGINE FIELD INITIALIZATION =====
     purchase.starting_balance = float(challenge.account_size)
     purchase.starting_equity = float(challenge.account_size)
     purchase.current_balance = float(challenge.account_size)
@@ -501,7 +480,6 @@ def provision_challenge(payment, user, challenge_template_id):
     db.session.flush()
     payment.challenge_purchase_id = purchase.id
     
-    # ===== PARTNER REVENUE SHARE LOGIC =====
     from models import PartnerEarnings
     partner = User.query.filter_by(role='partner', is_banned=False).first()
     if partner:
@@ -550,7 +528,6 @@ def admin_notification_templates():
 @login_required
 @admin_required
 def admin_create_template():
-    """Create a new notification template"""
     user = User.query.get(session['user_id'])
     
     if request.method == 'POST':
@@ -573,7 +550,6 @@ def admin_create_template():
         db.session.add(template)
         db.session.commit()
         
-        # Log admin action
         log = AdminLog(
             admin_id=user.id,
             action='create_notification_template',
@@ -594,7 +570,6 @@ def admin_create_template():
 @login_required
 @admin_required
 def admin_edit_template(template_id):
-    """Edit an existing notification template"""
     user = User.query.get(session['user_id'])
     template = NotificationTemplate.query.get_or_404(template_id)
     
@@ -611,7 +586,6 @@ def admin_edit_template(template_id):
         
         db.session.commit()
         
-        # Log admin action
         log = AdminLog(
             admin_id=user.id,
             action='edit_notification_template',
@@ -632,14 +606,12 @@ def admin_edit_template(template_id):
 @login_required
 @admin_required
 def admin_delete_template(template_id):
-    """Delete a notification template"""
     user = User.query.get(session['user_id'])
     template = NotificationTemplate.query.get_or_404(template_id)
     template_name = template.name
     
     db.session.delete(template)
     
-    # Log admin action
     log = AdminLog(
         admin_id=user.id,
         action='delete_notification_template',
@@ -658,7 +630,6 @@ def admin_delete_template(template_id):
 @login_required
 @admin_required
 def admin_toggle_template(template_id):
-    """Toggle template active/inactive status"""
     user = User.query.get(session['user_id'])
     template = NotificationTemplate.query.get_or_404(template_id)
     template.is_active = not template.is_active
@@ -666,7 +637,6 @@ def admin_toggle_template(template_id):
     
     status = 'activated' if template.is_active else 'deactivated'
     
-    # Log admin action
     log = AdminLog(
         admin_id=user.id,
         action=f'{status}_notification_template',
@@ -688,9 +658,7 @@ def admin_toggle_template(template_id):
 @login_required
 @admin_required
 def api_get_templates():
-    """API endpoint to get all active templates for the dropdown"""
     templates = NotificationTemplate.query.filter_by(is_active=True).order_by(NotificationTemplate.name).all()
-    
     return jsonify({
         'success': True,
         'templates': [t.to_dict() for t in templates]
@@ -701,9 +669,7 @@ def api_get_templates():
 @login_required
 @admin_required
 def api_get_template(template_id):
-    """API endpoint to get a single template details"""
     template = NotificationTemplate.query.get_or_404(template_id)
-    
     return jsonify({
         'success': True,
         'template': template.to_dict()
@@ -740,7 +706,6 @@ with app.app_context():
             if DEV_MODE:
                 print(f"[OK] Default admin created: {admin_email}")
 
-        # ===== SEED PARTNER ACCOUNT =====
         partner_email = os.getenv("PARTNER_EMAIL")
         partner_password = os.getenv("PARTNER_PASSWORD")
         if partner_email and partner_password:
@@ -765,7 +730,6 @@ with app.app_context():
                 if DEV_MODE:
                     print(f"[OK] Default partner created: {partner_email}")
             else:
-                # Ensure existing partner account has correct role
                 existing_partner = User.query.filter_by(email=partner_email).first()
                 if existing_partner and existing_partner.role != 'partner':
                     existing_partner.role = 'partner'
@@ -785,39 +749,13 @@ with app.app_context():
             if DEV_MODE:
                 print("[OK] Default challenge templates created")
                 
-        # ===== SEED DEFAULT NOTIFICATION TEMPLATES =====
         if not NotificationTemplate.query.first():
             default_templates = [
-                NotificationTemplate(
-                    name="✅ KYC Verified",
-                    title="✅ KYC Verified",
-                    message="Congratulations! Your KYC documents have been reviewed and approved. You are now fully eligible to purchase challenges and start your trading journey.",
-                    category="kyc"
-                ),
-                NotificationTemplate(
-                    name="🏆 Challenge Passed",
-                    title="🏆 Challenge Passed",
-                    message="Outstanding performance! You have successfully passed the evaluation phase of your challenge. Your credentials for the next phase are being prepared and will be sent shortly.",
-                    category="challenge"
-                ),
-                NotificationTemplate(
-                    name="💰 Payout Processed",
-                    title="💰 Payout Processed",
-                    message="Success! Your recent payout request has been verified and processed by our finance team. The funds should reflect in your registered account shortly.",
-                    category="payout"
-                ),
-                NotificationTemplate(
-                    name="🎯 New Challenge Available",
-                    title="🎯 New Challenge Available",
-                    message="Check it out! A brand new challenge template has been added to our catalog with enhanced leverage and lower drawdown thresholds. Head over to the challenges section to buy now.",
-                    category="challenge"
-                ),
-                NotificationTemplate(
-                    name="⚠️ Rule Violation Warning",
-                    title="⚠️ Rule Violation Warning",
-                    message="Alert: A minor rule warning has been logged on your active challenge account. Please verify your daily drawdown levels and current open positions to avoid account termination.",
-                    category="warning"
-                )
+                NotificationTemplate(name="✅ KYC Verified", title="✅ KYC Verified", message="Congratulations! Your KYC documents have been reviewed and approved. You are now fully eligible to purchase challenges and start your trading journey.", category="kyc"),
+                NotificationTemplate(name="🏆 Challenge Passed", title="🏆 Challenge Passed", message="Outstanding performance! You have successfully passed the evaluation phase of your challenge. Your credentials for the next phase are being prepared and will be sent shortly.", category="challenge"),
+                NotificationTemplate(name="💰 Payout Processed", title="💰 Payout Processed", message="Success! Your recent payout request has been verified and processed by our finance team. The funds should reflect in your registered account shortly.", category="payout"),
+                NotificationTemplate(name="🎯 New Challenge Available", title="🎯 New Challenge Available", message="Check it out! A brand new challenge template has been added to our catalog with enhanced leverage and lower drawdown thresholds. Head over to the challenges section to buy now.", category="challenge"),
+                NotificationTemplate(name="⚠️ Rule Violation Warning", title="⚠️ Rule Violation Warning", message="Alert: A minor rule warning has been logged on your active challenge account. Please verify your daily drawdown levels and current open positions to avoid account termination.", category="warning")
             ]
             for template in default_templates:
                 db.session.add(template)
@@ -828,7 +766,6 @@ with app.app_context():
         if DEV_MODE:
             print(f"[INFO] DB not ready for seeding: {e}")
 
-    # ===== BACKFILL PARTNER EARNINGS FOR PAST PURCHASES =====
     try:
         from models import PartnerEarnings
         partner = User.query.filter_by(role='partner', is_banned=False).first()
@@ -863,7 +800,6 @@ with app.app_context():
         if DEV_MODE:
             print(f"[INFO] Partner earnings backfill skipped: {e}")
 
-    # Register blueprints individually for robustness
     blueprints_to_load = [
         ('auth', 'auth_bp'),
         ('admin_routes', 'admin_bp'),
@@ -941,9 +877,6 @@ def create_cashfree_order():
             return_url=f"https://www.tragenefunded.com/payment-success?order_id={internal_order_id}",
             notify_url="https://www.tragenefunded.com/cashfree-webhook"
         )
-        
-        # DEBUG: Check the amount type before sending
-        print(f"[DEBUG] order_amount type={type(expected_payable_amount)}, value={expected_payable_amount!r}")
         
         create_order_request = CreateOrderRequest(
             order_amount=expected_payable_amount,
@@ -1079,13 +1012,11 @@ def cashfree_webhook():
                 webhook_log.status = 'processed'
                 webhook_log.processed_at = datetime.now(timezone.utc)
                 
-                # Consume coupon if any associated with payment
                 if payment.coupon_id:
                     coupon = Coupon.query.with_for_update().get(payment.coupon_id)
                     if coupon:
                         coupon.used_count += 1
                         
-                        # Mark assignment as used if specific
                         if coupon.coupon_type == 'specific':
                             assignment = CouponAssignment.query.filter_by(
                                 coupon_id=coupon.id,
@@ -1095,11 +1026,9 @@ def cashfree_webhook():
                             if assignment:
                                 assignment.is_used = True
                         
-                        # Calculate pricing
                         original_price = float(payment.challenge_purchase.challenge_template.price) if payment.challenge_purchase and payment.challenge_purchase.challenge_template else float(payment.amount)
                         discount_amount = max(0.0, original_price - float(payment.amount))
                         
-                        # Create CouponUsage record
                         usage = CouponUsage(
                             coupon_id=coupon.id,
                             user_id=payment.user_id,
@@ -1139,22 +1068,7 @@ def cashfree_webhook():
 @app.route('/api/coupons/new-count')
 @login_required
 def api_coupon_new_count():
-    from datetime import datetime, timedelta
-    
-    # Count recent coupons - adjust logic as needed
-    count = 0
-    if current_user.is_authenticated:
-        # Example: count all active coupons
-        # Replace with your actual Coupon model and logic
-        try:
-            from models import Coupon  # Adjust import based on your project
-            count = Coupon.query.filter(
-                Coupon.is_active == True
-            ).count()
-        except:
-            # Fallback - just return a test count for now
-            count = 5  # Remove this after testing
-    
+    count = Coupon.query.filter(Coupon.is_active == True).count()
     return jsonify({'new_count': count})
 
 @app.route('/payment-success')
@@ -1216,7 +1130,6 @@ def payment_failed():
 @app.route('/api/challenge/<int:challenge_id>/metrics')
 @login_required
 def get_challenge_metrics(challenge_id):
-    """API endpoint for dashboard to get real-time metrics"""
     user_id = session.get('user_id')
     user = User.query.get(user_id)
     
@@ -1262,7 +1175,6 @@ def get_challenge_metrics(challenge_id):
 @app.route('/api/challenge/<int:challenge_id>/rules')
 @login_required
 def get_challenge_rules_api(challenge_id):
-    """Get current challenge rules for display"""
     user_id = session.get('user_id')
     user = User.query.get(user_id)
     
@@ -1319,7 +1231,6 @@ def get_challenge_rules_api(challenge_id):
 @app.route('/api/user/challenges/metrics')
 @login_required
 def get_user_all_challenges_metrics():
-    """Get metrics for all user's active challenges"""
     user_id = session.get('user_id')
     
     challenges = ChallengePurchase.query.filter_by(user_id=user_id).all()
@@ -1387,6 +1298,216 @@ def help_center():
 def refund_policy():
     return render_template('refund.html')
 
+# ========================================================================
+# N8N AUTOMATION ENDPOINTS
+# ========================================================================
+
+N8N_API_KEY = "tragene-n8n-secret-2024"
+
+def require_n8n_api_key(f):
+    """Decorator to check X-API-KEY header for n8n endpoints"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        api_key = request.headers.get('X-API-KEY')
+        if not api_key or api_key != N8N_API_KEY:
+            return jsonify({'success': False, 'error': 'Unauthorized. Invalid or missing API key.'}), 401
+        return f(*args, **kwargs)
+    return decorated_function
+
+@app.route('/api/n8n/summary')
+@require_n8n_api_key
+def n8n_summary():
+    """Returns today's summary: new users, revenue, challenges sold"""
+    try:
+        today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+        
+        # New users today
+        new_users = User.query.filter(User.created_at >= today_start).count()
+        
+        # Total revenue today
+        revenue_today = db.session.query(
+            db.func.coalesce(db.func.sum(Payment.amount), 0)
+        ).filter(
+            Payment.status.in_(['SUCCESS', 'success']),
+            Payment.created_at >= today_start
+        ).scalar() or 0
+        
+        # Challenges sold today
+        challenges_sold = ChallengePurchase.query.filter(
+            ChallengePurchase.purchase_date >= today_start
+        ).count()
+        
+        # Total users
+        total_users = User.query.count()
+        
+        # Lifetime revenue
+        lifetime_revenue = db.session.query(
+            db.func.coalesce(db.func.sum(Payment.amount), 0)
+        ).filter(
+            Payment.status.in_(['SUCCESS', 'success'])
+        ).scalar() or 0
+        
+        return jsonify({
+            'success': True,
+            'data': {
+                'date': today_start.strftime('%Y-%m-%d'),
+                'new_users_today': new_users,
+                'total_users': total_users,
+                'revenue_today': float(revenue_today),
+                'lifetime_revenue': float(lifetime_revenue),
+                'challenges_sold_today': challenges_sold
+            }
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/n8n/tickets')
+@require_n8n_api_key
+def n8n_tickets():
+    """Returns all open tickets with details"""
+    try:
+        tickets = SupportTicket.query.filter_by(status='open').order_by(SupportTicket.created_at.desc()).all()
+        
+        from models import SupportTicket
+        tickets_data = [{
+            'id': t.id,
+            'ticket_number': t.ticket_number,
+            'subject': t.subject,
+            'user_id': t.user_id,
+            'user_name': t.user.get_full_name() if t.user else 'Unknown',
+            'user_email': t.user.email if t.user else 'Unknown',
+            'priority': t.priority,
+            'status': t.status,
+            'created_at': t.created_at.isoformat() if t.created_at else None,
+            'last_reply_at': t.last_reply_at.isoformat() if t.last_reply_at else None
+        } for t in tickets]
+        
+        return jsonify({
+            'success': True,
+            'count': len(tickets_data),
+            'tickets': tickets_data
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/n8n/kyc')
+@require_n8n_api_key
+def n8n_kyc():
+    """Returns all pending KYC users"""
+    try:
+        pending_users = User.query.filter_by(kyc_status='submitted').order_by(User.kyc_submitted_at.desc()).all()
+        
+        users_data = [{
+            'id': u.id,
+            'name': u.get_full_name(),
+            'email': u.email,
+            'country': u.country or 'N/A',
+            'phone': u.phone or 'N/A',
+            'submitted_at': u.kyc_submitted_at.isoformat() if u.kyc_submitted_at else None,
+            'hours_pending': round(((datetime.now(timezone.utc) - u.kyc_submitted_at).total_seconds() / 3600), 1) if u.kyc_submitted_at else None,
+            'document_type': u.document_type or 'N/A'
+        } for u in pending_users]
+        
+        return jsonify({
+            'success': True,
+            'count': len(users_data),
+            'pending_kyc': users_data
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/n8n/newusers')
+@require_n8n_api_key
+def n8n_newusers():
+    """Returns all users registered today"""
+    try:
+        today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+        
+        new_users = User.query.filter(User.created_at >= today_start).order_by(User.created_at.desc()).all()
+        
+        users_data = [{
+            'id': u.id,
+            'name': u.get_full_name(),
+            'email': u.email,
+            'country': u.country or 'N/A',
+            'phone': u.phone or 'N/A',
+            'kyc_status': u.kyc_status,
+            'created_at': u.created_at.isoformat() if u.created_at else None
+        } for u in new_users]
+        
+        return jsonify({
+            'success': True,
+            'count': len(users_data),
+            'new_users': users_data
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/n8n/blog', methods=['POST'])
+@require_n8n_api_key
+def n8n_create_blog():
+    """Creates a new blog post"""
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'success': False, 'error': 'No JSON data provided'}), 400
+        
+        title = data.get('title', '').strip()
+        content = data.get('content', '').strip()
+        category = data.get('category', 'General').strip()
+        
+        if not title or not content:
+            return jsonify({'success': False, 'error': 'Title and content are required'}), 400
+        
+        # Generate slug from title
+        import re
+        slug = re.sub(r'[^a-zA-Z0-9]+', '-', title.lower()).strip('-')
+        
+        # Check if slug exists, append number if needed
+        existing = BlogPost.query.filter_by(slug=slug).first()
+        if existing:
+            slug = f"{slug}-{int(time.time())}"
+        
+        # Create meta description from first 150 chars of content
+        meta_description = content[:150].strip() + '...' if len(content) > 150 else content
+        
+        blog_post = BlogPost(
+            title=title,
+            slug=slug,
+            content=content,
+            meta_description=meta_description,
+            date_published=datetime.now(timezone.utc)
+        )
+        
+        db.session.add(blog_post)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Blog post created successfully',
+            'blog': {
+                'id': blog_post.id,
+                'title': blog_post.title,
+                'slug': blog_post.slug,
+                'published_at': blog_post.date_published.isoformat() if blog_post.date_published else None
+            }
+        }), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/n8n/health')
+@require_n8n_api_key
+def n8n_health():
+    """Health check endpoint for n8n"""
+    return jsonify({
+        'success': True,
+        'status': 'healthy',
+        'timestamp': datetime.now(timezone.utc).isoformat()
+    })
+
 # ===== MAIN =====
 if __name__ == '__main__':
     print("\n" + "="*60)
@@ -1401,6 +1522,7 @@ if __name__ == '__main__':
         cashfree_enabled = bool(CASHFREE_APP_ID and CASHFREE_SECRET_KEY)
         print(f"Cashfree: {'ENABLED' if cashfree_enabled else 'DISABLED'}")
         print(f"Redis: {'ENABLED' if REDIS_ENABLED else 'DISABLED'}")
+        print(f"N8N API: ENABLED (key: {N8N_API_KEY[:10]}...)")
         important_templates = ['index.html', 'user/user_dashboard.html', 'login.html', 
                               'user/payment_status.html', 'user/payment_failed.html']
         for template in important_templates:
@@ -1410,7 +1532,6 @@ if __name__ == '__main__':
     
     print("="*60 + "\n")
     
-    # Use production WSGI server for production
     if not DEV_MODE:
         print("⚠️  For production, use a production WSGI server like Gunicorn or Waitress")
         print("   Example: waitress-serve --host=0.0.0.0 --port=5003 app:app")
