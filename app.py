@@ -1314,49 +1314,123 @@ def require_n8n_api_key(f):
         return f(*args, **kwargs)
     return decorated_function
 
+# Helper function to get all Palantir-style summary data
+def get_palantir_summary_data():
+    """Returns all data that the Palantir dashboard shows - reused by n8n endpoint"""
+    from sqlalchemy import func, extract
+    from models import SupportTicket, PartnerEarnings
+    
+    now = datetime.now(timezone.utc)
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    
+    # Users
+    total_users = User.query.count()
+    new_users_today = User.query.filter(User.created_at >= today_start).count()
+    
+    # Revenue
+    revenue_today = float(db.session.query(
+        func.coalesce(func.sum(Payment.amount), 0)
+    ).filter(
+        Payment.status.in_(['SUCCESS', 'success']),
+        Payment.created_at >= today_start
+    ).scalar() or 0)
+    
+    revenue_this_month = float(db.session.query(
+        func.coalesce(func.sum(Payment.amount), 0)
+    ).filter(
+        Payment.status.in_(['SUCCESS', 'success']),
+        Payment.created_at >= month_start
+    ).scalar() or 0)
+    
+    # Challenges
+    active_challenges = ChallengePurchase.query.filter(
+        ChallengePurchase.status.in_(['active', 'phase1_active', 'phase2_active']),
+        ChallengePurchase.is_terminated == False
+    ).count()
+    
+    # KYC
+    pending_kyc = User.query.filter_by(kyc_status='submitted').count()
+    
+    # Support
+    open_tickets = SupportTicket.query.filter_by(status='open').count()
+    
+    # Coupons
+    active_coupons = Coupon.query.filter_by(is_active=True, is_deleted=False).count()
+    expired_coupons = Coupon.query.filter_by(is_deleted=False).filter(
+        Coupon.expires_at < now
+    ).count()
+    
+    # Payments
+    successful_payments = Payment.query.filter(Payment.status.in_(['SUCCESS', 'success'])).count()
+    failed_payments = Payment.query.filter(Payment.status.ilike('failed')).count()
+    pending_payments = Payment.query.filter(Payment.status.ilike('pending')).count()
+    total_payments = successful_payments + failed_payments + pending_payments
+    payment_success_rate = f"{round((successful_payments / max(total_payments, 1)) * 100, 1)}%"
+    
+    # Risk
+    near_breach = ChallengePurchase.query.filter(
+        ChallengePurchase.status.in_(['active', 'phase1_active', 'phase2_active']),
+        ChallengePurchase.is_terminated == False,
+        db.or_(
+            ChallengePurchase.daily_drawdown >= 4.0,
+            ChallengePurchase.overall_drawdown >= 8.0
+        )
+    ).count()
+    
+    need_review = ChallengePurchase.query.filter_by(review_required=True).count()
+    
+    # Partners
+    total_partners = User.query.filter_by(role='partner', is_banned=False).count()
+    
+    # Most sold challenge
+    top_challenge = db.session.query(
+        ChallengeTemplate.name,
+        func.count(ChallengePurchase.id).label('count')
+    ).join(ChallengePurchase, ChallengePurchase.challenge_template_id == ChallengeTemplate.id)\
+     .filter(ChallengePurchase.status.in_(['active', 'phase1_active', 'phase2_active', 'funded_active', 'passed']))\
+     .group_by(ChallengeTemplate.id)\
+     .order_by(func.count(ChallengePurchase.id).desc())\
+     .first()
+    
+    most_sold_challenge = top_challenge.name if top_challenge else 'None'
+    
+    # System status
+    system_status = 'NORMAL'
+    if pending_kyc > 10 or open_tickets > 10 or near_breach > 5 or need_review > 5:
+        system_status = 'NEEDS ATTENTION'
+    if near_breach > 20 or need_review > 20:
+        system_status = 'CRITICAL'
+    
+    return {
+        'date': today_start.strftime('%Y-%m-%d'),
+        'new_users_today': new_users_today,
+        'total_users': total_users,
+        'revenue_today': revenue_today,
+        'revenue_this_month': revenue_this_month,
+        'active_challenges': active_challenges,
+        'pending_kyc': pending_kyc,
+        'open_tickets': open_tickets,
+        'active_coupons': active_coupons,
+        'expired_coupons': expired_coupons,
+        'failed_payments': failed_payments,
+        'payment_success_rate': payment_success_rate,
+        'near_breach': near_breach,
+        'need_review': need_review,
+        'total_partners': total_partners,
+        'most_sold_challenge': most_sold_challenge,
+        'system_status': system_status
+    }
+
 @app.route('/api/n8n/summary')
 @require_n8n_api_key
 def n8n_summary():
-    """Returns today's summary: new users, revenue, challenges sold"""
+    """Returns complete Palantir dashboard summary data"""
     try:
-        today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
-        
-        # New users today
-        new_users = User.query.filter(User.created_at >= today_start).count()
-        
-        # Total revenue today
-        revenue_today = db.session.query(
-            db.func.coalesce(db.func.sum(Payment.amount), 0)
-        ).filter(
-            Payment.status.in_(['SUCCESS', 'success']),
-            Payment.created_at >= today_start
-        ).scalar() or 0
-        
-        # Challenges sold today
-        challenges_sold = ChallengePurchase.query.filter(
-            ChallengePurchase.purchase_date >= today_start
-        ).count()
-        
-        # Total users
-        total_users = User.query.count()
-        
-        # Lifetime revenue
-        lifetime_revenue = db.session.query(
-            db.func.coalesce(db.func.sum(Payment.amount), 0)
-        ).filter(
-            Payment.status.in_(['SUCCESS', 'success'])
-        ).scalar() or 0
-        
+        data = get_palantir_summary_data()
         return jsonify({
             'success': True,
-            'data': {
-                'date': today_start.strftime('%Y-%m-%d'),
-                'new_users_today': new_users,
-                'total_users': total_users,
-                'revenue_today': float(revenue_today),
-                'lifetime_revenue': float(lifetime_revenue),
-                'challenges_sold_today': challenges_sold
-            }
+            'data': data
         })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -1366,9 +1440,9 @@ def n8n_summary():
 def n8n_tickets():
     """Returns all open tickets with details"""
     try:
+        from models import SupportTicket
         tickets = SupportTicket.query.filter_by(status='open').order_by(SupportTicket.created_at.desc()).all()
         
-        from models import SupportTicket
         tickets_data = [{
             'id': t.id,
             'ticket_number': t.ticket_number,
