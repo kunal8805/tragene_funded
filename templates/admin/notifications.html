@@ -16,19 +16,32 @@
             </h3>
             
             <form action="{{ url_for('admin.admin_notifications') }}" method="POST" class="space-y-4">
-                <!-- Prebuilt Templates -->
+                <!-- Prebuilt Templates - Now Dynamic from Database -->
                 <div>
-                    <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Pre-built Templates</label>
-                    <select id="templateSelect" onchange="applyTemplate(this.value)"
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300">Pre-built Templates</label>
+                        <a href="{{ url_for('admin_notification_templates') }}" 
+                           class="text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 flex items-center gap-1">
+                            <i class="fas fa-cog"></i> Manage
+                        </a>
+                    </div>
+                    <select id="templateSelect" onchange="loadTemplate(this.value)"
                         class="bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 w-full text-gray-900 dark:text-gray-100 transition-colors focus:ring-2 focus:ring-blue-500">
                         <option value="">-- Select a template to autofill --</option>
-                        <option value="kyc_verified">✅ KYC Verified</option>
-                        <option value="challenge_passed">🏆 Challenge Passed</option>
-                        <option value="payout_processed">💰 Payout Processed</option>
-                        <option value="new_challenge">🎯 New Challenge Available</option>
-                        <option value="rule_warning">⚠️ Rule Violation Warning</option>
+                        {% for template in templates %}
+                        <option value="{{ template.id }}">{{ template.name }}</option>
+                        {% endfor %}
                     </select>
+                    {% if not templates %}
+                    <p class="text-xs text-gray-500 mt-1">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        No templates yet. <a href="{{ url_for('admin_notification_templates') }}" class="text-blue-600 hover:underline">Create one</a>
+                    </p>
+                    {% endif %}
                 </div>
+
+                <!-- Hidden input to track which template was used -->
+                <input type="hidden" name="template_id" id="templateIdInput" value="">
 
                 <!-- Title -->
                 <div>
@@ -106,9 +119,15 @@
                     <i class="fas fa-list text-blue-600 dark:text-blue-400 mr-2"></i>
                     Sent Notifications
                 </h3>
-                <span class="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 px-3 py-1 rounded-full text-xs font-semibold">
-                    Total: {{ notifications|length }}
-                </span>
+                <div class="flex items-center gap-3">
+                    <a href="{{ url_for('admin_notification_templates') }}" 
+                       class="text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 flex items-center gap-1">
+                        <i class="fas fa-cog"></i> Templates
+                    </a>
+                    <span class="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 px-3 py-1 rounded-full text-xs font-semibold">
+                        Total: {{ notifications|length }}
+                    </span>
+                </div>
             </div>
 
             <div class="overflow-x-auto">
@@ -191,37 +210,47 @@
 </div>
 
 <script>
-    const templates = {
-        kyc_verified: {
-            title: "✅ KYC Verified",
-            message: "Congratulations! Your KYC documents have been reviewed and approved. You are now fully eligible to purchase challenges and start your trading journey."
-        },
-        challenge_passed: {
-            title: "🏆 Challenge Passed",
-            message: "Outstanding performance! You have successfully passed the evaluation phase of your challenge. Your credentials for the next phase are being prepared and will be sent shortly."
-        },
-        payout_processed: {
-            title: "💰 Payout Processed",
-            message: "Success! Your recent payout request has been verified and processed by our finance team. The funds should reflect in your registered account shortly."
-        },
-        new_challenge: {
-            title: "🎯 New Challenge Available",
-            message: "Check it out! A brand new challenge template has been added to our catalog with enhanced leverage and lower drawdown thresholds. Head over to the challenges section to buy now."
-        },
-        rule_warning: {
-            title: "⚠️ Rule Violation Warning",
-            message: "Alert: A minor rule warning has been logged on your active challenge account. Please verify your daily drawdown levels and current open positions to avoid account termination."
-        }
-    };
-
-    function applyTemplate(val) {
-        if (templates[val]) {
-            document.getElementById('notifTitle').value = templates[val].title;
-            document.getElementById('notifMessage').value = templates[val].message;
-        } else {
+    // Load template from database via API
+    function loadTemplate(templateId) {
+        if (!templateId) {
             document.getElementById('notifTitle').value = '';
             document.getElementById('notifMessage').value = '';
+            document.getElementById('templateIdInput').value = '';
+            return;
         }
+        
+        // Show loading state
+        document.getElementById('notifTitle').value = 'Loading...';
+        document.getElementById('notifMessage').value = 'Loading...';
+        
+        fetch(`/api/admin/notification-templates/${templateId}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('notifTitle').value = data.template.title;
+                    document.getElementById('notifMessage').value = data.template.message;
+                    document.getElementById('templateIdInput').value = templateId;
+                } else {
+                    alert('Error loading template');
+                    document.getElementById('notifTitle').value = '';
+                    document.getElementById('notifMessage').value = '';
+                    document.getElementById('templateIdInput').value = '';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error loading template. Please try again.');
+                document.getElementById('notifTitle').value = '';
+                document.getElementById('notifMessage').value = '';
+                document.getElementById('templateIdInput').value = '';
+                // Reset dropdown
+                document.getElementById('templateSelect').value = '';
+            });
     }
 
     function toggleTargetInput(val) {

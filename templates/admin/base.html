@@ -261,6 +261,14 @@
 
         <nav class="p-4 space-y-2 flex-1 overflow-y-auto pb-6">
             <div class="px-3 py-2 text-xs font-bold text-gray-400 uppercase tracking-wider">Platform</div>
+            
+            <!-- ===== PALANTIR LINK ADDED HERE ===== -->
+            <a href="/admin/palantir"
+                class="flex items-center space-x-3 p-3 {% if request.endpoint == 'admin.admin_palantir' %}bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 border border-purple-100 dark:border-purple-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
+                <i class="fas fa-eye w-5"></i>
+                <span class="font-medium">Palantir</span>
+            </a>
+            
             <a href="/admin"
                 class="flex items-center space-x-3 p-3 {% if request.endpoint == 'admin.admin_dashboard' %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
                 <i class="fas fa-tachometer-alt w-5"></i>
@@ -393,6 +401,15 @@
         <!-- Navigation -->
         <nav class="p-4 space-y-2 flex-1 overflow-y-auto pb-6">
             <div class="px-3 py-2 text-xs font-bold text-gray-400 uppercase tracking-wider">Platform</div>
+            
+            <!-- ===== PALANTIR LINK ADDED HERE (MOBILE) ===== -->
+            <a href="/admin/palantir"
+                class="flex items-center space-x-3 p-3 {% if request.endpoint == 'admin.admin_palantir' %}bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 border border-purple-100 dark:border-purple-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition"
+                onclick="toggleSidebar()">
+                <i class="fas fa-eye w-5"></i>
+                <span class="font-medium">Palantir</span>
+            </a>
+            
             <a href="/admin"
                 class="flex items-center space-x-3 p-3 {% if request.endpoint == 'admin.admin_dashboard' %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition"
                 onclick="toggleSidebar()">

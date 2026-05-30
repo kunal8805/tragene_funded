@@ -1,0 +1,161 @@
+{% extends "admin/base.html" %}
+{% block title %}Notification Templates - Admin{% endblock %}
+{% block header_title %}Notification Templates{% endblock %}
+{% block header_subtitle %}Manage reusable notification templates{% endblock %}
+
+{% block content %}
+<div class="glass-card p-6 border border-gray-200 dark:border-gray-700">
+    
+    {% if edit_template %}
+    <!-- EDIT MODE -->
+    <div class="max-w-2xl mx-auto">
+        <h2 class="text-xl font-bold mb-6">Edit Template</h2>
+        <form method="POST" action="{{ url_for('admin_edit_template', template_id=edit_template.id) }}" class="space-y-4">
+            <div>
+                <label class="block text-sm font-semibold mb-1">Name *</label>
+                <input type="text" name="name" required value="{{ edit_template.name }}" 
+                    class="bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 w-full text-gray-900 dark:text-gray-100">
+            </div>
+            <div>
+                <label class="block text-sm font-semibold mb-1">Title *</label>
+                <input type="text" name="title" required value="{{ edit_template.title }}" 
+                    class="bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 w-full text-gray-900 dark:text-gray-100">
+            </div>
+            <div>
+                <label class="block text-sm font-semibold mb-1">Message *</label>
+                <textarea name="message" required rows="6" 
+                    class="bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 w-full text-gray-900 dark:text-gray-100">{{ edit_template.message }}</textarea>
+            </div>
+            <div>
+                <label class="block text-sm font-semibold mb-1">Category</label>
+                <select name="category" class="bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 w-full">
+                    {% for cat in ['general', 'kyc', 'challenge', 'payout', 'warning', 'promotion'] %}
+                    <option value="{{ cat }}" {% if edit_template.category == cat %}selected{% endif %}>{{ cat|capitalize }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="flex items-center text-sm">
+                    <input type="checkbox" name="is_active" {% if edit_template.is_active %}checked{% endif %} class="mr-2"> Active
+                </label>
+            </div>
+            <div class="text-sm text-gray-500">Used: {{ edit_template.use_count }} times</div>
+            <div class="flex gap-3">
+                <button type="submit" class="bg-blue-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-blue-700">
+                    <i class="fas fa-save mr-2"></i>Update
+                </button>
+                <a href="{{ url_for('admin_notification_templates') }}" class="bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-6 py-3 rounded-lg font-bold hover:bg-gray-300 dark:hover:bg-gray-600">
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+
+    {% elif show_create %}
+    <!-- CREATE MODE -->
+    <div class="max-w-2xl mx-auto">
+        <h2 class="text-xl font-bold mb-6">Create Template</h2>
+        <form method="POST" action="{{ url_for('admin_create_template') }}" class="space-y-4">
+            <div>
+                <label class="block text-sm font-semibold mb-1">Name *</label>
+                <input type="text" name="name" required placeholder="e.g. Welcome Message"
+                    class="bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 w-full text-gray-900 dark:text-gray-100">
+            </div>
+            <div>
+                <label class="block text-sm font-semibold mb-1">Title *</label>
+                <input type="text" name="title" required placeholder="e.g. Welcome!"
+                    class="bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 w-full text-gray-900 dark:text-gray-100">
+            </div>
+            <div>
+                <label class="block text-sm font-semibold mb-1">Message *</label>
+                <textarea name="message" required rows="6" placeholder="Type message here..."
+                    class="bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 w-full text-gray-900 dark:text-gray-100"></textarea>
+            </div>
+            <div>
+                <label class="block text-sm font-semibold mb-1">Category</label>
+                <select name="category" class="bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 w-full">
+                    <option value="general">General</option>
+                    <option value="kyc">KYC</option>
+                    <option value="challenge">Challenge</option>
+                    <option value="payout">Payout</option>
+                    <option value="warning">Warning</option>
+                    <option value="promotion">Promotion</option>
+                </select>
+            </div>
+            <div class="flex gap-3">
+                <button type="submit" class="bg-blue-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-blue-700">
+                    <i class="fas fa-save mr-2"></i>Create
+                </button>
+                <a href="{{ url_for('admin_notification_templates') }}" class="bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-6 py-3 rounded-lg font-bold hover:bg-gray-300 dark:hover:bg-gray-600">
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+
+    {% else %}
+    <!-- LIST MODE -->
+    <div class="flex justify-between items-center mb-6">
+        <h2 class="text-xl font-bold text-gray-900 dark:text-white">All Templates</h2>
+        <a href="{{ url_for('admin_notification_templates') }}?create=1" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition flex items-center gap-2">
+            <i class="fas fa-plus"></i> New Template
+        </a>
+    </div>
+
+    {% if templates %}
+    <div class="overflow-x-auto">
+        <table class="w-full">
+            <thead>
+                <tr class="bg-gray-50 dark:bg-gray-800/50 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">
+                    <th class="px-4 py-3">Name</th>
+                    <th class="px-4 py-3">Category</th>
+                    <th class="px-4 py-3">Status</th>
+                    <th class="px-4 py-3 text-center">Used</th>
+                    <th class="px-4 py-3 text-right">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                {% for t in templates %}
+                <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition">
+                    <td class="px-4 py-3">
+                        <div class="font-semibold text-gray-900 dark:text-white">{{ t.name }}</div>
+                        <div class="text-xs text-gray-500">{{ t.title[:40] }}{% if t.title|length > 40 %}...{% endif %}</div>
+                    </td>
+                    <td class="px-4 py-3">
+                        <span class="text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-full">{{ t.category }}</span>
+                    </td>
+                    <td class="px-4 py-3">
+                        <form method="POST" action="{{ url_for('admin_toggle_template', template_id=t.id) }}" class="inline">
+                            <button type="submit" class="text-xs px-2 py-1 rounded-full font-medium {% if t.is_active %}bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400{% else %}bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400{% endif %}">
+                                {{ 'Active' if t.is_active else 'Inactive' }}
+                            </button>
+                        </form>
+                    </td>
+                    <td class="px-4 py-3 text-center text-sm">{{ t.use_count }}</td>
+                    <td class="px-4 py-3 text-right">
+                        <div class="flex gap-2 justify-end">
+                            <a href="{{ url_for('admin_notification_templates') }}?edit={{ t.id }}" class="text-blue-600 hover:text-blue-800 p-2 rounded hover:bg-blue-50 dark:hover:bg-blue-900/20" title="Edit">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <form method="POST" action="{{ url_for('admin_delete_template', template_id=t.id) }}" onsubmit="return confirm('Delete?')" class="inline">
+                                <button type="submit" class="text-red-500 hover:text-red-700 p-2 rounded hover:bg-red-50 dark:hover:bg-red-900/20" title="Delete">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="text-center py-12 text-gray-500">
+        <div class="text-5xl mb-3">📋</div>
+        <p class="text-base font-semibold">No templates created yet</p>
+        <a href="{{ url_for('admin_notification_templates') }}?create=1" class="inline-block mt-4 bg-blue-600 text-white px-4 py-2 rounded-lg">Create First Template</a>
+    </div>
+    {% endif %}
+    {% endif %}
+</div>
+{% endblock %}

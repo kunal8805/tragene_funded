@@ -747,7 +747,10 @@ class AdminAuditLog(db.Model):
         return f'<AdminAuditLog {self.action} by {self.admin_id}>'
 
 
+# FIXED: Added __tablename__ to SupportTicket
 class SupportTicket(db.Model):
+    __tablename__ = 'support_ticket'  # <-- ADDED THIS LINE
+    
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
     subject = db.Column(db.String(200), nullable=False)
@@ -772,9 +775,12 @@ class SupportTicket(db.Model):
         return f'<SupportTicket {self.ticket_number} - {self.subject}>'
 
 
+# FIXED: Changed ForeignKey to reference 'support_ticket.id' (without 's')
 class TicketMessage(db.Model):
+    __tablename__ = 'ticket_message'  # <-- ADDED THIS LINE
+    
     id = db.Column(db.Integer, primary_key=True)
-    ticket_id = db.Column(db.Integer, db.ForeignKey('support_ticket.id'), nullable=False, index=True)
+    ticket_id = db.Column(db.Integer, db.ForeignKey('support_ticket.id'), nullable=False, index=True)  # <-- FIXED: 'support_ticket' not 'support_tickets'
     sender_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     message = db.Column(db.Text, nullable=False)
     is_admin_reply = db.Column(db.Boolean, default=False)
@@ -843,6 +849,46 @@ class Notification(db.Model):
     
     def __repr__(self):
         return f'<Notification {self.id} - {self.title}>'
+
+
+# ========================================================================
+# NEW: NOTIFICATION TEMPLATE MODEL
+# ========================================================================
+
+class NotificationTemplate(db.Model):
+    __tablename__ = 'notification_template'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    title = db.Column(db.String(200), nullable=False)
+    message = db.Column(db.Text, nullable=False)
+    category = db.Column(db.String(50), default='general', index=True)
+    is_active = db.Column(db.Boolean, default=True, index=True)
+    use_count = db.Column(db.Integer, default=0)
+    created_by_admin_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    
+    # Relationship
+    created_by = db.relationship('User', foreign_keys=[created_by_admin_id], backref='created_templates', lazy=True)
+    
+    def increment_use_count(self):
+        self.use_count += 1
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'title': self.title,
+            'message': self.message,
+            'category': self.category,
+            'is_active': self.is_active,
+            'use_count': self.use_count,
+            'created_at': self.created_at.strftime('%Y-%m-%d %H:%M') if self.created_at else None
+        }
+    
+    def __repr__(self):
+        return f'<NotificationTemplate {self.name} - {self.category}>'
 
 
 class UserNotification(db.Model):

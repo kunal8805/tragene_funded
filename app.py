@@ -196,7 +196,7 @@ def not_found_error(error):
     return render_template('404.html'), 404
 
 # ===== INITIALIZE DATABASE & MIGRATE =====
-from models import db, User, Notification, ChallengeTemplate, Payment, ChallengePurchase, WebhookLog, FAQ, BlogPost, Coupon, CouponUsage, CouponAssignment
+from models import db, User, Notification, NotificationTemplate, ChallengeTemplate, Payment, ChallengePurchase, WebhookLog, FAQ, BlogPost, Coupon, CouponUsage, CouponAssignment, AdminLog
 
 db.init_app(app)
 migrate = Migrate(app, db)
@@ -344,6 +344,20 @@ def login_required(f):
         if 'user_id' not in session:
             flash('Please login first', 'error')
             return redirect(url_for('auth.login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+# ===== ADMIN DECORATOR =====
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            flash('Please login first', 'error')
+            return redirect(url_for('auth.login'))
+        user = User.query.get(session['user_id'])
+        if not user or not user.is_admin:
+            flash('Access denied. Admin privileges required.', 'error')
+            return redirect(url_for('home'))
         return f(*args, **kwargs)
     return decorated_function
 
@@ -509,6 +523,192 @@ def provision_challenge(payment, user, challenge_template_id):
         
     return True, purchase.id
 
+# ========================================================================
+# NOTIFICATION TEMPLATE MANAGEMENT ROUTES
+# ========================================================================
+
+@app.route('/admin/notifications/templates')
+@login_required
+@admin_required
+def admin_notification_templates():
+    templates = NotificationTemplate.query.order_by(NotificationTemplate.category, NotificationTemplate.name).all()
+    
+    edit_id = request.args.get('edit')
+    show_create = request.args.get('create')
+    
+    edit_template = None
+    if edit_id:
+        edit_template = NotificationTemplate.query.get(int(edit_id))
+    
+    return render_template('admin/notification_templates.html', 
+                         templates=templates,
+                         edit_template=edit_template,
+                         show_create=show_create)
+
+
+@app.route('/admin/notifications/templates/create', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def admin_create_template():
+    """Create a new notification template"""
+    user = User.query.get(session['user_id'])
+    
+    if request.method == 'POST':
+        name = request.form.get('name', '').strip()
+        title = request.form.get('title', '').strip()
+        message = request.form.get('message', '').strip()
+        category = request.form.get('category', 'general').strip()
+        
+        if not name or not title or not message:
+            flash('All fields are required', 'error')
+            return redirect(url_for('admin_create_template'))
+        
+        template = NotificationTemplate(
+            name=name,
+            title=title,
+            message=message,
+            category=category,
+            created_by_admin_id=user.id
+        )
+        db.session.add(template)
+        db.session.commit()
+        
+        # Log admin action
+        log = AdminLog(
+            admin_id=user.id,
+            action='create_notification_template',
+            target_type='notification_template',
+            target_id=template.id,
+            details=f'Created template: {name}'
+        )
+        db.session.add(log)
+        db.session.commit()
+        
+        flash(f'Template "{name}" created successfully!', 'success')
+        return redirect(url_for('admin_notification_templates'))
+    
+    return render_template('admin/create_template.html')
+
+
+@app.route('/admin/notifications/templates/<int:template_id>/edit', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def admin_edit_template(template_id):
+    """Edit an existing notification template"""
+    user = User.query.get(session['user_id'])
+    template = NotificationTemplate.query.get_or_404(template_id)
+    
+    if request.method == 'POST':
+        template.name = request.form.get('name', '').strip()
+        template.title = request.form.get('title', '').strip()
+        template.message = request.form.get('message', '').strip()
+        template.category = request.form.get('category', 'general').strip()
+        template.is_active = request.form.get('is_active') == 'on'
+        
+        if not template.name or not template.title or not template.message:
+            flash('All fields are required', 'error')
+            return redirect(url_for('admin_edit_template', template_id=template_id))
+        
+        db.session.commit()
+        
+        # Log admin action
+        log = AdminLog(
+            admin_id=user.id,
+            action='edit_notification_template',
+            target_type='notification_template',
+            target_id=template.id,
+            details=f'Edited template: {template.name}'
+        )
+        db.session.add(log)
+        db.session.commit()
+        
+        flash(f'Template "{template.name}" updated successfully!', 'success')
+        return redirect(url_for('admin_notification_templates'))
+    
+    return render_template('admin/edit_template.html', template=template)
+
+
+@app.route('/admin/notifications/templates/<int:template_id>/delete', methods=['POST'])
+@login_required
+@admin_required
+def admin_delete_template(template_id):
+    """Delete a notification template"""
+    user = User.query.get(session['user_id'])
+    template = NotificationTemplate.query.get_or_404(template_id)
+    template_name = template.name
+    
+    db.session.delete(template)
+    
+    # Log admin action
+    log = AdminLog(
+        admin_id=user.id,
+        action='delete_notification_template',
+        target_type='notification_template',
+        target_id=template_id,
+        details=f'Deleted template: {template_name}'
+    )
+    db.session.add(log)
+    db.session.commit()
+    
+    flash(f'Template "{template_name}" deleted successfully!', 'success')
+    return redirect(url_for('admin_notification_templates'))
+
+
+@app.route('/admin/notifications/templates/<int:template_id>/toggle', methods=['POST'])
+@login_required
+@admin_required
+def admin_toggle_template(template_id):
+    """Toggle template active/inactive status"""
+    user = User.query.get(session['user_id'])
+    template = NotificationTemplate.query.get_or_404(template_id)
+    template.is_active = not template.is_active
+    db.session.commit()
+    
+    status = 'activated' if template.is_active else 'deactivated'
+    
+    # Log admin action
+    log = AdminLog(
+        admin_id=user.id,
+        action=f'{status}_notification_template',
+        target_type='notification_template',
+        target_id=template.id,
+        details=f'{status.capitalize()} template: {template.name}'
+    )
+    db.session.add(log)
+    db.session.commit()
+    
+    return jsonify({
+        'success': True, 
+        'is_active': template.is_active,
+        'message': f'Template {status} successfully'
+    })
+
+
+@app.route('/api/admin/notification-templates')
+@login_required
+@admin_required
+def api_get_templates():
+    """API endpoint to get all active templates for the dropdown"""
+    templates = NotificationTemplate.query.filter_by(is_active=True).order_by(NotificationTemplate.name).all()
+    
+    return jsonify({
+        'success': True,
+        'templates': [t.to_dict() for t in templates]
+    })
+
+
+@app.route('/api/admin/notification-templates/<int:template_id>')
+@login_required
+@admin_required
+def api_get_template(template_id):
+    """API endpoint to get a single template details"""
+    template = NotificationTemplate.query.get_or_404(template_id)
+    
+    return jsonify({
+        'success': True,
+        'template': template.to_dict()
+    })
+
 # ===== SEED DEFAULT DATA =====
 with app.app_context():
     db.create_all()
@@ -584,6 +784,46 @@ with app.app_context():
             db.session.commit()
             if DEV_MODE:
                 print("[OK] Default challenge templates created")
+                
+        # ===== SEED DEFAULT NOTIFICATION TEMPLATES =====
+        if not NotificationTemplate.query.first():
+            default_templates = [
+                NotificationTemplate(
+                    name="✅ KYC Verified",
+                    title="✅ KYC Verified",
+                    message="Congratulations! Your KYC documents have been reviewed and approved. You are now fully eligible to purchase challenges and start your trading journey.",
+                    category="kyc"
+                ),
+                NotificationTemplate(
+                    name="🏆 Challenge Passed",
+                    title="🏆 Challenge Passed",
+                    message="Outstanding performance! You have successfully passed the evaluation phase of your challenge. Your credentials for the next phase are being prepared and will be sent shortly.",
+                    category="challenge"
+                ),
+                NotificationTemplate(
+                    name="💰 Payout Processed",
+                    title="💰 Payout Processed",
+                    message="Success! Your recent payout request has been verified and processed by our finance team. The funds should reflect in your registered account shortly.",
+                    category="payout"
+                ),
+                NotificationTemplate(
+                    name="🎯 New Challenge Available",
+                    title="🎯 New Challenge Available",
+                    message="Check it out! A brand new challenge template has been added to our catalog with enhanced leverage and lower drawdown thresholds. Head over to the challenges section to buy now.",
+                    category="challenge"
+                ),
+                NotificationTemplate(
+                    name="⚠️ Rule Violation Warning",
+                    title="⚠️ Rule Violation Warning",
+                    message="Alert: A minor rule warning has been logged on your active challenge account. Please verify your daily drawdown levels and current open positions to avoid account termination.",
+                    category="warning"
+                )
+            ]
+            for template in default_templates:
+                db.session.add(template)
+            db.session.commit()
+            if DEV_MODE:
+                print("[OK] Default notification templates created")
     except Exception as e:
         if DEV_MODE:
             print(f"[INFO] DB not ready for seeding: {e}")
@@ -593,7 +833,6 @@ with app.app_context():
         from models import PartnerEarnings
         partner = User.query.filter_by(role='partner', is_banned=False).first()
         if partner:
-            # Find all purchases that don't have a matching PartnerEarnings record
             existing_purchase_ids = db.session.query(PartnerEarnings.user_id, PartnerEarnings.challenge_id).filter_by(partner_id=partner.id).all()
             existing_set = set((r[0], r[1]) for r in existing_purchase_ids)
             
@@ -897,11 +1136,6 @@ def cashfree_webhook():
         print(f"Webhook processing error: {e}")
         return jsonify({'status': 'error'}), 500
     
-
-
-
-
-
 @app.route('/api/coupons/new-count')
 @login_required
 def api_coupon_new_count():
@@ -922,9 +1156,6 @@ def api_coupon_new_count():
             count = 5  # Remove this after testing
     
     return jsonify({'new_count': count})
-
-
-
 
 @app.route('/payment-success')
 @login_required

@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify, abort
 from functools import wraps
-from models import db, User, ChallengeTemplate, ChallengePurchase, Payout, FAQ, SupportTicket, TicketMessage, Payment, AdminLog, Notification, UserNotification, Coupon, CouponUsage, CouponAssignment
+from models import db, User, ChallengeTemplate, ChallengePurchase, Payout, FAQ, SupportTicket, TicketMessage, Payment, AdminLog, Notification, UserNotification, NotificationTemplate, Coupon, CouponUsage, CouponAssignment
 from datetime import datetime, timedelta, timezone
 import secrets
 
@@ -1626,6 +1626,7 @@ def admin_notifications():
         target_email = request.form.get('target_email', '').strip()
         expiry_type = request.form.get('expiry_type', 'none')
         expiry_days = request.form.get('expiry_days', '').strip()
+        template_id = request.form.get('template_id', '').strip()
 
         if not title or not message:
             flash('Title and message are required.', 'error')
@@ -1675,6 +1676,12 @@ def admin_notifications():
             db.session.add(notification)
             db.session.flush()
 
+            # Increment template use count if a template was used
+            if template_id:
+                template = NotificationTemplate.query.get(int(template_id))
+                if template:
+                    template.increment_use_count()
+
             if not notification.is_global and target_user:
                 user_notif = UserNotification(
                     notification_id=notification.id,
@@ -1703,7 +1710,8 @@ def admin_notifications():
 
         return redirect(url_for('admin.admin_notifications'))
 
-    # GET request
+    # GET request - pass templates to the view
+    templates = NotificationTemplate.query.filter_by(is_active=True).order_by(NotificationTemplate.name).all()
     notifications = Notification.query.filter_by(is_deleted=False).order_by(Notification.created_at.desc()).all()
     
     # Calculate read stats dynamically
@@ -1714,7 +1722,9 @@ def admin_notifications():
         else:
             n.total_count = 1
 
-    return render_template('admin/notifications.html', notifications=notifications)
+    return render_template('admin/notifications.html', 
+                         notifications=notifications, 
+                         templates=templates)
 
 @admin_bp.route('/notifications/delete/<int:notification_id>', methods=['POST'])
 @admin_required
@@ -1917,3 +1927,418 @@ def admin_coupon_analytics():
                            timeline_labels=timeline_labels,
                            timeline_values=timeline_values)
 
+
+
+# Add this at the top of admin_routes.py with other imports
+from sqlalchemy import func, extract, and_, or_
+from models import (
+    db, User, ChallengeTemplate, ChallengePurchase, Payout, FAQ, 
+    SupportTicket, TicketMessage, Payment, AdminLog, Notification, 
+    UserNotification, NotificationTemplate, Coupon, CouponUsage, 
+    CouponAssignment, PartnerEarnings, RuleLog
+)
+
+@admin_bp.route('/palantir')
+@admin_required
+def admin_palantir():
+    """Palantir Command Center"""
+    return render_template('admin/palantir.html')
+
+@admin_bp.route('/api/palantir')
+@admin_required
+def api_palantir():
+    """API for Palantir - all dashboard data"""
+    now = datetime.now(timezone.utc)
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    thirty_days_ago = now - timedelta(days=30)
+    
+    # ===== USERS =====
+    total_users = User.query.count()
+    users_today = User.query.filter(User.created_at >= today_start).count()
+    users_this_month = User.query.filter(
+        extract('month', User.created_at) == now.month,
+        extract('year', User.created_at) == now.year
+    ).count()
+    
+    # User growth percentages
+    yesterday_start = today_start - timedelta(days=1)
+    users_yesterday = User.query.filter(
+        User.created_at >= yesterday_start, 
+        User.created_at < today_start
+    ).count()
+    growth_today = round((users_today / max(users_yesterday, 1)) * 100, 1) if users_yesterday > 0 else 100
+    
+    # Registrations by day (last 30 days)
+    reg_by_day = db.session.query(
+        func.date(User.created_at).label('date'),
+        func.count(User.id).label('count')
+    ).filter(User.created_at >= thirty_days_ago)\
+     .group_by(func.date(User.created_at))\
+     .order_by('date').all()
+    
+    reg_labels = [str(r.date) for r in reg_by_day]
+    reg_values = [r.count for r in reg_by_day]
+    
+    # Latest 5 registrations
+    latest_users = User.query.order_by(User.created_at.desc()).limit(5).all()
+    latest_registrations = [{
+        'name': u.get_full_name(),
+        'email': u.email,
+        'country': u.country or 'N/A',
+        'created_at': u.created_at.isoformat() if u.created_at else None
+    } for u in latest_users]  # FIXED: was 'la@admin_bp.route('/api/palantir')test_users'
+    
+    # ===== REVENUE =====
+    def get_revenue(start=None, end=None):
+        q = db.session.query(func.coalesce(func.sum(Payment.amount), 0)).filter(
+            Payment.status.in_(['SUCCESS', 'success'])
+        )
+        if start: q = q.filter(Payment.created_at >= start)
+        if end: q = q.filter(Payment.created_at < end)
+        return float(q.scalar() or 0)
+    
+    revenue_today = get_revenue(today_start)
+    revenue_yesterday = get_revenue(today_start - timedelta(days=1), today_start)
+    revenue_this_month = get_revenue(now.replace(day=1, hour=0, minute=0, second=0, microsecond=0))
+    revenue_lifetime = get_revenue()
+    
+    # Revenue by day (last 30 days)
+    rev_by_day = db.session.query(
+        func.date(Payment.created_at).label('date'),
+        func.coalesce(func.sum(Payment.amount), 0).label('total')
+    ).filter(
+        Payment.status.in_(['SUCCESS', 'success']),
+        Payment.created_at >= thirty_days_ago
+    ).group_by(func.date(Payment.created_at))\
+     .order_by('date').all()
+    
+    rev_labels = [str(r.date) for r in rev_by_day]
+    rev_values = [float(r.total) for r in rev_by_day]
+    
+    # ===== CHALLENGES =====
+    active_challenges = ChallengePurchase.query.filter(
+        ChallengePurchase.status.in_(['active', 'phase1_active', 'phase2_active']),
+        ChallengePurchase.is_terminated == False
+    ).count()
+    
+    funded_accounts = ChallengePurchase.query.filter(
+        ChallengePurchase.status == 'funded_active'
+    ).count()
+    
+    breached_accounts = ChallengePurchase.query.filter(
+        ChallengePurchase.is_terminated == True
+    ).count()
+    
+    # Challenge rankings
+    challenge_rankings = db.session.query(
+        ChallengeTemplate.name,
+        ChallengeTemplate.price,
+        func.count(ChallengePurchase.id).label('total_purchases'),
+        func.coalesce(func.sum(Payment.amount), 0).label('revenue')
+    ).join(ChallengePurchase, ChallengePurchase.challenge_template_id == ChallengeTemplate.id)\
+     .join(Payment, Payment.challenge_purchase_id == ChallengePurchase.id)\
+     .filter(Payment.status.in_(['SUCCESS', 'success']))\
+     .group_by(ChallengeTemplate.id)\
+     .order_by(func.count(ChallengePurchase.id).desc())\
+     .all()
+    
+    rankings = [{
+        'name': r.name,
+        'price': float(r.price),
+        'total_purchases': r.total_purchases,
+        'revenue': float(r.revenue)
+    } for r in challenge_rankings]
+    
+    top_challenge = rankings[0]['name'] if rankings else 'None'
+    
+    # ===== KYC =====
+    pending_kyc = User.query.filter_by(kyc_status='submitted').count()
+    approved_kyc = User.query.filter_by(kyc_status='approved').count()
+    rejected_kyc = User.query.filter_by(kyc_status='rejected').count()
+    kyc_today = User.query.filter(
+        User.kyc_status == 'submitted',
+        User.kyc_submitted_at >= today_start
+    ).count()
+    
+    latest_kyc = User.query.filter(
+        User.kyc_status.in_(['submitted', 'approved', 'rejected'])
+    ).order_by(User.kyc_submitted_at.desc().nullslast()).limit(10).all()
+    
+    kyc_list = [{
+        'user_id': u.id,
+        'user_name': u.get_full_name(),
+        'country': u.country or 'N/A',
+        'status': u.kyc_status,
+        'submitted_at': u.kyc_submitted_at.isoformat() if u.kyc_submitted_at else None
+    } for u in latest_kyc]
+    
+    # ===== SUPPORT =====
+    open_tickets = SupportTicket.query.filter_by(status='open').count()
+    urgent_tickets = SupportTicket.query.filter(
+        SupportTicket.status == 'open',
+        SupportTicket.priority == 'urgent'
+    ).count()
+    closed_today = SupportTicket.query.filter(
+        SupportTicket.status == 'closed',
+        SupportTicket.resolved_at >= today_start
+    ).count()
+    
+    latest_tickets = SupportTicket.query.order_by(
+        SupportTicket.created_at.desc()
+    ).limit(10).all()
+    
+    tickets_list = [{
+        'ticket_number': t.ticket_number,
+        'user_name': t.user.get_full_name() if t.user else 'Unknown',
+        'subject': t.subject,
+        'status': t.status,
+        'created_at': t.created_at.isoformat() if t.created_at else None
+    } for t in latest_tickets]
+    
+    # ===== PAYMENTS =====
+    successful_payments = Payment.query.filter(Payment.status.in_(['SUCCESS', 'success'])).count()
+    pending_payments_count = Payment.query.filter(Payment.status.ilike('pending')).count()
+    failed_payments_count = Payment.query.filter(Payment.status.ilike('failed')).count()
+    total_payments = successful_payments + pending_payments_count + failed_payments_count
+    success_rate = round((successful_payments / max(total_payments, 1)) * 100, 1)
+    
+    latest_payments = Payment.query.order_by(Payment.created_at.desc()).limit(10).all()
+    payments_list = [{
+        'order_id': p.payment_id,
+        'user_name': p.user.get_full_name() if p.user else 'Unknown',
+        'amount': float(p.amount),
+        'status': p.status,
+        'created_at': p.created_at.isoformat() if p.created_at else None
+    } for p in latest_payments]
+    
+    # ===== COUPONS =====
+    active_coupons_count = Coupon.query.filter_by(is_active=True, is_deleted=False).count()
+    expired_coupons_count = Coupon.query.filter_by(is_deleted=False).filter(
+        Coupon.expires_at < now
+    ).count()
+    
+    top_coupons = db.session.query(
+        Coupon.code,
+        func.count(CouponUsage.id).label('uses'),
+        func.coalesce(func.sum(CouponUsage.final_price), 0).label('revenue')
+    ).join(CouponUsage, CouponUsage.coupon_id == Coupon.id)\
+     .filter(Coupon.is_deleted == False)\
+     .group_by(Coupon.id)\
+     .order_by(func.count(CouponUsage.id).desc())\
+     .limit(10).all()
+    
+    coupons_list = [{
+        'code': c.code,
+        'uses': c.uses,
+        'revenue': float(c.revenue)
+    } for c in top_coupons]
+    
+    # ===== PARTNERS =====
+    total_partners = User.query.filter_by(role='partner', is_banned=False).count()
+    
+    partner_rankings = db.session.query(
+        User.first_name,
+        User.last_name,
+        func.count(PartnerEarnings.id).label('referrals'),
+        func.coalesce(func.sum(PartnerEarnings.purchase_amount), 0).label('revenue'),
+        func.coalesce(func.sum(PartnerEarnings.partner_share), 0).label('commission')
+    ).join(PartnerEarnings, PartnerEarnings.partner_id == User.id)\
+     .filter(User.role == 'partner')\
+     .group_by(User.id)\
+     .order_by(func.count(PartnerEarnings.id).desc())\
+     .limit(5).all()
+    
+    partners_list = [{
+        'name': f"{p.first_name} {p.last_name}",
+        'referrals': p.referrals,
+        'revenue': float(p.revenue),
+        'commission': float(p.commission)
+    } for p in partner_rankings]
+    
+    # ===== RISK =====
+    near_daily_loss = ChallengePurchase.query.filter(
+        ChallengePurchase.status.in_(['active', 'phase1_active', 'phase2_active']),
+        ChallengePurchase.is_terminated == False,
+        ChallengePurchase.daily_drawdown >= 4.0  # 80% of typical 5% limit
+    ).count()
+    
+    near_overall_loss = ChallengePurchase.query.filter(
+        ChallengePurchase.status.in_(['active', 'phase1_active', 'phase2_active']),
+        ChallengePurchase.is_terminated == False,
+        ChallengePurchase.overall_drawdown >= 8.0  # 80% of typical 10% limit
+    ).count()
+    
+    require_review = ChallengePurchase.query.filter_by(review_required=True).count()
+    
+    breached_today = ChallengePurchase.query.filter(
+        ChallengePurchase.is_terminated == True,
+        ChallengePurchase.completed_at >= today_start
+    ).count()
+    
+    # ===== SUMMARY =====
+    summary = {
+        'new_users_today': users_today,
+        'revenue_today': revenue_today,
+        'top_challenge': top_challenge,
+        'pending_kyc': pending_kyc,
+        'pending_tickets': open_tickets,
+        'system_health': 'NORMAL'
+    }
+    
+    # ===== ACTIONS =====
+    actions = {
+        'pending_kyc': pending_kyc,
+        'open_tickets': open_tickets,
+        'failed_payments': failed_payments_count,
+        'near_breach': near_daily_loss + near_overall_loss,
+        'require_review': require_review
+    }
+    
+    return jsonify({
+        'success': True,
+        'summary': summary,
+        'actions': actions,
+        'users': {
+            'total': total_users,
+            'today': users_today,
+            'this_month': users_this_month,
+            'growth_today': growth_today,
+            'registrations_by_day_labels': reg_labels,
+            'registrations_by_day_values': reg_values,
+            'latest': latest_registrations
+        },
+        'revenue': {
+            'today': revenue_today,
+            'yesterday': revenue_yesterday,
+            'this_month': revenue_this_month,
+            'lifetime': revenue_lifetime,
+            'revenue_by_day_labels': rev_labels,
+            'revenue_by_day_values': rev_values
+        },
+        'challenges': {
+            'active': active_challenges,
+            'funded': funded_accounts,
+            'breached': breached_accounts,
+            'rankings': rankings
+        },
+        'kyc': {
+            'pending': pending_kyc,
+            'approved': approved_kyc,
+            'rejected': rejected_kyc,
+            'today': kyc_today,
+            'latest': kyc_list
+        },
+        'support': {
+            'open': open_tickets,
+            'urgent': urgent_tickets,
+            'closed_today': closed_today,
+            'latest': tickets_list
+        },
+        'payments': {
+            'successful': successful_payments,
+            'pending': pending_payments_count,
+            'failed': failed_payments_count,
+            'success_rate': success_rate,
+            'latest': payments_list
+        },
+        'coupons': {
+            'active': active_coupons_count,
+            'expired': expired_coupons_count,
+            'top_10': coupons_list
+        },
+        'partners': {
+            'total': total_partners,
+            'rankings': partners_list
+        },
+        'risk': {
+            'near_daily_loss': near_daily_loss,
+            'near_overall_loss': near_overall_loss,
+            'require_review': require_review,
+            'breached_today': breached_today,
+            'funded_accounts': funded_accounts
+        }
+    })
+
+@admin_bp.route('/api/palantir/activity')
+@admin_required
+def api_palantir_activity():
+    """Activity feed for Palantir - last 50 events"""
+    events = []
+    
+    # Latest 10 registrations
+    users = User.query.order_by(User.created_at.desc()).limit(10).all()
+    for u in users:
+        events.append({
+            'timestamp': u.created_at.isoformat() if u.created_at else None,
+            'type': 'registration',
+            'user': u.get_full_name(),
+            'description': f"New registration from {u.country or 'Unknown'}"
+        })
+    
+    # Latest 10 challenge purchases
+    purchases = ChallengePurchase.query.order_by(
+        ChallengePurchase.purchase_date.desc()
+    ).limit(10).all()
+    for p in purchases:
+        events.append({
+            'timestamp': p.purchase_date.isoformat() if p.purchase_date else None,
+            'type': 'challenge_purchase',
+            'user': p.user.get_full_name() if p.user else 'Unknown',
+            'description': f"Purchased {p.challenge_template.name if p.challenge_template else 'Challenge'}"
+        })
+    
+    # Latest 10 payments
+    payments_list = Payment.query.order_by(Payment.created_at.desc()).limit(10).all()
+    for p in payments_list:
+        status_lower = (p.status or '').lower()
+        if 'success' in status_lower:
+            event_type = 'payment_success'
+        elif 'fail' in status_lower:
+            event_type = 'payment_failed'
+        else:
+            event_type = 'payment'
+            
+        events.append({
+            'timestamp': p.created_at.isoformat() if p.created_at else None,
+            'type': event_type,
+            'user': p.user.get_full_name() if p.user else 'Unknown',
+            'description': f"Payment of ₹{float(p.amount or 0):,.2f} - {p.status}"
+        })
+    
+    # Latest 10 KYC submissions
+    kyc_users = User.query.filter(
+        User.kyc_status.in_(['submitted', 'approved', 'rejected'])
+    ).order_by(User.kyc_submitted_at.desc().nullslast()).limit(10).all()
+    for u in kyc_users:
+        events.append({
+            'timestamp': u.kyc_submitted_at.isoformat() if u.kyc_submitted_at else None,
+            'type': f"kyc_{u.kyc_status}",
+            'user': u.get_full_name(),
+            'description': f"KYC {u.kyc_status}"
+        })
+    
+    # Latest 10 support tickets
+    tickets = SupportTicket.query.order_by(SupportTicket.created_at.desc()).limit(10).all()
+    for t in tickets:
+        events.append({
+            'timestamp': t.created_at.isoformat() if t.created_at else None,
+            'type': 'support_ticket',
+            'user': t.user.get_full_name() if t.user else 'Unknown',
+            'description': f"Ticket #{t.ticket_number}: {(t.subject or '')[:50]}"
+        })
+    
+    # Latest 5 coupon usages
+    usages = CouponUsage.query.order_by(CouponUsage.used_at.desc()).limit(5).all()
+    for u in usages:
+        events.append({
+            'timestamp': u.used_at.isoformat() if u.used_at else None,
+            'type': 'coupon_used',
+            'user': u.user.get_full_name() if u.user else 'Unknown',
+            'description': f"Used coupon {u.coupon.code if u.coupon else 'Unknown'}"
+        })
+    
+    # Sort by timestamp descending and take top 50
+    events.sort(key=lambda x: x['timestamp'] or '1970-01-01', reverse=True)
+    events = events[:50]
+    
+    return jsonify({'success': True, 'events': events})

@@ -1,0 +1,824 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Palantir Command Center - Tragene Admin{% endblock %}
+
+{% block head %}
+<style>
+    /* Custom scrollbar for activity feed */
+    .activity-feed::-webkit-scrollbar {
+        width: 6px;
+    }
+    .activity-feed::-webkit-scrollbar-track {
+        background: #f1f5f9;
+        border-radius: 10px;
+    }
+    .activity-feed::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 10px;
+    }
+    .dark .activity-feed::-webkit-scrollbar-track {
+        background: #1e293b;
+    }
+    .dark .activity-feed::-webkit-scrollbar-thumb {
+        background: #475569;
+    }
+    
+    /* Pulse animation for live indicator */
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+    .live-pulse {
+        animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+    
+    /* Slide in animation for new activity items */
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateX(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+    .slide-in {
+        animation: slideIn 0.3s ease-out;
+    }
+    
+    /* Counter animation */
+    @keyframes countUp {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .count-up {
+        animation: countUp 0.5s ease-out;
+    }
+</style>
+{% endblock %}
+
+{% block header_title %}Palantir Command Center{% endblock %}
+{% block header_subtitle %}Single Source of Truth{% endblock %}
+
+{% block content %}
+<!-- Live Update Indicator -->
+<div class="flex items-center justify-between mb-4">
+    <div class="flex items-center gap-2">
+        <span class="live-pulse w-2 h-2 bg-green-500 rounded-full"></span>
+        <span class="text-xs text-gray-500 dark:text-gray-400">Live • Updates every 180s</span>
+    </div>
+    <div class="text-xs text-gray-400 dark:text-gray-500">
+        Last refreshed: <span id="lastRefresh">--</span>
+    </div>
+</div>
+
+<!-- TODAY'S ACTIONS - Red Alert Cards -->
+<div class="mb-6">
+    <h2 class="text-lg font-bold text-red-600 dark:text-red-400 mb-3 flex items-center gap-2">
+        <i class="fas fa-exclamation-triangle"></i> TODAY'S ACTIONS REQUIRED
+    </h2>
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3" id="actionCards">
+        <div class="glass-card p-4 border-l-4 border-red-500">
+            <div class="text-2xl font-bold text-red-600 dark:text-red-400 count-up" id="actionKYC">--</div>
+            <div class="text-xs text-gray-600 dark:text-gray-400">Pending KYC</div>
+        </div>
+        <div class="glass-card p-4 border-l-4 border-orange-500">
+            <div class="text-2xl font-bold text-orange-600 dark:text-orange-400 count-up" id="actionTickets">--</div>
+            <div class="text-xs text-gray-600 dark:text-gray-400">Open Tickets</div>
+        </div>
+        <div class="glass-card p-4 border-l-4 border-yellow-500">
+            <div class="text-2xl font-bold text-yellow-600 dark:text-yellow-400 count-up" id="actionFailedPayments">--</div>
+            <div class="text-xs text-gray-600 dark:text-gray-400">Failed Payments</div>
+        </div>
+        <div class="glass-card p-4 border-l-4 border-purple-500">
+            <div class="text-2xl font-bold text-purple-600 dark:text-purple-400 count-up" id="actionNearBreach">--</div>
+            <div class="text-xs text-gray-600 dark:text-gray-400">Near Breach</div>
+        </div>
+        <div class="glass-card p-4 border-l-4 border-pink-500">
+            <div class="text-2xl font-bold text-pink-600 dark:text-pink-400 count-up" id="actionReviews">--</div>
+            <div class="text-xs text-gray-600 dark:text-gray-400">Need Review</div>
+        </div>
+    </div>
+</div>
+
+<!-- Executive Summary Box -->
+<div class="glass-card p-4 mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-200 dark:border-blue-800">
+    <div class="flex items-center gap-2 mb-2">
+        <i class="fas fa-crown text-yellow-500 text-xl"></i>
+        <span class="font-bold text-gray-800 dark:text-white">TRAGENE STATUS SUMMARY</span>
+    </div>
+    <p class="text-sm text-gray-700 dark:text-gray-300" id="summaryText">Loading system status...</p>
+</div>
+
+<!-- Stats Grid - 8 Cards -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+    <div class="glass-card p-4" data-aos="fade-up" data-aos-delay="0">
+        <div class="flex items-center justify-between mb-2">
+            <i class="fas fa-users text-blue-500 text-xl"></i>
+            <span class="text-xs text-green-500 font-semibold" id="userGrowth">--</span>
+        </div>
+        <div class="text-3xl font-bold text-gray-800 dark:text-white count-up" id="totalUsers">--</div>
+        <div class="text-xs text-gray-500 dark:text-gray-400">Total Users</div>
+        <div class="text-xs text-green-600 dark:text-green-400 mt-1" id="usersToday">--</div>
+    </div>
+    
+    <div class="glass-card p-4" data-aos="fade-up" data-aos-delay="100">
+        <div class="flex items-center justify-between mb-2">
+            <i class="fas fa-rupee-sign text-green-500 text-xl"></i>
+        </div>
+        <div class="text-3xl font-bold text-gray-800 dark:text-white count-up" id="revenueToday">--</div>
+        <div class="text-xs text-gray-500 dark:text-gray-400">Revenue Today</div>
+        <div class="text-xs text-gray-400 mt-1" id="revenueMonth">--</div>
+    </div>
+    
+    <div class="glass-card p-4" data-aos="fade-up" data-aos-delay="200">
+        <div class="flex items-center justify-between mb-2">
+            <i class="fas fa-chart-line text-purple-500 text-xl"></i>
+        </div>
+        <div class="text-3xl font-bold text-gray-800 dark:text-white count-up" id="activeChallenges">--</div>
+        <div class="text-xs text-gray-500 dark:text-gray-400">Active Challenges</div>
+        <div class="text-xs text-green-600 dark:text-green-400 mt-1" id="fundedAccounts">--</div>
+    </div>
+    
+    <div class="glass-card p-4" data-aos="fade-up" data-aos-delay="300">
+        <div class="flex items-center justify-between mb-2">
+            <i class="fas fa-id-card text-orange-500 text-xl"></i>
+        </div>
+        <div class="text-3xl font-bold text-gray-800 dark:text-white count-up" id="pendingKYC">--</div>
+        <div class="text-xs text-gray-500 dark:text-gray-400">Pending KYC</div>
+        <div class="text-xs text-yellow-600 dark:text-yellow-400 mt-1" id="kycToday">--</div>
+    </div>
+    
+    <div class="glass-card p-4" data-aos="fade-up" data-aos-delay="400">
+        <div class="flex items-center justify-between mb-2">
+            <i class="fas fa-ticket-alt text-red-500 text-xl"></i>
+        </div>
+        <div class="text-3xl font-bold text-gray-800 dark:text-white count-up" id="openTickets">--</div>
+        <div class="text-xs text-gray-500 dark:text-gray-400">Open Tickets</div>
+        <div class="text-xs text-red-600 dark:text-red-400 mt-1" id="urgentTickets">--</div>
+    </div>
+    
+    <div class="glass-card p-4" data-aos="fade-up" data-aos-delay="500">
+        <div class="flex items-center justify-between mb-2">
+            <i class="fas fa-tags text-teal-500 text-xl"></i>
+        </div>
+        <div class="text-3xl font-bold text-gray-800 dark:text-white count-up" id="activeCoupons">--</div>
+        <div class="text-xs text-gray-500 dark:text-gray-400">Active Coupons</div>
+        <div class="text-xs text-gray-400 mt-1" id="couponUses">--</div>
+    </div>
+    
+    <div class="glass-card p-4" data-aos="fade-up" data-aos-delay="600">
+        <div class="flex items-center justify-between mb-2">
+            <i class="fas fa-handshake text-indigo-500 text-xl"></i>
+        </div>
+        <div class="text-3xl font-bold text-gray-800 dark:text-white count-up" id="totalPartners">--</div>
+        <div class="text-xs text-gray-500 dark:text-gray-400">Total Partners</div>
+        <div class="text-xs text-indigo-600 dark:text-indigo-400 mt-1" id="partnerRevenue">--</div>
+    </div>
+    
+    <div class="glass-card p-4" data-aos="fade-up" data-aos-delay="700">
+        <div class="flex items-center justify-between mb-2">
+            <i class="fas fa-exclamation-circle text-pink-500 text-xl"></i>
+        </div>
+        <div class="text-3xl font-bold text-gray-800 dark:text-white count-up" id="failedPayments">--</div>
+        <div class="text-xs text-gray-500 dark:text-gray-400">Failed Payments</div>
+        <div class="text-xs text-green-600 dark:text-green-400 mt-1" id="successRate">--</div>
+    </div>
+</div>
+
+<!-- Challenge Rankings + KYC Panel -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+    <!-- Challenge Rankings -->
+    <div class="glass-card p-4">
+        <h3 class="font-semibold text-gray-800 dark:text-white mb-3">🏆 Challenge Rankings</h3>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="border-b border-gray-200 dark:border-dark-border">
+                        <th class="text-left py-2 text-gray-600 dark:text-gray-400">Rank</th>
+                        <th class="text-left py-2 text-gray-600 dark:text-gray-400">Challenge</th>
+                        <th class="text-right py-2 text-gray-600 dark:text-gray-400">Price</th>
+                        <th class="text-right py-2 text-gray-600 dark:text-gray-400">Sales</th>
+                        <th class="text-right py-2 text-gray-600 dark:text-gray-400">Revenue</th>
+                    </tr>
+                </thead>
+                <tbody id="challengeRankings">
+                    <tr><td colspan="5" class="text-center py-4 text-gray-400">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <!-- KYC Panel -->
+    <div class="glass-card p-4">
+        <div class="flex items-center justify-between mb-3">
+            <h3 class="font-semibold text-gray-800 dark:text-white">👤 KYC Applications</h3>
+            <a href="/admin/kyc" class="text-xs text-blue-500 hover:text-blue-600">View All →</a>
+        </div>
+        <div class="grid grid-cols-3 gap-2 mb-3">
+            <div class="text-center p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded">
+                <div class="text-lg font-bold text-yellow-600 dark:text-yellow-400" id="kycPending">--</div>
+                <div class="text-xs text-gray-500">Pending</div>
+            </div>
+            <div class="text-center p-2 bg-green-50 dark:bg-green-900/20 rounded">
+                <div class="text-lg font-bold text-green-600 dark:text-green-400" id="kycApproved">--</div>
+                <div class="text-xs text-gray-500">Approved</div>
+            </div>
+            <div class="text-center p-2 bg-red-50 dark:bg-red-900/20 rounded">
+                <div class="text-lg font-bold text-red-600 dark:text-red-400" id="kycRejected">--</div>
+                <div class="text-xs text-gray-500">Rejected</div>
+            </div>
+        </div>
+        <div class="overflow-x-auto max-h-64 overflow-y-auto">
+            <table class="w-full text-xs">
+                <thead>
+                    <tr class="border-b border-gray-200 dark:border-dark-border">
+                        <th class="text-left py-1">User</th>
+                        <th class="text-left py-1">Country</th>
+                        <th class="text-left py-1">Status</th>
+                        <th class="text-right py-1">Action</th>
+                    </tr>
+                </thead>
+                <tbody id="kycTable">
+                    <tr><td colspan="4" class="text-center py-4 text-gray-400">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Support + Payments Row -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+    <!-- Support Tickets -->
+    <div class="glass-card p-4">
+        <div class="flex items-center justify-between mb-3">
+            <h3 class="font-semibold text-gray-800 dark:text-white">🎫 Support Tickets</h3>
+            <a href="/admin/support" class="text-xs text-blue-500 hover:text-blue-600">View All →</a>
+        </div>
+        <div class="grid grid-cols-3 gap-2 mb-3">
+            <div class="text-center p-2 bg-red-50 dark:bg-red-900/20 rounded">
+                <div class="text-lg font-bold text-red-600" id="ticketsOpen">--</div>
+                <div class="text-xs text-gray-500">Open</div>
+            </div>
+            <div class="text-center p-2 bg-orange-50 dark:bg-orange-900/20 rounded">
+                <div class="text-lg font-bold text-orange-600" id="ticketsUrgent">--</div>
+                <div class="text-xs text-gray-500">Urgent</div>
+            </div>
+            <div class="text-center p-2 bg-green-50 dark:bg-green-900/20 rounded">
+                <div class="text-lg font-bold text-green-600" id="ticketsClosedToday">--</div>
+                <div class="text-xs text-gray-500">Closed Today</div>
+            </div>
+        </div>
+        <div class="overflow-x-auto max-h-48 overflow-y-auto">
+            <table class="w-full text-xs">
+                <thead>
+                    <tr class="border-b border-gray-200 dark:border-dark-border">
+                        <th class="text-left py-1">ID</th>
+                        <th class="text-left py-1">User</th>
+                        <th class="text-left py-1">Subject</th>
+                        <th class="text-left py-1">Status</th>
+                    </tr>
+                </thead>
+                <tbody id="ticketsTable">
+                    <tr><td colspan="4" class="text-center py-4 text-gray-400">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <!-- Payments -->
+    <div class="glass-card p-4">
+        <div class="flex items-center justify-between mb-3">
+            <h3 class="font-semibold text-gray-800 dark:text-white">💰 Recent Payments</h3>
+            <a href="/admin/payments" class="text-xs text-blue-500 hover:text-blue-600">View All →</a>
+        </div>
+        <div class="flex items-center gap-4 mb-3">
+            <div class="text-center">
+                <div class="text-lg font-bold text-green-600" id="paymentsSuccess">--</div>
+                <div class="text-xs text-gray-500">Successful</div>
+            </div>
+            <div class="text-center">
+                <div class="text-lg font-bold text-yellow-600" id="paymentsPending">--</div>
+                <div class="text-xs text-gray-500">Pending</div>
+            </div>
+            <div class="text-center">
+                <div class="text-lg font-bold text-red-600" id="paymentsFailed">--</div>
+                <div class="text-xs text-gray-500">Failed</div>
+            </div>
+            <div class="text-center">
+                <div class="text-lg font-bold text-blue-600" id="paymentsRate">--%</div>
+                <div class="text-xs text-gray-500">Success Rate</div>
+            </div>
+        </div>
+        <div class="overflow-x-auto max-h-48 overflow-y-auto">
+            <table class="w-full text-xs">
+                <thead>
+                    <tr class="border-b border-gray-200 dark:border-dark-border">
+                        <th class="text-left py-1">Order ID</th>
+                        <th class="text-left py-1">User</th>
+                        <th class="text-right py-1">Amount</th>
+                        <th class="text-left py-1">Status</th>
+                    </tr>
+                </thead>
+                <tbody id="paymentsTable">
+                    <tr><td colspan="4" class="text-center py-4 text-gray-400">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Coupons + Partners Row -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+    <!-- Coupons -->
+    <div class="glass-card p-4">
+        <div class="flex items-center justify-between mb-3">
+            <h3 class="font-semibold text-gray-800 dark:text-white">🎟️ Coupon Performance</h3>
+            <a href="/admin/coupons" class="text-xs text-blue-500 hover:text-blue-600">View All →</a>
+        </div>
+        <div class="flex gap-3 mb-3">
+            <div class="text-center">
+                <div class="text-lg font-bold text-teal-600" id="couponsActive">--</div>
+                <div class="text-xs text-gray-500">Active</div>
+            </div>
+            <div class="text-center">
+                <div class="text-lg font-bold text-gray-600" id="couponsExpired">--</div>
+                <div class="text-xs text-gray-500">Expired</div>
+            </div>
+        </div>
+        <div class="overflow-x-auto max-h-48 overflow-y-auto">
+            <table class="w-full text-xs">
+                <thead>
+                    <tr class="border-b border-gray-200 dark:border-dark-border">
+                        <th class="text-left py-1">Code</th>
+                        <th class="text-right py-1">Uses</th>
+                        <th class="text-right py-1">Revenue</th>
+                    </tr>
+                </thead>
+                <tbody id="couponsTable">
+                    <tr><td colspan="3" class="text-center py-4 text-gray-400">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <!-- Partners -->
+    <div class="glass-card p-4">
+        <div class="flex items-center justify-between mb-3">
+            <h3 class="font-semibold text-gray-800 dark:text-white">🤝 Partner Rankings</h3>
+            <a href="/admin/partners" class="text-xs text-blue-500 hover:text-blue-600">View All →</a>
+        </div>
+        <div class="overflow-x-auto max-h-64 overflow-y-auto">
+            <table class="w-full text-xs">
+                <thead>
+                    <tr class="border-b border-gray-200 dark:border-dark-border">
+                        <th class="text-left py-1">Partner</th>
+                        <th class="text-right py-1">Referrals</th>
+                        <th class="text-right py-1">Revenue</th>
+                        <th class="text-right py-1">Commission</th>
+                    </tr>
+                </thead>
+                <tbody id="partnersTable">
+                    <tr><td colspan="4" class="text-center py-4 text-gray-400">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Risk Monitoring -->
+<div class="glass-card p-4 mb-6">
+    <h3 class="font-semibold text-gray-800 dark:text-white mb-3">⚠️ Risk Monitoring</h3>
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-3">
+        <div class="text-center p-2 bg-red-50 dark:bg-red-900/20 rounded">
+            <div class="text-lg font-bold text-red-600" id="riskDailyLoss">--</div>
+            <div class="text-xs text-gray-500">Near Daily Loss</div>
+        </div>
+        <div class="text-center p-2 bg-orange-50 dark:bg-orange-900/20 rounded">
+            <div class="text-lg font-bold text-orange-600" id="riskOverallLoss">--</div>
+            <div class="text-xs text-gray-500">Near Overall Loss</div>
+        </div>
+        <div class="text-center p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded">
+            <div class="text-lg font-bold text-yellow-600" id="riskReview">--</div>
+            <div class="text-xs text-gray-500">Require Review</div>
+        </div>
+        <div class="text-center p-2 bg-purple-50 dark:bg-purple-900/20 rounded">
+            <div class="text-lg font-bold text-purple-600" id="riskBreached">--</div>
+            <div class="text-xs text-gray-500">Breached Today</div>
+        </div>
+        <div class="text-center p-2 bg-green-50 dark:bg-green-900/20 rounded">
+            <div class="text-lg font-bold text-green-600" id="riskFunded">--</div>
+            <div class="text-xs text-gray-500">Funded Active</div>
+        </div>
+    </div>
+</div>
+
+<!-- Live Activity Feed -->
+<div class="glass-card p-4">
+    <div class="flex items-center justify-between mb-3">
+        <h3 class="font-semibold text-gray-800 dark:text-white">
+            <i class="fas fa-stream text-blue-500"></i> Live Activity Feed
+        </h3>
+        <span class="text-xs text-gray-400">Last 50 events • Updates every 10s</span>
+    </div>
+    <div class="activity-feed max-h-96 overflow-y-auto space-y-2" id="activityFeed">
+        <div class="text-center py-8 text-gray-400">
+            <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
+            <p>Loading activity feed...</p>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Initialize AOS
+AOS.init({ duration: 800, once: true });
+
+// Format currency
+function formatCurrency(amount) {
+    return '₹' + Number(amount || 0).toLocaleString('en-IN');
+}
+
+// Format date
+function formatDate(dateStr) {
+    if (!dateStr) return '--';
+    const d = new Date(dateStr);
+    return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+// Format datetime
+function formatDateTime(dateStr) {
+    if (!dateStr) return '--';
+    const d = new Date(dateStr);
+    const now = new Date();
+    const diff = now - d;
+    
+    if (diff < 60000) return 'Just now';
+    if (diff < 3600000) return Math.floor(diff / 60000) + 'm ago';
+    if (diff < 86400000) return Math.floor(diff / 3600000) + 'h ago';
+    return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+}
+
+// Get status color
+function getStatusColor(status) {
+    const colors = {
+        'approved': 'text-green-600 bg-green-100 dark:bg-green-900/30',
+        'rejected': 'text-red-600 bg-red-100 dark:bg-red-900/30',
+        'submitted': 'text-yellow-600 bg-yellow-100 dark:bg-yellow-900/30',
+        'pending': 'text-gray-600 bg-gray-100 dark:bg-gray-900/30',
+        'open': 'text-red-600 bg-red-100 dark:bg-red-900/30',
+        'in_progress': 'text-blue-600 bg-blue-100 dark:bg-blue-900/30',
+        'closed': 'text-gray-600 bg-gray-100 dark:bg-gray-900/30',
+        'resolved': 'text-green-600 bg-green-100 dark:bg-green-900/30',
+        'success': 'text-green-600 bg-green-100 dark:bg-green-900/30',
+        'failed': 'text-red-600 bg-red-100 dark:bg-red-900/30',
+        'active': 'text-blue-600 bg-blue-100 dark:bg-blue-900/30',
+    };
+    return colors[status?.toLowerCase()] || 'text-gray-600 bg-gray-100';
+}
+
+// Fetch all dashboard data
+async function fetchDashboardData() {
+    try {
+        const response = await fetch('/admin/api/palantir');
+        const data = await response.json();
+        
+        if (!data.success) {
+            console.error('API Error:', data.error);
+            return;
+        }
+        
+        updateActionCards(data);
+        updateSummary(data);
+        updateStatsGrid(data);
+        updateChallengeRankings(data);
+        updateKYCPanel(data);
+        updateSupportPanel(data);
+        updatePaymentsPanel(data);
+        updateCouponsPanel(data);
+        updatePartnersPanel(data);
+        updateRiskPanel(data);
+        
+        document.getElementById('lastRefresh').textContent = new Date().toLocaleTimeString();
+        
+    } catch (error) {
+        console.error('Dashboard fetch error:', error);
+    }
+}
+
+// Fetch activity feed separately (more frequent)
+async function fetchActivityFeed() {
+    try {
+        const response = await fetch('/admin/api/palantir/activity');
+        const data = await response.json();
+        
+        if (data.success && data.events) {
+            renderActivityFeed(data.events);
+        }
+    } catch (error) {
+        console.error('Activity feed error:', error);
+    }
+}
+
+// Update action cards
+function updateActionCards(data) {
+    const actions = data.actions || {};
+    document.getElementById('actionKYC').textContent = actions.pending_kyc || 0;
+    document.getElementById('actionTickets').textContent = actions.open_tickets || 0;
+    document.getElementById('actionFailedPayments').textContent = actions.failed_payments || 0;
+    document.getElementById('actionNearBreach').textContent = actions.near_breach || 0;
+    document.getElementById('actionReviews').textContent = actions.require_review || 0;
+}
+
+// Update summary
+function updateSummary(data) {
+    const summary = data.summary || {};
+    const text = [
+        summary.new_users_today ? `+${summary.new_users_today} new users today` : '',
+        summary.revenue_today ? `• ${formatCurrency(summary.revenue_today)} revenue today` : '',
+        summary.top_challenge ? `• Most sold: ${summary.top_challenge}` : '',
+        summary.pending_kyc ? `• ${summary.pending_kyc} KYC pending` : '',
+        summary.pending_tickets ? `• ${summary.pending_tickets} tickets open` : '',
+        `• System: ${summary.system_health || 'NORMAL'}`
+    ].filter(Boolean).join(' ');
+    
+    document.getElementById('summaryText').textContent = text || 'System status loading...';
+}
+
+// Update stats grid
+function updateStatsGrid(data) {
+    const users = data.users || {};
+    const revenue = data.revenue || {};
+    const challenges = data.challenges || {};
+    const kyc = data.kyc || {};
+    const support = data.support || {};
+    const coupons = data.coupons || {};
+    const partners = data.partners || {};
+    const payments = data.payments || {};
+    
+    document.getElementById('totalUsers').textContent = (users.total || 0).toLocaleString();
+    document.getElementById('userGrowth').textContent = users.today ? `+${users.today} today` : '';
+    document.getElementById('usersToday').textContent = users.this_month ? `${users.this_month} this month` : '';
+    document.getElementById('revenueToday').textContent = formatCurrency(revenue.today);
+    document.getElementById('revenueMonth').textContent = revenue.this_month ? `${formatCurrency(revenue.this_month)} this month` : '';
+    document.getElementById('activeChallenges').textContent = (challenges.active || 0).toLocaleString();
+    document.getElementById('fundedAccounts').textContent = challenges.funded ? `${challenges.funded} funded` : '';
+    document.getElementById('pendingKYC').textContent = (kyc.pending || 0).toLocaleString();
+    document.getElementById('kycToday').textContent = kyc.today ? `${kyc.today} new today` : '';
+    document.getElementById('openTickets').textContent = (support.open || 0).toLocaleString();
+    document.getElementById('urgentTickets').textContent = support.urgent ? `${support.urgent} urgent` : '';
+    document.getElementById('activeCoupons').textContent = (coupons.active || 0).toLocaleString();
+    document.getElementById('couponUses').textContent = coupons.expired ? `${coupons.expired} expired` : '';
+    document.getElementById('totalPartners').textContent = (partners.total || 0).toLocaleString();
+    document.getElementById('partnerRevenue').textContent = partners.rankings?.length ? 'Top partners active' : '';
+    document.getElementById('failedPayments').textContent = (payments.failed || 0).toLocaleString();
+    document.getElementById('successRate').textContent = payments.success_rate ? `${payments.success_rate}% success` : '';
+}
+
+// Update challenge rankings
+function updateChallengeRankings(data) {
+    const challenges = data.challenges?.rankings || [];
+    const tbody = document.getElementById('challengeRankings');
+    
+    if (challenges.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-gray-400">No challenges found</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = challenges.map((c, i) => `
+        <tr class="border-b border-gray-100 dark:border-dark-border">
+            <td class="py-2">
+                ${i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`}
+            </td>
+            <td class="py-2 text-gray-800 dark:text-white">${c.name || '--'}</td>
+            <td class="py-2 text-right">${formatCurrency(c.price)}</td>
+            <td class="py-2 text-right">${c.total_purchases || 0}</td>
+            <td class="py-2 text-right font-semibold">${formatCurrency(c.revenue)}</td>
+        </tr>
+    `).join('');
+}
+
+// Update KYC panel
+function updateKYCPanel(data) {
+    const kyc = data.kyc || {};
+    
+    document.getElementById('kycPending').textContent = kyc.pending || 0;
+    document.getElementById('kycApproved').textContent = kyc.approved || 0;
+    document.getElementById('kycRejected').textContent = kyc.rejected || 0;
+    
+    const latest = kyc.latest || [];
+    const tbody = document.getElementById('kycTable');
+    
+    if (latest.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-gray-400">No KYC applications</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = latest.map(k => `
+        <tr class="border-b border-gray-100 dark:border-dark-border">
+            <td class="py-1 text-gray-800 dark:text-white">${k.user_name || '--'}</td>
+            <td class="py-1 text-xs text-gray-500">${k.country || '--'}</td>
+            <td class="py-1">
+                <span class="px-2 py-0.5 rounded text-xs ${getStatusColor(k.status)}">${k.status || '--'}</span>
+            </td>
+            <td class="py-1 text-right">
+                ${k.status === 'submitted' ? `
+                    <button onclick="quickKYCApprove(${k.user_id})" class="text-green-500 hover:text-green-700 text-xs mr-1" title="Approve">✓</button>
+                    <button onclick="quickKYCReject(${k.user_id})" class="text-red-500 hover:text-red-700 text-xs" title="Reject">✗</button>
+                ` : '--'}
+            </td>
+        </tr>
+    `).join('');
+}
+
+// Quick KYC actions
+async function quickKYCApprove(userId) {
+    if (!confirm('Approve this KYC application?')) return;
+    try {
+        const resp = await fetch(`/admin/kyc/${userId}/approve`);
+        if (resp.ok) {
+            fetchDashboardData();
+        }
+    } catch(e) { console.error(e); }
+}
+
+async function quickKYCReject(userId) {
+    const reason = prompt('Rejection reason:');
+    if (!reason) return;
+    try {
+        const formData = new FormData();
+        formData.append('rejection_reason', reason);
+        const resp = await fetch(`/admin/kyc/${userId}/reject`, { method: 'POST', body: formData });
+        if (resp.ok) {
+            fetchDashboardData();
+        }
+    } catch(e) { console.error(e); }
+}
+
+// Update support panel
+function updateSupportPanel(data) {
+    const support = data.support || {};
+    
+    document.getElementById('ticketsOpen').textContent = support.open || 0;
+    document.getElementById('ticketsUrgent').textContent = support.urgent || 0;
+    document.getElementById('ticketsClosedToday').textContent = support.closed_today || 0;
+    
+    const latest = support.latest || [];
+    const tbody = document.getElementById('ticketsTable');
+    
+    if (latest.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-gray-400">No tickets</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = latest.map(t => `
+        <tr class="border-b border-gray-100 dark:border-dark-border cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800" 
+            onclick="window.location.href='/admin/support/ticket/${t.ticket_number}'">
+            <td class="py-1 font-mono text-xs">${t.ticket_number || '--'}</td>
+            <td class="py-1 text-gray-800 dark:text-white">${t.user_name || '--'}</td>
+            <td class="py-1 text-xs">${t.subject?.substring(0, 30) || '--'}</td>
+            <td class="py-1">
+                <span class="px-2 py-0.5 rounded text-xs ${getStatusColor(t.status)}">${t.status || '--'}</span>
+            </td>
+        </tr>
+    `).join('');
+}
+
+// Update payments panel
+function updatePaymentsPanel(data) {
+    const payments = data.payments || {};
+    
+    document.getElementById('paymentsSuccess').textContent = payments.successful || 0;
+    document.getElementById('paymentsPending').textContent = payments.pending || 0;
+    document.getElementById('paymentsFailed').textContent = payments.failed || 0;
+    document.getElementById('paymentsRate').textContent = payments.success_rate || '0';
+    
+    const latest = payments.latest || [];
+    const tbody = document.getElementById('paymentsTable');
+    
+    if (latest.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-gray-400">No payments</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = latest.map(p => `
+        <tr class="border-b border-gray-100 dark:border-dark-border">
+            <td class="py-1 font-mono text-xs">${p.order_id?.substring(0, 15) || '--'}</td>
+            <td class="py-1 text-gray-800 dark:text-white">${p.user_name || '--'}</td>
+            <td class="py-1 text-right">${formatCurrency(p.amount)}</td>
+            <td class="py-1">
+                <span class="px-2 py-0.5 rounded text-xs ${getStatusColor(p.status)}">${p.status || '--'}</span>
+            </td>
+        </tr>
+    `).join('');
+}
+
+// Update coupons panel
+function updateCouponsPanel(data) {
+    const coupons = data.coupons || {};
+    
+    document.getElementById('couponsActive').textContent = coupons.active || 0;
+    document.getElementById('couponsExpired').textContent = coupons.expired || 0;
+    
+    const top10 = coupons.top_10 || [];
+    const tbody = document.getElementById('couponsTable');
+    
+    if (top10.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" class="text-center py-4 text-gray-400">No coupons</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = top10.map(c => `
+        <tr class="border-b border-gray-100 dark:border-dark-border">
+            <td class="py-1 font-mono text-xs font-semibold">${c.code || '--'}</td>
+            <td class="py-1 text-right">${c.uses || 0}</td>
+            <td class="py-1 text-right">${formatCurrency(c.revenue)}</td>
+        </tr>
+    `).join('');
+}
+
+// Update partners panel
+function updatePartnersPanel(data) {
+    const partners = data.partners || {};
+    const rankings = partners.rankings || [];
+    const tbody = document.getElementById('partnersTable');
+    
+    if (rankings.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-gray-400">No partners</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = rankings.map((p, i) => `
+        <tr class="border-b border-gray-100 dark:border-dark-border">
+            <td class="py-1 text-gray-800 dark:text-white">
+                ${i === 0 ? '⭐ ' : ''}${p.name || '--'}
+            </td>
+            <td class="py-1 text-right">${p.referrals || 0}</td>
+            <td class="py-1 text-right">${formatCurrency(p.revenue)}</td>
+            <td class="py-1 text-right">${formatCurrency(p.commission)}</td>
+        </tr>
+    `).join('');
+}
+
+// Update risk panel
+function updateRiskPanel(data) {
+    const risk = data.risk || {};
+    
+    document.getElementById('riskDailyLoss').textContent = risk.near_daily_loss || 0;
+    document.getElementById('riskOverallLoss').textContent = risk.near_overall_loss || 0;
+    document.getElementById('riskReview').textContent = risk.require_review || 0;
+    document.getElementById('riskBreached').textContent = risk.breached_today || 0;
+    document.getElementById('riskFunded').textContent = risk.funded_accounts || 0;
+}
+
+// Render activity feed
+function renderActivityFeed(events) {
+    const feed = document.getElementById('activityFeed');
+    
+    if (!events || events.length === 0) {
+        feed.innerHTML = '<div class="text-center py-8 text-gray-400">No recent activity</div>';
+        return;
+    }
+    
+    const icons = {
+        'registration': 'fa-user-plus text-green-500',
+        'challenge_purchase': 'fa-shopping-cart text-blue-500',
+        'kyc_submitted': 'fa-file-upload text-yellow-500',
+        'kyc_approved': 'fa-check-circle text-green-500',
+        'kyc_rejected': 'fa-times-circle text-red-500',
+        'payment_success': 'fa-money-bill-wave text-green-500',
+        'payment_failed': 'fa-exclamation-circle text-red-500',
+        'support_ticket': 'fa-ticket-alt text-purple-500',
+        'coupon_used': 'fa-tag text-teal-500',
+    };
+    
+    feed.innerHTML = events.slice(0, 50).map((event, i) => {
+        const icon = icons[event.type] || 'fa-circle text-gray-400';
+        return `
+            <div class="flex items-start gap-3 p-2 rounded hover:bg-gray-50 dark:hover:bg-gray-800 transition slide-in" 
+                 style="animation-delay: ${i * 30}ms">
+                <i class="fas ${icon} mt-1"></i>
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm font-medium text-gray-800 dark:text-white">${event.user || 'System'}</span>
+                        <span class="text-xs text-gray-400">${formatDateTime(event.timestamp)}</span>
+                    </div>
+                    <p class="text-xs text-gray-600 dark:text-gray-400 truncate">${event.description || ''}</p>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// Initial load
+fetchDashboardData();
+fetchActivityFeed();
+
+// Periodic refresh
+setInterval(fetchDashboardData, 180000); // Every 3 minutes
+setInterval(fetchActivityFeed, 10000);    // Every 10 seconds
+</script>
+{% endblock %}
