@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-8SBBXX72M7"></script>
@@ -8,7 +7,6 @@
         window.dataLayer = window.dataLayer || [];
         function gtag() { dataLayer.push(arguments); }
         gtag('js', new Date());
-
         gtag('config', 'G-8SBBXX72M7');
     </script>
     <meta charset="UTF-8">
@@ -81,80 +79,33 @@
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
         }
 
-        .dark .text-gray-900 {
-            color: #f1f5f9;
-        }
-
-        .dark .text-gray-800 {
-            color: #e2e8f0;
-        }
-
-        .dark .text-gray-700 {
-            color: #cbd5e1;
-        }
-
-        .dark .text-gray-600 {
-            color: #94a3b8;
-        }
-
-        .dark .text-gray-500 {
-            color: #64748b;
-        }
-
-        .dark .bg-white {
-            background-color: #1e293b;
-        }
+        .dark .text-gray-900 { color: #f1f5f9; }
+        .dark .text-gray-800 { color: #e2e8f0; }
+        .dark .text-gray-700 { color: #cbd5e1; }
+        .dark .text-gray-600 { color: #94a3b8; }
+        .dark .text-gray-500 { color: #64748b; }
+        .dark .bg-white { background-color: #1e293b; }
 
         /* Compact View Styles */
         .compact-view .glass-card {
             padding: 1rem !important;
             border-radius: 8px !important;
         }
-
-        .compact-view .stats-grid {
-            gap: 1rem !important;
-        }
-
-        .compact-view h3 {
-            font-size: 1rem !important;
-        }
-
+        .compact-view .stats-grid { gap: 1rem !important; }
+        .compact-view h3 { font-size: 1rem !important; }
         .compact-view .icon-wrapper {
             width: 32px !important;
             height: 32px !important;
             font-size: 0.875rem !important;
         }
+        .compact-view .text-2xl, .compact-view .text-3xl { font-size: 1.25rem !important; }
+        .compact-view .mb-6, .compact-view .mb-8 { margin-bottom: 1rem !important; }
+        .compact-view .p-10, .compact-view .p-16 { padding: 1.5rem !important; }
 
-        .compact-view .text-2xl,
-        .compact-view .text-3xl {
-            font-size: 1.25rem !important;
-        }
-
-        .compact-view .mb-6,
-        .compact-view .mb-8 {
-            margin-bottom: 1rem !important;
-        }
-
-        .compact-view .p-10,
-        .compact-view .p-16 {
-            padding: 1.5rem !important;
-        }
-
-        .dark .bg-gray-50 {
-            background-color: #0f172a;
-        }
-
-        .dark .bg-gray-100 {
-            background-color: #334155;
-        }
-
-        .dark .border-gray-200 {
-            border-color: #334155;
-        }
-
-        .dark .border-gray-300 {
-            border-color: #475569;
-        }
+        .dark .bg-gray-50 { background-color: #0f172a; }
+        .dark .bg-gray-100 { background-color: #334155; }
+        .dark .border-gray-200 { border-color: #334155; }
+        .dark .border-gray-300 { border-color: #475569; }
 
         .gradient-primary {
             background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
@@ -181,9 +132,7 @@
             box-shadow: 2px 0 10px rgba(0, 0, 0, 0.3);
         }
 
-        .sidebar-mobile.open {
-            transform: translateX(0);
-        }
+        .sidebar-mobile.open { transform: translateX(0); }
 
         .overlay {
             display: none;
@@ -196,9 +145,7 @@
             z-index: 40;
         }
 
-        .overlay.active {
-            display: block;
-        }
+        .overlay.active { display: block; }
 
         .progress-glow {
             background: linear-gradient(90deg, #10b981, #34d399, #10b981);
@@ -207,31 +154,15 @@
         }
 
         @keyframes progressGlow {
-
-            0%,
-            100% {
-                background-position: 0% 50%;
-            }
-
-            50% {
-                background-position: 100% 50%;
-            }
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
         }
 
-        .floating {
-            animation: floating 3s ease-in-out infinite;
-        }
+        .floating { animation: floating 3s ease-in-out infinite; }
 
         @keyframes floating {
-
-            0%,
-            100% {
-                transform: translateY(0px);
-            }
-
-            50% {
-                transform: translateY(-5px);
-            }
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-5px); }
         }
 
         /* Desktop Layout */
@@ -254,17 +185,13 @@
             box-shadow: 2px 0 10px rgba(0, 0, 0, 0.3);
         }
 
-        /* Sidebar Header - Fixed at top */
         .sidebar-header {
             flex-shrink: 0;
             border-bottom: 1px solid #e5e7eb;
         }
 
-        .dark .sidebar-header {
-            border-bottom-color: #334155;
-        }
+        .dark .sidebar-header { border-bottom-color: #334155; }
 
-        /* Sidebar Navigation - Scrollable */
         .sidebar-nav {
             flex: 1;
             overflow-y: auto;
@@ -272,7 +199,6 @@
             padding: 1rem;
         }
 
-        /* Sidebar Footer - Fixed at bottom */
         .sidebar-footer {
             flex-shrink: 0;
             border-top: 1px solid #e5e7eb;
@@ -285,31 +211,12 @@
             background: #1e293b;
         }
 
-        /* Custom Scrollbar */
-        .sidebar-nav::-webkit-scrollbar {
-            width: 4px;
-        }
+        .sidebar-nav::-webkit-scrollbar { width: 4px; }
+        .sidebar-nav::-webkit-scrollbar-track { background: transparent; }
+        .sidebar-nav::-webkit-scrollbar-thumb { background: rgba(0, 123, 255, 0.2); border-radius: 10px; }
+        .sidebar-nav:hover::-webkit-scrollbar-thumb { background: rgba(0, 123, 255, 0.5); }
+        .sidebar-nav { scrollbar-width: thin; scrollbar-color: rgba(0, 123, 255, 0.2) transparent; }
 
-        .sidebar-nav::-webkit-scrollbar-track {
-            background: transparent;
-        }
-
-        .sidebar-nav::-webkit-scrollbar-thumb {
-            background: rgba(0, 123, 255, 0.2);
-            border-radius: 10px;
-        }
-
-        .sidebar-nav:hover::-webkit-scrollbar-thumb {
-            background: rgba(0, 123, 255, 0.5);
-        }
-
-        /* Firefox scrollbar */
-        .sidebar-nav {
-            scrollbar-width: thin;
-            scrollbar-color: rgba(0, 123, 255, 0.2) transparent;
-        }
-
-        /* Navigation Items */
         .nav-section-label {
             padding: 0.5rem 0.75rem;
             font-size: 0.7rem;
@@ -320,9 +227,7 @@
             margin-top: 0.5rem;
         }
 
-        .dark .nav-section-label {
-            color: #6b7280;
-        }
+        .dark .nav-section-label { color: #6b7280; }
 
         .nav-item {
             display: flex;
@@ -337,19 +242,10 @@
             margin-bottom: 0.25rem;
         }
 
-        .dark .nav-item {
-            color: #94a3b8;
-        }
+        .dark .nav-item { color: #94a3b8; }
 
-        .nav-item:hover {
-            background: #f3f4f6;
-            color: #1f2937;
-        }
-
-        .dark .nav-item:hover {
-            background: #1e293b;
-            color: #f1f5f9;
-        }
+        .nav-item:hover { background: #f3f4f6; color: #1f2937; }
+        .dark .nav-item:hover { background: #1e293b; color: #f1f5f9; }
 
         .nav-item.active {
             background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
@@ -365,21 +261,10 @@
             box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
         }
 
-        .nav-item i {
-            width: 1.25rem;
-            text-align: center;
-            font-size: 1rem;
-        }
+        .nav-item i { width: 1.25rem; text-align: center; font-size: 1rem; }
+        .nav-item.active i { color: #2563eb; }
+        .dark .nav-item.active i { color: #60a5fa; }
 
-        .nav-item.active i {
-            color: #2563eb;
-        }
-
-        .dark .nav-item.active i {
-            color: #60a5fa;
-        }
-
-        /* Theme Toggle Button */
         .theme-toggle-btn {
             width: 100%;
             display: flex;
@@ -402,15 +287,8 @@
             color: #94a3b8;
         }
 
-        .theme-toggle-btn:hover {
-            background: #e5e7eb;
-            color: #1f2937;
-        }
-
-        .dark .theme-toggle-btn:hover {
-            background: #334155;
-            color: #f1f5f9;
-        }
+        .theme-toggle-btn:hover { background: #e5e7eb; color: #1f2937; }
+        .dark .theme-toggle-btn:hover { background: #334155; color: #f1f5f9; }
 
         .desktop-content {
             margin-left: 280px;
@@ -418,40 +296,22 @@
             width: calc(100% - 280px);
         }
 
-        /* Mobile Layout */
         @media (max-width: 1024px) {
-            .desktop-sidebar {
-                display: none;
-            }
-
-            .desktop-content {
-                margin-left: 0;
-                width: 100%;
-            }
+            .desktop-sidebar { display: none; }
+            .desktop-content { margin-left: 0; width: 100%; }
         }
 
-        /* Mobile First Design */
         @media (max-width: 768px) {
-            .stats-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
         }
 
         @media (max-width: 480px) {
-            .stats-grid {
-                grid-template-columns: 1fr;
-            }
+            .stats-grid { grid-template-columns: 1fr; }
         }
 
-        /* Logo hover effect */
-        .logo-container {
-            transition: transform 0.3s ease;
-        }
+        .logo-container { transition: transform 0.3s ease; }
+        .logo-container:hover { transform: scale(1.05); }
 
-        .logo-container:hover {
-            transform: scale(1.05);
-        }
-        
         /* Notification Bell Animation */
         @keyframes bellRing {
             0%, 100% { transform: rotate(0); }
@@ -463,21 +323,19 @@
             60% { transform: rotate(-5deg); }
             70% { transform: rotate(0); }
         }
-        
+
         .notification-bell {
             position: relative;
             transition: all 0.3s ease;
         }
-        
-        .notification-bell:hover {
-            transform: scale(1.15);
-        }
-        
+
+        .notification-bell:hover { transform: scale(1.15); }
+
         .notification-bell.has-notifications i {
             animation: bellRing 2s ease-in-out infinite;
             color: #f97316 !important;
         }
-        
+
         .notification-bell.has-notifications .notif-glow {
             position: absolute;
             inset: -3px;
@@ -485,43 +343,13 @@
             background: radial-gradient(circle, rgba(249, 115, 22, 0.3) 0%, transparent 70%);
             animation: pulse 2s ease-in-out infinite;
         }
-        
+
         @keyframes pulse {
             0%, 100% { opacity: 0.5; transform: scale(1); }
             50% { opacity: 1; transform: scale(1.2); }
         }
 
-        /* Coupon Bell Styles */
-        @keyframes couponShake {
-            0%, 100% { transform: rotate(0) scale(1); }
-            10% { transform: rotate(10deg) scale(1.1); }
-            20% { transform: rotate(-10deg) scale(1.1); }
-            30% { transform: rotate(8deg) scale(1.05); }
-            40% { transform: rotate(-8deg) scale(1.05); }
-            50% { transform: rotate(0) scale(1); }
-        }
-        
-        .coupon-bell {
-            position: relative;
-            transition: all 0.3s ease;
-        }
-        
-        .coupon-bell:hover {
-            transform: scale(1.15);
-        }
-        
-        .coupon-bell.has-coupons i {
-            animation: couponShake 2s ease-in-out infinite;
-            color: #f59e0b !important;
-        }
-        
-        .coupon-bell.has-coupons .coupon-glow {
-            position: absolute;
-            inset: -3px;
-            border-radius: 50%;
-            background: radial-gradient(circle, rgba(245, 158, 11, 0.3) 0%, transparent 70%);
-            animation: pulse 2s ease-in-out infinite;
-        }
+        /* (Coupon styles removed completely) */
     </style>
     {% block head %}{% endblock %}
 </head>
@@ -540,57 +368,37 @@
     <div id="overlay" class="overlay" onclick="toggleSidebar()"></div>
 
     <!-- Mobile Header -->
-    <header
-        class="bg-white dark:bg-dark-card shadow-sm border-b border-gray-200 dark:border-dark-border sticky top-0 z-30 lg:hidden">
+    <header class="bg-white dark:bg-dark-card shadow-sm border-b border-gray-200 dark:border-dark-border sticky top-0 z-30 lg:hidden">
         <div class="flex items-center justify-between p-4">
             <!-- Left: Menu + Logo -->
             <div class="flex items-center gap-3">
-                <button onclick="toggleSidebar()"
-                    class="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition">
+                <button onclick="toggleSidebar()" class="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition">
                     <i class="fas fa-bars text-gray-700 dark:text-gray-300"></i>
                 </button>
-                <!-- Circular Logo -->
-                <div
-                    class="w-10 h-10 rounded-full overflow-hidden border border-gray-300 dark:border-gray-600 bg-white flex items-center justify-center shrink-0 logo-container">
-                    <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Tragene Funded Logo"
-                        class="w-full h-full object-contain">
+                <div class="w-10 h-10 rounded-full overflow-hidden border border-gray-300 dark:border-gray-600 bg-white flex items-center justify-center shrink-0 logo-container">
+                    <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Tragene Funded Logo" class="w-full h-full object-contain">
                 </div>
             </div>
 
             <div class="flex items-center space-x-3">
-                <!-- Coupon Bell (Mobile) - AMBER PUNCHY STYLE -->
-                <button onclick="window.location.href='/user/my-coupons'"
-                    class="coupon-bell relative p-2.5 text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-xl transition-all duration-300 border-2 border-amber-200 dark:border-amber-800 hover:border-amber-400 dark:hover:border-amber-600 shadow-lg shadow-amber-200/50 dark:shadow-amber-900/30" 
-                    id="couponBellMobile" title="View Coupons">
-                    <div class="coupon-glow absolute inset-0 rounded-xl hidden"></div>
-                    <i class="fas fa-ticket-alt text-xl"></i>
-                    <span class="notif-coupon-dot absolute top-1.5 right-1.5 w-3 h-3 bg-gradient-to-r from-amber-400 to-yellow-500 rounded-full hidden ring-2 ring-white dark:ring-gray-800 animate-bounce shadow-lg"></span>
-                </button>
-
-                <!-- Notification Bell (Mobile) - ORANGE PUNCHY STYLE -->
-                <button onclick="toggleNotifDrawer()"
-                    class="notification-bell relative p-2.5 text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-xl transition-all duration-300 border-2 border-orange-200 dark:border-orange-800 hover:border-orange-400 dark:hover:border-orange-600 shadow-lg shadow-orange-200/50 dark:shadow-orange-900/30">
+                <!-- Notification Bell (Mobile) - Clean Simple Style -->
+                <button onclick="toggleNotifDrawer()" class="notification-bell relative p-2.5 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-all duration-300">
                     <div class="notif-glow absolute inset-0 rounded-xl hidden"></div>
                     <i class="fas fa-bell text-xl"></i>
-                    <span class="notif-dot absolute top-1.5 right-1.5 w-3 h-3 bg-gradient-to-r from-orange-400 to-red-500 rounded-full hidden ring-2 ring-white dark:ring-gray-800 animate-bounce shadow-lg"></span>
+                    <span class="notif-dot absolute top-1.5 right-1.5 w-3 h-3 bg-red-500 rounded-full hidden ring-2 ring-white dark:ring-gray-800"></span>
                 </button>
-                <button id="theme-toggle-mobile"
-                    class="p-2 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
+                <button id="theme-toggle-mobile" class="p-2 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
                     <i class="fas fa-moon hidden dark:block"></i>
                     <i class="fas fa-sun block dark:hidden"></i>
                 </button>
                 <div class="text-right hidden sm:block">
                     <p class="text-sm text-gray-600 dark:text-gray-400">Welcome</p>
                     <div class="flex items-center gap-2">
-                        <p class="font-semibold text-sm text-gray-900 dark:text-white">{{ user.trading_alias if
-                            user.trading_alias else user.first_name }}</p>
-                        <span
-                            class="bg-emerald-500 text-white text-[8px] font-black uppercase px-1.5 py-0.5 rounded shadow-sm">{{
-                            user.trader_level }}</span>
+                        <p class="font-semibold text-sm text-gray-900 dark:text-white">{{ user.trading_alias if user.trading_alias else user.first_name }}</p>
+                        <span class="bg-emerald-500 text-white text-[8px] font-black uppercase px-1.5 py-0.5 rounded shadow-sm">{{ user.trader_level }}</span>
                     </div>
                 </div>
-                <a href="/logout"
-                    class="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg text-sm font-medium transition">
+                <a href="/logout" class="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg text-sm font-medium transition">
                     <i class="fas fa-sign-out-alt"></i>
                 </a>
             </div>
@@ -599,16 +407,11 @@
 
     <!-- Desktop Sidebar -->
     <div class="desktop-sidebar hidden lg:flex flex-col">
-        <!-- Sidebar Header - Fixed -->
         <div class="sidebar-header p-6">
             <a href="/" class="flex items-center gap-3 logo-container">
-                <!-- Circular Logo -->
-                <div
-                    class="w-14 h-14 rounded-full overflow-hidden border-2 border-gray-300 dark:border-gray-600 bg-white flex items-center justify-center shrink-0">
-                    <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Tragene Funded Logo"
-                        class="w-full h-full object-contain">
+                <div class="w-14 h-14 rounded-full overflow-hidden border-2 border-gray-300 dark:border-gray-600 bg-white flex items-center justify-center shrink-0">
+                    <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Tragene Funded Logo" class="w-full h-full object-contain">
                 </div>
-                <!-- Brand Text -->
                 <div class="leading-tight">
                     <h1 class="font-bold text-gray-800 dark:text-white text-lg">TRAGENE</h1>
                     <p class="text-gray-500 dark:text-gray-400 text-xs tracking-wide">FUNDED</p>
@@ -616,14 +419,13 @@
             </a>
         </div>
 
-        <!-- Sidebar Navigation - Scrollable -->
         <nav class="sidebar-nav space-y-1">
             <div class="nav-section-label">Main Menu</div>
 
             <a href="javascript:void(0)" onclick="toggleNotifDrawer()" class="nav-item relative">
-                <i class="fas fa-bell text-orange-500 dark:text-orange-400"></i>
+                <i class="fas fa-bell"></i>
                 <span>Notifications</span>
-                <span class="notif-badge absolute right-3 px-2 py-1 bg-gradient-to-r from-orange-500 to-red-500 text-white text-[10px] font-bold rounded-full hidden shadow-lg shadow-orange-500/50 animate-pulse ring-2 ring-white dark:ring-gray-800">0</span>
+                <span class="notif-badge absolute right-3 px-2 py-1 bg-red-500 text-white text-[10px] font-bold rounded-full hidden">0</span>
             </a>
 
             <a href="/user/dashboard" class="nav-item {% if request.endpoint == 'user.dashboard' %}active{% endif %}">
@@ -631,15 +433,12 @@
                 <span>Dashboard</span>
             </a>
 
-            <!-- Trading Analytics Link -->
-            <a href="/user/user_analytics"
-                class="nav-item {% if request.endpoint == 'user.user_analytics' %}active{% endif %}">
+            <a href="/user/user_analytics" class="nav-item {% if request.endpoint == 'user.user_analytics' %}active{% endif %}">
                 <i class="fas fa-chart-pie"></i>
                 <span>Trading Analytics</span>
             </a>
 
-            <a href="/user/challenges"
-                class="nav-item {% if request.endpoint == 'user.challenges' or request.endpoint == 'user.user_challenges' %}active{% endif %}">
+            <a href="/user/challenges" class="nav-item {% if request.endpoint == 'user.challenges' or request.endpoint == 'user.user_challenges' %}active{% endif %}">
                 <i class="fas fa-trophy"></i>
                 <span>Challenges</span>
             </a>
@@ -649,23 +448,19 @@
                 <span>Trading</span>
             </a>
 
-            <a href="{{ url_for('user.user_history') }}"
-                class="nav-item {% if request.endpoint == 'user.user_history' %}active{% endif %}">
+            <a href="{{ url_for('user.user_history') }}" class="nav-item {% if request.endpoint == 'user.user_history' %}active{% endif %}">
                 <i class="fas fa-history"></i>
                 <span>History</span>
             </a>
 
-            <a href="/user/my-coupons"
-                class="nav-item {% if request.endpoint == 'user.user_coupons' %}active{% endif %}">
-                <i class="fas fa-ticket-alt text-amber-500 dark:text-amber-400"></i>
+            <a href="/user/my-coupons" class="nav-item {% if request.endpoint == 'user.user_coupons' %}active{% endif %}">
+                <i class="fas fa-ticket-alt"></i>
                 <span>My Coupons</span>
-                <span class="notif-coupon-badge absolute right-3 px-2 py-1 bg-gradient-to-r from-amber-400 to-yellow-500 text-white text-[10px] font-bold rounded-full hidden shadow-lg shadow-amber-500/50 animate-pulse ring-2 ring-white dark:ring-gray-800">0</span>
             </a>
 
             <div class="nav-section-label">Account</div>
 
-            <a href="/user/kyc"
-                class="nav-item {% if request.endpoint == 'user.kyc' or request.endpoint == 'user.kyc_verification' %}active{% endif %}">
+            <a href="/user/kyc" class="nav-item {% if request.endpoint == 'user.kyc' or request.endpoint == 'user.kyc_verification' %}active{% endif %}">
                 <i class="fas fa-id-card"></i>
                 <span>KYC Verification</span>
             </a>
@@ -682,24 +477,19 @@
 
             <div class="nav-section-label">Support</div>
 
-            <a href="/user/help"
-                class="nav-item {% if request.endpoint == 'user.help' or request.endpoint == 'user.ticket_create' or request.endpoint == 'user.ticket_chat' %}active{% endif %}">
+            <a href="/user/help" class="nav-item {% if request.endpoint == 'user.help' or request.endpoint == 'user.ticket_create' or request.endpoint == 'user.ticket_chat' %}active{% endif %}">
                 <i class="fas fa-question-circle"></i>
                 <span>Help Center</span>
             </a>
 
-            <!-- MT5 Setup Guide Link -->
-            <a href="/user/guide"
-                class="nav-item {% if request.endpoint == 'user.guide_hub' or request.endpoint == 'user.guide_mt5_mobile' or request.endpoint == 'user.guide_mt5_pc' %}active{% endif %}">
+            <a href="/user/guide" class="nav-item {% if request.endpoint == 'user.guide_hub' or request.endpoint == 'user.guide_mt5_mobile' or request.endpoint == 'user.guide_mt5_pc' %}active{% endif %}">
                 <i class="fas fa-book"></i>
                 <span>MT5 Setup Guide</span>
             </a>
 
-            <!-- Spacer to push theme toggle to bottom -->
             <div class="pb-16"></div>
         </nav>
 
-        <!-- Sidebar Footer - Fixed at bottom -->
         <div class="sidebar-footer">
             <button id="theme-toggle-desktop" class="theme-toggle-btn">
                 <i class="fas fa-moon hidden dark:block"></i>
@@ -712,115 +502,92 @@
 
     <!-- Mobile Sidebar -->
     <div id="mobileSidebar" class="sidebar-mobile lg:hidden">
-        <!-- Header - Fixed -->
         <div class="p-6 border-b border-gray-200 dark:border-dark-border flex-shrink-0">
             <div class="flex items-center justify-between">
                 <div class="flex items-center gap-3">
-                    <div
-                        class="w-16 h-16 rounded-full overflow-hidden border-2 border-gray-300 dark:border-gray-600 bg-white flex items-center justify-center shrink-0">
-                        <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Tragene Funded Logo"
-                            class="w-full h-full object-contain">
+                    <div class="w-16 h-16 rounded-full overflow-hidden border-2 border-gray-300 dark:border-gray-600 bg-white flex items-center justify-center shrink-0">
+                        <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Tragene Funded Logo" class="w-full h-full object-contain">
                     </div>
                     <div class="leading-tight">
                         <h1 class="font-bold text-gray-800 dark:text-white">TRAGENE</h1>
                         <p class="text-gray-500 dark:text-gray-400 text-xs tracking-wide">FUNDED</p>
                     </div>
                 </div>
-                <button onclick="toggleSidebar()"
-                    class="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition">
+                <button onclick="toggleSidebar()" class="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition">
                     <i class="fas fa-times text-gray-700 dark:text-gray-300"></i>
                 </button>
             </div>
         </div>
 
-        <!-- Navigation - Scrollable -->
         <nav class="flex-1 overflow-y-auto p-4 space-y-1">
             <div class="nav-section-label">Main Menu</div>
 
             <a href="javascript:void(0)" onclick="toggleSidebar(); toggleNotifDrawer();" class="nav-item relative">
-                <i class="fas fa-bell text-orange-500 dark:text-orange-400"></i>
+                <i class="fas fa-bell"></i>
                 <span>Notifications</span>
-                <span class="notif-badge absolute right-3 px-2 py-1 bg-gradient-to-r from-orange-500 to-red-500 text-white text-[10px] font-bold rounded-full hidden shadow-lg shadow-orange-500/50 animate-pulse ring-2 ring-white dark:ring-gray-800">0</span>
+                <span class="notif-badge absolute right-3 px-2 py-1 bg-red-500 text-white text-[10px] font-bold rounded-full hidden">0</span>
             </a>
 
-            <a href="/user/dashboard" class="nav-item {% if request.endpoint == 'user.dashboard' %}active{% endif %}"
-                onclick="toggleSidebar()">
+            <a href="/user/dashboard" class="nav-item {% if request.endpoint == 'user.dashboard' %}active{% endif %}" onclick="toggleSidebar()">
                 <i class="fas fa-tachometer-alt"></i>
                 <span>Dashboard</span>
             </a>
 
-            <!-- Trading Analytics Link (Mobile) -->
-            <a href="/user/user_analytics"
-                class="nav-item {% if request.endpoint == 'user.user_analytics' %}active{% endif %}"
-                onclick="toggleSidebar()">
+            <a href="/user/user_analytics" class="nav-item {% if request.endpoint == 'user.user_analytics' %}active{% endif %}" onclick="toggleSidebar()">
                 <i class="fas fa-chart-pie"></i>
                 <span>Trading Analytics</span>
             </a>
 
-            <a href="/user/challenges" class="nav-item {% if request.endpoint == 'user.challenges' %}active{% endif %}"
-                onclick="toggleSidebar()">
+            <a href="/user/challenges" class="nav-item {% if request.endpoint == 'user.challenges' %}active{% endif %}" onclick="toggleSidebar()">
                 <i class="fas fa-trophy"></i>
                 <span>Challenges</span>
             </a>
 
-            <a href="/user/trading" class="nav-item {% if request.endpoint == 'user.trading' %}active{% endif %}"
-                onclick="toggleSidebar()">
+            <a href="/user/trading" class="nav-item {% if request.endpoint == 'user.trading' %}active{% endif %}" onclick="toggleSidebar()">
                 <i class="fas fa-chart-line"></i>
                 <span>Trading</span>
             </a>
 
-            <a href="/user/history"
-                class="nav-item {% if request.endpoint == 'user.trading_history' %}active{% endif %}"
-                onclick="toggleSidebar()">
+            <a href="/user/history" class="nav-item {% if request.endpoint == 'user.trading_history' %}active{% endif %}" onclick="toggleSidebar()">
                 <i class="fas fa-history"></i>
                 <span>History</span>
             </a>
 
-            <a href="/user/my-coupons"
-                class="nav-item {% if request.endpoint == 'user.user_coupons' %}active{% endif %}"
-                onclick="toggleSidebar()">
-                <i class="fas fa-ticket-alt text-amber-500 dark:text-amber-400"></i>
+            <a href="/user/my-coupons" class="nav-item {% if request.endpoint == 'user.user_coupons' %}active{% endif %}" onclick="toggleSidebar()">
+                <i class="fas fa-ticket-alt"></i>
                 <span>My Coupons</span>
-                <span class="notif-coupon-badge absolute right-3 px-2 py-1 bg-gradient-to-r from-amber-400 to-yellow-500 text-white text-[10px] font-bold rounded-full hidden shadow-lg shadow-amber-500/50 animate-pulse ring-2 ring-white dark:ring-gray-800">0</span>
             </a>
 
             <div class="nav-section-label">Account</div>
 
-            <a href="/user/kyc" class="nav-item {% if request.endpoint == 'user.kyc' %}active{% endif %}"
-                onclick="toggleSidebar()">
+            <a href="/user/kyc" class="nav-item {% if request.endpoint == 'user.kyc' %}active{% endif %}" onclick="toggleSidebar()">
                 <i class="fas fa-id-card"></i>
                 <span>KYC Verification</span>
             </a>
 
-            <a href="/user/payouts" class="nav-item {% if request.endpoint == 'user.payouts' %}active{% endif %}"
-                onclick="toggleSidebar()">
+            <a href="/user/payouts" class="nav-item {% if request.endpoint == 'user.payouts' %}active{% endif %}" onclick="toggleSidebar()">
                 <i class="fas fa-wallet"></i>
                 <span>Payouts</span>
             </a>
 
-            <a href="/user/settings" class="nav-item {% if request.endpoint == 'user.settings' %}active{% endif %}"
-                onclick="toggleSidebar()">
+            <a href="/user/settings" class="nav-item {% if request.endpoint == 'user.settings' %}active{% endif %}" onclick="toggleSidebar()">
                 <i class="fas fa-cog"></i>
                 <span>Settings</span>
             </a>
 
             <div class="nav-section-label">Support</div>
 
-            <a href="/user/help" class="nav-item {% if request.endpoint == 'user.help' %}active{% endif %}"
-                onclick="toggleSidebar()">
+            <a href="/user/help" class="nav-item {% if request.endpoint == 'user.help' %}active{% endif %}" onclick="toggleSidebar()">
                 <i class="fas fa-question-circle"></i>
                 <span>Help Center</span>
             </a>
 
-            <!-- MT5 Setup Guide Link (Mobile) -->
-            <a href="/user/guide" class="nav-item {% if request.endpoint == 'user.guide_hub' or request.endpoint == 'user.guide_mt5_mobile' or request.endpoint == 'user.guide_mt5_pc' %}active{% endif %}"
-                onclick="toggleSidebar()">
+            <a href="/user/guide" class="nav-item {% if request.endpoint == 'user.guide_hub' or request.endpoint == 'user.guide_mt5_mobile' or request.endpoint == 'user.guide_mt5_pc' %}active{% endif %}" onclick="toggleSidebar()">
                 <i class="fas fa-book"></i>
                 <span>MT5 Setup Guide</span>
             </a>
         </nav>
 
-        <!-- Footer - Fixed at bottom -->
         <div class="flex-shrink-0 border-t border-gray-200 dark:border-dark-border p-4">
             <button id="theme-toggle-mobile-sidebar" class="theme-toggle-btn" onclick="toggleSidebar()">
                 <i class="fas fa-moon hidden dark:block"></i>
@@ -834,43 +601,27 @@
     <!-- Main Content -->
     <div class="desktop-content">
         <!-- Desktop Header -->
-        <header
-            class="hidden lg:flex bg-white dark:bg-dark-card shadow-sm border-b border-gray-200 dark:border-dark-border sticky top-0 z-20">
+        <header class="hidden lg:flex bg-white dark:bg-dark-card shadow-sm border-b border-gray-200 dark:border-dark-border sticky top-0 z-20">
             <div class="flex justify-between items-center p-6 w-full">
                 <div>
-                    <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{% block header_title %}Dashboard{%
-                        endblock %}</h1>
+                    <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{% block header_title %}Dashboard{% endblock %}</h1>
                     <p class="text-gray-600 dark:text-gray-400">{% block header_subtitle %}Overview{% endblock %}</p>
                 </div>
                 <div class="flex items-center space-x-4">
-                    <!-- Coupon Bell (Desktop) - AMBER PUNCHY STYLE -->
-                    <button onclick="window.location.href='/user/my-coupons'"
-                        class="coupon-bell relative p-3 text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-xl transition-all duration-300 border-2 border-amber-200 dark:border-amber-800 hover:border-amber-400 dark:hover:border-amber-600 shadow-lg shadow-amber-200/50 dark:shadow-amber-900/30 mr-2"
-                        id="couponBellDesktop" title="View Coupons">
-                        <div class="coupon-glow absolute inset-0 rounded-xl hidden"></div>
-                        <i class="fas fa-ticket-alt text-xl"></i>
-                        <span class="notif-coupon-badge absolute -top-1.5 -right-1.5 min-w-6 h-6 px-1.5 bg-gradient-to-r from-amber-400 to-yellow-500 text-white text-[11px] font-bold rounded-full flex items-center justify-center hidden shadow-lg shadow-amber-500/50 animate-pulse ring-2 ring-white dark:ring-gray-800">0</span>
-                    </button>
-
-                    <!-- Notification Bell (Desktop) - ORANGE PUNCHY STYLE -->
-                    <button onclick="toggleNotifDrawer()"
-                        class="notification-bell relative p-3 text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-xl transition-all duration-300 border-2 border-orange-200 dark:border-orange-800 hover:border-orange-400 dark:hover:border-orange-600 shadow-lg shadow-orange-200/50 dark:shadow-orange-900/30 mr-2">
+                    <!-- Notification Bell (Desktop) - Clean Simple Style -->
+                    <button onclick="toggleNotifDrawer()" class="notification-bell relative p-3 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-all duration-300 mr-2">
                         <div class="notif-glow absolute inset-0 rounded-xl hidden"></div>
                         <i class="fas fa-bell text-xl"></i>
-                        <span class="notif-badge absolute -top-1.5 -right-1.5 min-w-6 h-6 px-1.5 bg-gradient-to-r from-orange-500 to-red-500 text-white text-[11px] font-bold rounded-full flex items-center justify-center hidden shadow-lg shadow-orange-500/50 animate-pulse ring-2 ring-white dark:ring-gray-800">0</span>
+                        <span class="notif-badge absolute -top-1.5 -right-1.5 min-w-6 h-6 px-1.5 bg-red-500 text-white text-[11px] font-bold rounded-full flex items-center justify-center hidden">0</span>
                     </button>
                     <div class="text-right">
                         <p class="text-sm text-gray-600 dark:text-gray-400">Welcome back</p>
                         <div class="flex items-center gap-2">
-                            <p class="font-semibold text-gray-900 dark:text-white">{{ user.trading_alias if
-                                user.trading_alias else user.get_full_name() }}</p>
-                            <span
-                                class="bg-emerald-500 text-white text-[10px] font-black uppercase px-2 py-1 rounded shadow-md border-2 border-white dark:border-black">{{
-                                user.trader_level }}</span>
+                            <p class="font-semibold text-gray-900 dark:text-white">{{ user.trading_alias if user.trading_alias else user.get_full_name() }}</p>
+                            <span class="bg-emerald-500 text-white text-[10px] font-black uppercase px-2 py-1 rounded shadow-md border-2 border-white dark:border-black">{{ user.trader_level }}</span>
                         </div>
                     </div>
-                    <a href="/logout"
-                        class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-medium transition">
+                    <a href="/logout" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-medium transition">
                         <i class="fas fa-sign-out-alt mr-2"></i>Logout
                     </a>
                 </div>
@@ -881,8 +632,7 @@
         {% if messages %}
         <div class="p-4 lg:p-6 pb-0">
             {% for category, message in messages %}
-            <div
-                class="p-4 mb-4 rounded-lg {% if category == 'error' %}bg-red-100 text-red-700 border border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-900/30{% elif category == 'success' %}bg-green-100 text-green-700 border border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-900/30{% else %}bg-blue-100 text-blue-700 border border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-900/30{% endif %}">
+            <div class="p-4 mb-4 rounded-lg {% if category == 'error' %}bg-red-100 text-red-700 border border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-900/30{% elif category == 'success' %}bg-green-100 text-green-700 border border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-900/30{% else %}bg-blue-100 text-blue-700 border border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-900/30{% endif %}">
                 {{ message }}
             </div>
             {% endfor %}
@@ -941,7 +691,7 @@
         if (themeToggleMobile) themeToggleMobile.addEventListener('click', toggleTheme);
         if (themeToggleMobileSidebar) themeToggleMobileSidebar.addEventListener('click', toggleTheme);
         
-        // Check for notifications and add animation
+        // Simple notification check (no coupon logic)
         function checkNotifications() {
             const badges = document.querySelectorAll('.notif-badge');
             const dots = document.querySelectorAll('.notif-dot');
@@ -973,83 +723,11 @@
             });
         }
         
-        // Check for coupons and add animation
-        function checkCoupons() {
-            const couponBadges = document.querySelectorAll('.notif-coupon-badge');
-            const couponDots = document.querySelectorAll('.notif-coupon-dot');
-            const couponBells = document.querySelectorAll('.coupon-bell');
-            
-            let hasCoupons = false;
-            
-            couponBadges.forEach(badge => {
-                if (!badge.classList.contains('hidden') && badge.textContent !== '0') {
-                    hasCoupons = true;
-                }
-            });
-            
-            couponDots.forEach(dot => {
-                if (!dot.classList.contains('hidden')) {
-                    hasCoupons = true;
-                }
-            });
-            
-            couponBells.forEach(bell => {
-                const glow = bell.querySelector('.coupon-glow');
-                if (hasCoupons) {
-                    bell.classList.add('has-coupons');
-                    if (glow) glow.classList.remove('hidden');
-                } else {
-                    bell.classList.remove('has-coupons');
-                    if (glow) glow.classList.add('hidden');
-                }
-            });
-        }
-
-        // Fetch new coupon count from API
-        async function fetchNewCouponCount() {
-            try {
-                const response = await fetch('/api/coupons/new-count');
-                const data = await response.json();
-                const count = data.new_count || 0;
-                
-                updateCouponBadges(count);
-            } catch (error) {
-                console.log('Could not fetch coupon count');
-            }
-        }
-
-        function updateCouponBadges(count) {
-            const badges = document.querySelectorAll('.notif-coupon-badge');
-            const dots = document.querySelectorAll('.notif-coupon-dot');
-            
-            if (count > 0) {
-                badges.forEach(badge => {
-                    badge.textContent = count;
-                    badge.classList.remove('hidden');
-                });
-                dots.forEach(dot => {
-                    dot.classList.remove('hidden');
-                });
-            } else {
-                badges.forEach(badge => {
-                    badge.classList.add('hidden');
-                });
-                dots.forEach(dot => {
-                    dot.classList.add('hidden');
-                });
-            }
-            
-            checkCoupons();
-        }
-        
         // Run on load and periodically
         document.addEventListener('DOMContentLoaded', function() {
             checkNotifications();
-            checkCoupons();
-            fetchNewCouponCount();
         });
         setInterval(checkNotifications, 3000);
-        setInterval(fetchNewCouponCount, 30000); // Check for new coupons every 30 seconds
     </script>
 
     <!-- Notifications Drawer Component -->
@@ -1057,5 +735,4 @@
 
     {% block scripts %}{% endblock %}
 </body>
-
 </html>
