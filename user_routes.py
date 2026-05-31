@@ -66,34 +66,70 @@ def dashboard():
         session.clear()
         return redirect(url_for('auth.login'))
     
-    # Get user's active challenges
+    # Get user's active challenges (compact, limited to 3)
     active_challenges = ChallengePurchase.query.filter(
         ChallengePurchase.user_id == user.id,
-        ChallengePurchase.status.in_(['active', 'phase1_active', 'phase2_active', 'pending_credentials'])
-    ).join(ChallengeTemplate).all()
+        ChallengePurchase.status.in_(['active', 'phase1_active', 'phase2_active', 'pending_credentials', 'funded_active'])
+    ).order_by(ChallengePurchase.created_at.desc()).limit(3).all()
     
-    # Calculate days remaining dynamically for each challenge
+    # Calculate days remaining
     now_utc = datetime.now(timezone.utc)
     for challenge in active_challenges:
         if challenge.end_date:
-            # Ensure end_date is timezone-aware
             end_date = challenge.end_date.replace(tzinfo=timezone.utc) if challenge.end_date.tzinfo is None else challenge.end_date
             days_left = (end_date - now_utc).days
-            challenge.days_remaining = max(0, days_left)  # Don't show negative days
+            challenge.days_remaining = max(0, days_left)
         else:
             challenge.days_remaining = 0
+        
+        if challenge.current_profit is None:
+            challenge.current_profit = 0.0
+        if challenge.progress_percentage is None:
+            challenge.progress_percentage = 0.0
+        if challenge.max_drawdown_used is None:
+            challenge.max_drawdown_used = 0.0
     
-    # Get recent activity (last 7 days)
-    seven_days_ago = datetime.now(timezone.utc) - timedelta(days=7)
-    recent_payouts = Payout.query.filter(
-        Payout.user_id == user.id,
-        Payout.created_at >= seven_days_ago
-    ).order_by(Payout.created_at.desc()).limit(5).all()
+    # Available challenges for purchase (limit 3)
+    available_challenges = ChallengeTemplate.query.filter_by(is_active=True).order_by(ChallengeTemplate.price).limit(3).all()
+    
+    # Pending payouts count
+    pending_payouts_count = Payout.query.filter_by(user_id=user.id, status='pending').count()
+    
+    # Open tickets
+    open_tickets = SupportTicket.query.filter_by(user_id=user.id, status='open').order_by(SupportTicket.updated_at.desc()).limit(3).all()
+    
+    # Active coupons count
+    now = datetime.now(timezone.utc)
+    active_coupons = Coupon.query.filter_by(is_active=True, is_deleted=False).all()
+    active_coupons_count = 0
+    for coupon in active_coupons:
+        if coupon.expires_at:
+            expires_at = coupon.expires_at.replace(tzinfo=timezone.utc) if coupon.expires_at.tzinfo is None else coupon.expires_at
+            if expires_at < now:
+                continue
+        used = CouponUsage.query.filter_by(coupon_id=coupon.id, user_id=user.id).first()
+        if used:
+            continue
+        if coupon.coupon_type in ['universal', 'influencer']:
+            if coupon.max_uses is None or coupon.used_count < coupon.max_uses:
+                active_coupons_count += 1
+        elif coupon.coupon_type == 'specific':
+            assignment = CouponAssignment.query.filter_by(coupon_id=coupon.id, user_id=user.id, is_used=False).first()
+            if assignment:
+                active_coupons_count += 1
+    
+    # Get ALL challenge purchases for history summary (passed/failed/active)
+    all_challenges = ChallengePurchase.query.filter_by(user_id=user.id).order_by(ChallengePurchase.created_at.desc()).limit(5).all()
     
     return render_template('user/user_dashboard.html',
                          user=user, 
                          active_challenges=active_challenges,
-                         recent_payouts=recent_payouts)
+                         available_challenges=available_challenges,
+                         pending_payouts_count=pending_payouts_count,
+                         open_tickets=open_tickets,
+                         active_coupons_count=active_coupons_count,
+                         all_challenges=all_challenges,
+                         SupportTicket=SupportTicket)
 
 @user_bp.route('/dashboard/stats')
 @login_required
@@ -101,18 +137,23 @@ def dashboard_stats():
     """API endpoint for dashboard statistics"""
     user = User.query.get(session['user_id'])
     
-    # Mock data - replace with actual calculations
+    active_challenges = ChallengePurchase.query.filter(
+        ChallengePurchase.user_id == user.id,
+        ChallengePurchase.status.in_(['active', 'phase1_active', 'phase2_active', 'funded_active'])
+    ).all()
+    
+    total_balance = sum(c.current_balance or 0 for c in active_challenges)
+    total_profit = sum(c.current_profit or 0 for c in active_challenges)
+    
     stats = {
-        'account_balance': 10000,
-        'current_profit': 0,
-        'drawdown_used': 0,
-        'days_remaining': 30,
-        'profit_target_percentage': 0,
-        'max_drawdown_percentage': 0,
-        'time_remaining_percentage': 100
+        'account_balance': total_balance,
+        'current_profit': total_profit,
+        'active_challenges_count': len(active_challenges),
+        'drawdown_used': max([c.max_drawdown_used or 0 for c in active_challenges], default=0),
+        'days_remaining': min([c.days_remaining or 30 for c in active_challenges], default=30),
     }
     
-    return jsonify(stats)
+    return jsonify({'success': True, 'stats': stats})
 
 # ===== KYC ROUTES =====
 @user_bp.route('/kyc')
@@ -131,7 +172,6 @@ def kyc_verification():
             flash('Please verify your email address first.', 'error')
             return redirect(url_for('user.kyc_verification'))
 
-        
         document_type = request.form.get('document_type')
         document_number = request.form.get('document_number', '').strip()
         
@@ -154,7 +194,7 @@ def kyc_verification():
             flash('Please upload back side of your document.', 'error')
             return redirect(url_for('user.kyc_verification'))
         
-        # ===== CHECK FILE SIZES BEFORE PROCESSING =====
+        # Check file sizes before processing
         max_size = 16 * 1024 * 1024  # 16MB per file
         
         front_file.seek(0, 2)
@@ -170,9 +210,7 @@ def kyc_verification():
         if back_size > max_size:
             flash('Your back document image is too large. Please reduce the size and try again.', 'warning')
             return redirect(url_for('user.file_too_large'))
-        # ===== END FILE SIZE CHECK =====
         
-        # Check file extensions
         def allowed_file(filename):
             return '.' in filename and filename.rsplit('.', 1)[1].lower() in {'png', 'jpg', 'jpeg', 'pdf'}
         
@@ -180,22 +218,11 @@ def kyc_verification():
             flash('Only PNG, JPG, JPEG, and PDF files are allowed.', 'error')
             return redirect(url_for('user.kyc_verification'))
         
-        # Helper to process and compress images
         def process_kyc_image(file_storage, prefix):
-            """
-            Process KYC file:
-            1. If Image: Resize (max 1200px width), Compress (65% quality), Convert to JPEG.
-            2. If PDF: Save as is.
-            Returns: Relative path to saved file.
-            """
             ext = file_storage.filename.rsplit('.', 1)[1].lower()
             timestamp = int(time.time())
-            
-            # Create unique filename
-            # userid_timestamp_front.jpg
             base_filename = f"{user.id}_{timestamp}_{prefix}"
             
-            # Ensure upload directory exists
             kyc_dir = os.path.join('static', 'uploads', 'kyc')
             os.makedirs(kyc_dir, exist_ok=True)
             
@@ -203,21 +230,17 @@ def kyc_verification():
                 target_filename = f"{base_filename}.jpg"
                 target_path = os.path.join(kyc_dir, target_filename)
                 
-                # Open image using Pillow
                 img = Image.open(file_storage)
                 
-                # Convert to RGB (required for saving as JPEG if source is RGBA)
                 if img.mode in ("RGBA", "P"):
                     img = img.convert("RGB")
                 
-                # Resize if wider than 1200px
                 max_width = 1200
                 if img.width > max_width:
                     ratio = max_width / float(img.width)
                     height = int(float(img.height) * ratio)
                     img = img.resize((max_width, height), Image.Resampling.LANCZOS)
                 
-                # Save compressed JPEG
                 img.save(target_path, "JPEG", quality=65, optimize=True)
                 return f"uploads/kyc/{target_filename}"
             
@@ -230,7 +253,6 @@ def kyc_verification():
             return None
 
         try:
-            # Process files
             front_rel_path = process_kyc_image(front_file, 'front')
             back_rel_path = process_kyc_image(back_file, 'back')
             
@@ -238,7 +260,6 @@ def kyc_verification():
                 flash('Error processing files. Please try again.', 'error')
                 return redirect(url_for('user.kyc_verification'))
 
-            # Update user KYC status
             user.id_front_url = front_rel_path
             user.id_back_url = back_rel_path
             user.document_type = document_type
@@ -246,7 +267,6 @@ def kyc_verification():
             user.kyc_status = 'submitted'
             user.kyc_submitted_at = datetime.now(timezone.utc)
             db.session.commit()
-
             
             flash('KYC documents submitted successfully! We will review them within 24-48 hours.', 'success')
             return redirect(url_for('user.dashboard'))
@@ -278,9 +298,13 @@ def user_challenges():
     user = User.query.get(session['user_id'])
     user_purchases = ChallengePurchase.query.filter_by(user_id=user.id).join(ChallengeTemplate).all()
     
+    # Get available challenges
+    available_challenges = ChallengeTemplate.query.filter_by(is_active=True).order_by(ChallengeTemplate.price).all()
+    
     return render_template('user/user_challenges.html', 
                          user=user, 
-                         purchases=user_purchases)
+                         purchases=user_purchases,
+                         challenges=available_challenges)
 
 @user_bp.route('/challenge/<int:challenge_id>/buy')
 @login_required
@@ -288,7 +312,6 @@ def buy_challenge(challenge_id):
     user = User.query.get_or_404(session['user_id'])
     challenge = ChallengeTemplate.query.get_or_404(challenge_id)
 
-    # Only check if challenge is active
     if not challenge.is_active:
         flash('This challenge is currently unavailable.', 'error')
         return redirect(url_for('user.challenges'))
@@ -309,14 +332,12 @@ def trading():
         ChallengePurchase.status.in_(['active', 'phase1_active', 'phase2_active', 'pending_credentials'])
     ).join(ChallengeTemplate).all()
     
-    # Calculate days remaining dynamically for each challenge
     now_utc = datetime.now(timezone.utc)
     for challenge in active_challenges:
         if challenge.end_date:
-            # Ensure end_date is timezone-aware
             end_date = challenge.end_date.replace(tzinfo=timezone.utc) if challenge.end_date.tzinfo is None else challenge.end_date
             days_left = (end_date - now_utc).days
-            challenge.days_remaining = max(0, days_left)  # Don't show negative days
+            challenge.days_remaining = max(0, days_left)
         else:
             challenge.days_remaining = 0
     
@@ -334,7 +355,7 @@ def user_history():
         'total': len(purchases),
         'passed': len([p for p in purchases if p.status == 'passed']),
         'failed': len([p for p in purchases if p.status == 'failed']),
-        'active': len([p for p in purchases if p.status == 'active' or p.status == 'pending_credentials'])
+        'active': len([p for p in purchases if p.status in ['active', 'phase1_active', 'phase2_active', 'pending_credentials', 'funded_active']])
     }
     
     return render_template('user/user_history.html', user=user, purchases=purchases, stats=stats)
@@ -347,7 +368,6 @@ def trading_history():
 @user_bp.route('/mt5-download')
 @login_required
 def mt5_download():
-    """Serve MT5 download links"""
     return render_template('user/mt5_download.html')
 
 # ===== PROFILE ROUTES =====
@@ -418,7 +438,6 @@ def request_payout():
             flash('Invalid payout amount.', 'error')
             return redirect(url_for('user.payouts'))
         
-        # Create payout request
         payout = Payout(
             user_id=user.id,
             challenge_purchase_id=challenge.id,
@@ -451,11 +470,9 @@ def update_settings():
     try:
         user = User.query.get(session['user_id'])
         
-        # Update Trading Alias
         if 'trading_alias' in request.form:
             user.trading_alias = request.form.get('trading_alias', '').strip()
             
-        # Update Compact View
         if 'is_compact_view' in request.form:
             user.is_compact_view = request.form.get('is_compact_view') == 'true'
             
@@ -510,22 +527,21 @@ def security():
 @user_bp.route('/api/challenge-progress/<int:challenge_id>')
 @login_required
 def api_challenge_progress(challenge_id):
-    """API endpoint for challenge progress data"""
     challenge = ChallengePurchase.query.filter_by(
         id=challenge_id,
         user_id=session['user_id']
     ).first_or_404()
     
     progress_data = {
-        'profit_target_percentage': challenge.progress_percentage,
-        'max_drawdown_used': challenge.max_drawdown_used,
-        'days_remaining': challenge.days_remaining,
-        'current_balance': challenge.current_balance,
-        'current_profit': challenge.current_profit,
-        'status': challenge.status
+        'profit_target_percentage': challenge.progress_percentage or 0,
+        'max_drawdown_used': challenge.max_drawdown_used or 0,
+        'days_remaining': challenge.days_remaining or 0,
+        'current_balance': challenge.current_balance or 0,
+        'current_profit': challenge.current_profit or 0,
+        'status': challenge.status or 'unknown'
     }
     
-    return jsonify(progress_data)
+    return jsonify({'success': True, 'data': progress_data})
 
 # ===== CHALLENGE ROUTES =====
 @user_bp.route('/challenges')
@@ -533,11 +549,12 @@ def api_challenge_progress(challenge_id):
 def challenges():
     user = User.query.get(session['user_id'])
     available_challenges = ChallengeTemplate.query.filter_by(is_active=True).all()
+    user_purchases = ChallengePurchase.query.filter_by(user_id=user.id).all()
     
     return render_template('user/user_challenges.html',
                          user=user, 
                          challenges=available_challenges,
-                         user_purchases=[])
+                         purchases=user_purchases)
 
 @user_bp.route('/api/challenge/<int:challenge_id>/credentials')
 @login_required
@@ -550,16 +567,15 @@ def get_challenge_credentials(challenge_id):
     
     return jsonify({
         'success': True,
-        'challenge_name': challenge.challenge_template.name,
-        'mt5_server': challenge.mt5_server,
-        'mt5_login': challenge.mt5_login,
-        'mt5_password': challenge.mt5_password
+        'challenge_name': challenge.challenge_template.name if challenge.challenge_template else 'Challenge',
+        'mt5_server': challenge.mt5_server or 'Not assigned',
+        'mt5_login': challenge.mt5_login or 'Not assigned',
+        'mt5_password': challenge.mt5_password or 'Not assigned'
     })
 
 @user_bp.route('/credentials/<int:challenge_id>')
 @login_required
 def view_credentials(challenge_id):
-    """Show MT5 credentials page for a specific challenge"""
     user = User.query.get(session['user_id'])
     
     challenge = ChallengePurchase.query.filter_by(
@@ -567,7 +583,7 @@ def view_credentials(challenge_id):
         user_id=user.id
     ).first_or_404()
     
-    if challenge.status != 'active' or not challenge.mt5_login:
+    if not challenge.mt5_login:
         flash('Credentials not available for this challenge', 'error')
         return redirect(url_for('user.trading'))
     
@@ -578,22 +594,19 @@ def view_credentials(challenge_id):
 @user_bp.route('/start-phase2/<int:challenge_id>', methods=['POST'])
 @login_required
 def start_phase2(challenge_id):
-    """Start Phase 2 of a challenge"""
     try:
         user = User.query.get(session['user_id'])
         
         challenge = ChallengePurchase.query.filter_by(
             id=challenge_id,
-            user_id=user.id,
-            phase=1,
-            status='passed'
+            user_id=user.id
         ).first_or_404()
         
         if challenge.phase == 2:
             return jsonify({'success': False, 'error': 'Already in Phase 2'})
         
         challenge.phase = 2
-        challenge.status = 'active'
+        challenge.status = 'phase2_active'
         challenge.start_date = datetime.now(timezone.utc)
         challenge.end_date = datetime.now(timezone.utc) + timedelta(days=30)
         challenge.days_remaining = 30
@@ -611,7 +624,6 @@ def start_phase2(challenge_id):
 @user_bp.route('/trading/dashboard/<int:challenge_id>')
 @login_required
 def trading_dashboard(challenge_id):
-    """Trading analytics dashboard for a specific challenge"""
     user = User.query.get(session['user_id'])
     
     challenge = ChallengePurchase.query.filter_by(
@@ -773,7 +785,6 @@ def user_analytics():
 @user_bp.route('/api/challenge/<int:challenge_id>/clear-flag', methods=['POST'])
 @login_required
 def api_user_clear_flag(challenge_id):
-    """Clear flag after admin review (only if admin cleared it)"""
     user = User.query.get(session['user_id'])
     challenge = ChallengePurchase.query.filter_by(id=challenge_id, user_id=user.id).first()
     
@@ -792,7 +803,6 @@ def api_user_clear_flag(challenge_id):
 @user_bp.route('/history/details/<int:challenge_id>')
 @login_required
 def history_details(challenge_id):
-    """Show detailed history of a failed/passed challenge"""
     user = User.query.get(session['user_id'])
     challenge = ChallengePurchase.query.filter_by(id=challenge_id, user_id=user.id).first_or_404()
     
@@ -808,7 +818,6 @@ def history_details(challenge_id):
 @user_bp.route('/api/challenge/<int:challenge_id>/history')
 @login_required
 def api_challenge_history(challenge_id):
-    """API endpoint for challenge history data"""
     user = User.query.get(session['user_id'])
     challenge = ChallengePurchase.query.filter_by(id=challenge_id, user_id=user.id).first()
     
@@ -879,14 +888,12 @@ def api_get_notifications():
         user_id = session.get('user_id')
         now_utc = datetime.now(timezone.utc)
 
-        # Query active, unexpired, non-deleted notifications
         notifications = Notification.query.filter(
             Notification.is_deleted == False,
             (Notification.expires_at == None) | (Notification.expires_at > now_utc),
             (Notification.is_global == True) | (Notification.target_user_id == user_id)
         ).order_by(Notification.created_at.desc()).all()
 
-        # Fetch read status mappings for the current user
         read_mappings = {
             un.notification_id: un.is_read
             for un in UserNotification.query.filter_by(user_id=user_id).all()
@@ -940,7 +947,6 @@ def api_mark_notifications_read():
                 mapping.is_read = True
                 mapping.read_at = now_utc
             else:
-                # Verify user is allowed to read this notification
                 notif = Notification.query.filter_by(id=nid, is_deleted=False).first()
                 if notif and (notif.is_global or notif.target_user_id == user_id):
                     user_notif = UserNotification(
@@ -967,7 +973,6 @@ def api_mark_all_notifications_read():
         user_id = session.get('user_id')
         now_utc = datetime.now(timezone.utc)
 
-        # Retrieve active notifications for user
         notifications = Notification.query.filter(
             Notification.is_deleted == False,
             (Notification.expires_at == None) | (Notification.expires_at > now_utc),
@@ -1004,30 +1009,25 @@ def user_coupons():
     user = User.query.get(session['user_id'])
     now = datetime.now(timezone.utc)
     
-    # Fetch all active, non-deleted coupons
     all_coupons = Coupon.query.filter_by(is_active=True, is_deleted=False).all()
     
     available_coupons = []
     for coupon in all_coupons:
-        # Check expiry
         if coupon.expires_at:
             expires_at = coupon.expires_at.replace(tzinfo=timezone.utc) if coupon.expires_at.tzinfo is None else coupon.expires_at
             if expires_at < now:
                 continue
 
-        # Check if user has already used it (one use per user per coupon)
         used = CouponUsage.query.filter_by(coupon_id=coupon.id, user_id=user.id).first()
         if used:
             continue
             
         if coupon.coupon_type in ['universal', 'influencer']:
-            # Check max usage limit
             if coupon.max_uses is not None and coupon.used_count >= coupon.max_uses:
                 continue
             available_coupons.append(coupon)
             
         elif coupon.coupon_type == 'specific':
-            # Must be assigned to this user and not used
             assignment = CouponAssignment.query.filter_by(
                 coupon_id=coupon.id, 
                 user_id=user.id, 
@@ -1078,4 +1078,4 @@ def validate_coupon_api():
         
     except Exception as e:
         print(f"Error validating coupon: {e}")
-        return jsonify({'success': False, 'error': 'An error occurred while validating the coupon'})
+        return jsonify({'success': False, 'error': 'An error occurred while validating the coupon'})

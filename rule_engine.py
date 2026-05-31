@@ -2,14 +2,11 @@
 TRAGENE FUNDED - RULE ENGINE (COMPLETE REWRITE)
 All rules implemented, fixed metrics, proper anti-cheat, dashboard-ready
 
-CHANGES FROM PREVIOUS VERSION:
-- Balance manipulation check is SKIPPED if challenge is already flagged
-  (prevents re-flagging on every sync until admin clears the flag)
-- When admin clears the flag, they must set `manipulation_check_baseline`
-  and `manipulation_baseline_set_at` on the challenge — the engine will
-  then only count trades closed AFTER that timestamp, giving a true fresh start
-- Overall drawdown is now STATIC (anchored to CHALLENGE_ACCOUNT_SIZE, not trailing peak)
-- All other logic is UNCHANGED
+CHANGES:
+- Balance manipulation check SKIPPED if challenge already flagged
+- Overall drawdown is STATIC (anchored to CHALLENGE_ACCOUNT_SIZE)
+- DAYS REMAINING: Counts from purchase/creation date, NOT first trade
+- When admin clears flag, fresh start baseline is set
 """
 
 from datetime import datetime, timezone, date, timedelta
@@ -37,7 +34,6 @@ class Severity:
     CRITICAL  = 'critical'
     SUCCESS   = 'success'
 
-# How many points each anti-cheat hit adds
 RISK_WEIGHTS = {
     'balance_manipulation': 50,
     'credit_detected':      40,
@@ -58,7 +54,6 @@ RISK_WEIGHTS = {
 # ========================================================================
 
 def _safe_float(val, fallback=0.0):
-    """Convert anything to float safely."""
     if val is None or val == '' or val == 'None':
         return fallback
     try:
@@ -67,7 +62,6 @@ def _safe_float(val, fallback=0.0):
         return fallback
 
 def _safe_int(val, fallback=0):
-    """Convert anything to int safely, handles '1:100' format."""
     if val is None or val == '' or val == 'None':
         return fallback
     try:
@@ -79,10 +73,6 @@ def _safe_int(val, fallback=0):
         return fallback
 
 def _parse_leverage(val):
-    """
-    Parse leverage from EA which may send '1:100', '100', 100, etc.
-    Always returns the numeric divisor as int (e.g. 100).
-    """
     s = str(val or '0').strip()
     try:
         if ':' in s:
@@ -96,7 +86,6 @@ def _parse_leverage(val):
 # ========================================================================
 
 def ensure_utc(dt):
-    """Convert any datetime to UTC, handles naive and aware datetimes."""
     if not dt:
         return None
     try:
@@ -145,6 +134,7 @@ def process_sync(challenge, data):
             f"[RULE ENGINE] Done │ Profit: {challenge.profit_percent:.2f}% │ "
             f"DD(daily): {challenge.daily_drawdown:.2f}% │ "
             f"DD(overall): {challenge.overall_drawdown:.2f}% │ "
+            f"Days Left: {challenge.days_remaining} │ "
             f"Risk: {challenge.risk_score} │ Status: {challenge.status}"
         )
         
@@ -157,9 +147,7 @@ def process_sync(challenge, data):
         print(f"Error: {str(e)}")
         traceback.print_exc()
         print("="*80)
-
         db.session.rollback()
-        
         return False
 
 # ========================================================================
@@ -167,11 +155,6 @@ def process_sync(challenge, data):
 # ========================================================================
 
 def _ensure_starting_balance(challenge, data):
-    """
-    If starting_balance is 0 / None (first ever sync), set it from
-    the account balance that just arrived.
-    Also initialise peak / phase_start_balance.
-    """
     account = data.get('account', {})
     balance = _safe_float(account.get('balance') or data.get('balance'))
 
@@ -184,6 +167,12 @@ def _ensure_starting_balance(challenge, data):
         challenge.peak_equity         = balance
         challenge.day_start_equity    = _safe_float(account.get('equity') or balance)
         challenge.lowest_equity_today = challenge.day_start_equity
+        
+        # FIXED: Set start_date on first sync if not already set
+        if not challenge.start_date:
+            challenge.start_date = datetime.now(timezone.utc)
+            print(f"[INIT] start_date set to {challenge.start_date}")
+        
         print(f"[INIT] starting_balance set to {balance}")
 
     if not challenge.phase_start_balance or challenge.phase_start_balance == 0:
@@ -191,6 +180,20 @@ def _ensure_starting_balance(challenge, data):
 
     if not challenge.last_verified_balance or challenge.last_verified_balance == 0:
         challenge.last_verified_balance = balance
+
+    # FIXED: Ensure end_date exists (count from purchase, not first trade)
+    if not challenge.end_date and challenge.start_date:
+        duration = 30
+        if challenge.challenge_template:
+            if challenge.challenge_type == 'instant':
+                duration = 999
+            elif challenge.current_phase == 2:
+                duration = _safe_int(challenge.challenge_template.phase2_duration) or 30
+            else:
+                duration = _safe_int(challenge.challenge_template.phase1_duration) or 30
+        
+        challenge.end_date = challenge.start_date + timedelta(days=duration)
+        print(f"[INIT] end_date set to {challenge.end_date.date()} ({duration} days from start)")
 
     db.session.commit()
 
@@ -304,7 +307,6 @@ def update_metrics(challenge, data):
     cur_balance = _safe_float(account.get('balance') or data.get('balance') or challenge.current_balance)
     cur_equity  = _safe_float(account.get('equity')  or data.get('equity')  or challenge.current_equity)
 
-    # Parse broker time
     broker_time_str = account.get('terminal_time') or data.get('broker_time')
     now_utc         = parse_datetime(broker_time_str) if broker_time_str else datetime.now(timezone.utc)
     today           = now_utc.date()
@@ -350,8 +352,6 @@ def update_metrics(challenge, data):
     challenge.phase_profit_percent = ((cur_balance - psb) / psb * 100) if psb > 0 else challenge.profit_percent
 
     # ── Overall drawdown (STATIC - anchored to CHALLENGE_ACCOUNT_SIZE) ──
-    # Uses the challenge template's account_size as the permanent floor.
-    # Growth or profits do NOT trail or alter this floor.
     account_size = _safe_float(
         challenge.challenge_template.account_size
     ) if challenge.challenge_template else sb
@@ -382,12 +382,34 @@ def update_metrics(challenge, data):
             challenge.trading_days_completed = challenge.trading_days
             challenge.last_trade_date        = today
 
-    # ── Days remaining ───────────────────────────────────────────────────
+    # ═══════════════════════════════════════════════════════════════════
+    # FIXED: Days remaining - COUNTS FROM PURCHASE/CREATION DATE
+    # NOT from first trade. end_date is set at purchase = start_date + duration
+    # ═══════════════════════════════════════════════════════════════════
+    now = datetime.now(timezone.utc)
+    
     if challenge.end_date:
-        remaining = (ensure_utc(challenge.end_date) - datetime.now(timezone.utc)).days
-        challenge.days_remaining = max(0, remaining)
+        end = ensure_utc(challenge.end_date)
+        challenge.days_remaining = max(0, (end - now).days)
+    elif challenge.start_date:
+        # Fallback: calculate from start_date if end_date somehow missing
+        start = ensure_utc(challenge.start_date)
+        duration = 30
+        if challenge.challenge_template:
+            if challenge.challenge_type == 'instant':
+                duration = 999
+            elif challenge.current_phase == 2:
+                duration = _safe_int(challenge.challenge_template.phase2_duration) or 30
+            else:
+                duration = _safe_int(challenge.challenge_template.phase1_duration) or 30
+        
+        challenge.end_date = start + timedelta(days=duration)
+        elapsed = (now - start).days
+        challenge.days_remaining = max(0, duration - elapsed)
+        print(f"[DAYS] No end_date! Calculated: {duration}d from start, {challenge.days_remaining} left")
     else:
         challenge.days_remaining = 30
+        print(f"[DAYS] No start_date or end_date! Defaulting to 30")
 
     # ── Distance metrics ────────────────────────────────────────────────
     rules = get_active_rules(challenge)
@@ -402,7 +424,8 @@ def update_metrics(challenge, data):
         f"Start: ${sb:.2f} │ "
         f"Profit: {challenge.profit_percent:.2f}% │ "
         f"Daily DD: {challenge.daily_drawdown:.2f}% │ "
-        f"Overall DD: {challenge.overall_drawdown:.2f}% (static)"
+        f"Overall DD: {challenge.overall_drawdown:.2f}% (static) │ "
+        f"Days Left: {challenge.days_remaining}"
     )
 
     db.session.commit()
@@ -500,6 +523,8 @@ def _handle_phase_progression(challenge):
         challenge.monitoring_status         = ChallengeState.ACTIVE
         challenge.phase1_completed_at       = now
         challenge.phase2_started_at         = now
+        
+        # Reset phase metrics for Phase 2
         challenge.phase_start_balance       = challenge.current_balance
         challenge.phase_start_equity        = challenge.current_equity
         challenge.phase_start_date          = now
@@ -509,9 +534,14 @@ def _handle_phase_progression(challenge):
         challenge.phase_lowest_equity_today = challenge.current_equity
         challenge.phase_daily_start_date    = now.date()
         challenge.phase_daily_drawdown      = 0.0
+        
         t = challenge.challenge_template
         if t and t.phase2_duration:
+            # FIXED: Reset end_date for Phase 2 countdown
             challenge.end_date = now + timedelta(days=_safe_int(t.phase2_duration))
+            challenge.days_remaining = _safe_int(t.phase2_duration)
+            print(f"[PHASE 2] New end_date: {challenge.end_date.date()}, {challenge.days_remaining} days")
+        
         log_rule(challenge.id, "phase_complete", Severity.SUCCESS, "Phase 1 complete — moved to Phase 2!")
         print("[SUCCESS] Moved to Phase 2")
     else:
@@ -531,20 +561,8 @@ def _handle_phase_progression(challenge):
 # ========================================================================
 
 def check_anti_cheat(challenge, data):
-    """
-    All 12 anti-cheat checks.
-
-    BALANCE MANIPULATION LOGIC (updated):
-    - If the challenge is currently FLAGGED (admin hasn't cleared yet),
-      skip the balance manipulation check entirely to prevent spam re-flagging.
-    - When admin clears the flag, they set `manipulation_check_baseline`
-      to the current balance and `manipulation_baseline_set_at` to now.
-    - After that, we only count trades closed AFTER `manipulation_baseline_set_at`
-      so old "dirty" history doesn't re-trigger the rule — true fresh start.
-    """
     account = data.get('account', {})
 
-    # ── Safe parse all account fields ────────────────────────────────────
     cur_balance  = _safe_float(account.get('balance')     or data.get('balance'))
     cur_equity   = _safe_float(account.get('equity')      or data.get('equity'))
     floating_pnl = _safe_float(account.get('floating_pnl'))
@@ -592,10 +610,10 @@ def check_anti_cheat(challenge, data):
 
         print(
             f"[BALANCE CHECK] Baseline: ${baseline:.2f} | "
-            f"Closed P&L (since baseline): ${total_closed_profit:.2f} | "
+            f"Closed P&L: ${total_closed_profit:.2f} | "
             f"Expected: ${expected_balance:.2f} | Actual: ${cur_balance:.2f} | "
             f"Diff: ${diff:.2f}"
-            + (" | Fresh-start baseline active" if baseline_set_at else "")
+            + (" | Fresh-start baseline" if baseline_set_at else "")
         )
 
         if diff > 1.0:
@@ -603,10 +621,8 @@ def check_anti_cheat(challenge, data):
             new_flags.append('balance_manipulation')
             log_rule(challenge.id, "balance_manipulation", Severity.CRITICAL,
                      f"Balance top-up detected! Expected ${expected_balance:.2f} "
-                     f"(baseline ${baseline:.2f} + P&L ${total_closed_profit:.2f}) "
                      f"but got ${cur_balance:.2f}. Extra: ${diff:.2f}",
                      cur_balance, expected_balance)
-            print(f"[ANTI-CHEAT] BALANCE MANIPULATION: +${diff:.2f} unexplained")
 
         elif diff < -1.0:
             prev     = _safe_float(getattr(challenge, 'previous_balance_snapshot', None)) or starting
@@ -616,16 +632,11 @@ def check_anti_cheat(challenge, data):
                 added_risk += RISK_WEIGHTS['account_reset']
                 new_flags.append('account_reset')
                 log_rule(challenge.id, "account_reset", Severity.CRITICAL,
-                         f"Account reset detected! Balance dropped {drop_pct:.1f}%: "
-                         f"${prev:.2f} → ${cur_balance:.2f}",
+                         f"Account reset! Balance dropped {drop_pct:.1f}%: ${prev:.2f} → ${cur_balance:.2f}",
                          cur_balance, prev)
-                print(f"[ANTI-CHEAT] ACCOUNT RESET: dropped {drop_pct:.1f}%")
 
     elif already_flagged:
-        print(
-            f"[ANTI-CHEAT] Balance manipulation check SKIPPED — "
-            f"challenge already flagged, waiting for admin to clear."
-        )
+        print(f"[ANTI-CHEAT] Balance check SKIPPED — challenge already flagged")
 
     challenge.previous_balance_snapshot = cur_balance
 
@@ -699,7 +710,7 @@ def check_anti_cheat(challenge, data):
             added_risk += RISK_WEIGHTS['hedging_detected']
             new_flags.append(f'hedging_{sym}')
             log_rule(challenge.id, "hedging_detected", Severity.WARNING,
-                     f"Hedging on {sym}: net={net:.3f} lots with {symbol_cnt[sym]} positions open")
+                     f"Hedging on {sym}: net={net:.3f} lots, {symbol_cnt[sym]} positions")
             break
 
     # ── 7. Martingale Pattern ─────────────────────────────────────────────
@@ -720,7 +731,7 @@ def check_anti_cheat(challenge, data):
             added_risk += RISK_WEIGHTS['martingale_pattern']
             new_flags.append('martingale_pattern')
             log_rule(challenge.id, "martingale_pattern", Severity.WARNING,
-                     f"Martingale: lot doubling after loss detected {doubles} times in last {len(recent)} trades")
+                     f"Martingale: lot doubling after loss {doubles}x in last {len(recent)} trades")
 
     # ── 8. Equity Spike ───────────────────────────────────────────────────
     prev_eq  = _safe_float(getattr(challenge, 'previous_equity_snapshot',  None)) or cur_equity
@@ -733,8 +744,7 @@ def check_anti_cheat(challenge, data):
             added_risk += RISK_WEIGHTS['equity_spike']
             new_flags.append('equity_spike')
             log_rule(challenge.id, "equity_spike", Severity.WARNING,
-                     f"Equity spike: Δeq={eq_change:.2f}, Δbal={bal_change:.2f}, "
-                     f"unexplained={eq_change - bal_change:.2f}")
+                     f"Equity spike: Δeq={eq_change:.2f}, Δbal={bal_change:.2f}")
     challenge.previous_equity_snapshot   = cur_equity
     challenge.previous_balance_for_spike = cur_balance
 
@@ -754,12 +764,11 @@ def check_anti_cheat(challenge, data):
             added_risk += RISK_WEIGHTS['copy_trading']
             new_flags.append('copy_trading')
             log_rule(challenge.id, "copy_trading", Severity.CRITICAL,
-                     f"Same open tickets in other challenges: {dupe_tickets[:5]}",
-                     len(dupe_tickets), 0)
+                     f"Same tickets in other challenges: {dupe_tickets[:5]}")
             added_risk += RISK_WEIGHTS['multiple_accounts']
             new_flags.append('multiple_accounts')
             log_rule(challenge.id, "multiple_accounts", Severity.WARNING,
-                     f"Multiple challenges running same positions simultaneously")
+                     f"Multiple challenges running same positions")
 
     # ── 10. Manual Trade Editing ──────────────────────────────────────────
     for td in open_trades:
@@ -778,8 +787,7 @@ def check_anti_cheat(challenge, data):
                 added_risk += RISK_WEIGHTS['manual_trade_edit']
                 new_flags.append('manual_trade_edit')
                 log_rule(challenge.id, "manual_trade_edit", Severity.WARNING,
-                         f"SL/TP modified on ticket {ticket}: "
-                         f"SL {sl_old}→{sl_now}, TP {tp_old}→{tp_now}")
+                         f"SL/TP modified ticket {ticket}: SL {sl_old}→{sl_now}, TP {tp_old}→{tp_now}")
             existing.sl = sl_now
             existing.tp = tp_now
 
@@ -842,13 +850,20 @@ def update_challenge_status(challenge, rules):
     else:
         challenge.progress_percentage = 0.0
 
+    # ═══════════════════════════════════════════════════════════════════
+    # FIXED: Days remaining final check - COUNTS FROM PURCHASE DATE
+    # ═══════════════════════════════════════════════════════════════════
+    now = datetime.now(timezone.utc)
+    
     if challenge.end_date:
         end_date_utc = ensure_utc(challenge.end_date)
-        if end_date_utc:
-            rem = (end_date_utc - datetime.now(timezone.utc)).days
-            challenge.days_remaining = max(0, rem)
-        else:
-            challenge.days_remaining = 30
+        challenge.days_remaining = max(0, (end_date_utc - now).days)
+    elif challenge.start_date:
+        start = ensure_utc(challenge.start_date)
+        duration = _safe_int(rules.get('duration')) or 30
+        challenge.end_date = start + timedelta(days=duration)
+        elapsed = (now - start).days
+        challenge.days_remaining = max(0, duration - elapsed)
     else:
         challenge.days_remaining = 30
 
@@ -869,7 +884,6 @@ def update_challenge_status(challenge, rules):
 # ========================================================================
 
 def parse_datetime(dt_str):
-    """Parse datetime string safely with proper timezone handling."""
     if not dt_str:
         return datetime.now(timezone.utc)
     if isinstance(dt_str, datetime):
@@ -883,7 +897,6 @@ def parse_datetime(dt_str):
 
 def log_rule(challenge_id, rule_name, severity, message,
              current_value=None, threshold_value=None):
-    """Log a rule event safely without crashing on type conversions."""
     try:
         current_value_clean   = _safe_float(current_value, None)   if current_value  is not None else None
         threshold_value_clean = _safe_float(threshold_value, None) if threshold_value is not None else None

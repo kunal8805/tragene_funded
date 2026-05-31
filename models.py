@@ -87,10 +87,10 @@ class User(db.Model):
     trader_level = db.Column(db.String(50), default='Starter')
     is_compact_view = db.Column(db.Boolean, default=False)
 
-    # Relationships
-    challenge_purchases = db.relationship('TradingJourney', backref='user', lazy=True, cascade='all, delete-orphan')
-    payouts = db.relationship('Payout', backref='user', lazy=True, cascade='all, delete-orphan')
-    payments = db.relationship('Payment', backref='user', lazy=True, cascade='all, delete-orphan', foreign_keys='Payment.user_id')
+    # Relationships - FIXED: using string reference with proper backref names
+    challenge_purchases = db.relationship('TradingJourney', backref='user_obj', lazy=True, cascade='all, delete-orphan')
+    payouts = db.relationship('Payout', backref='user_obj', lazy=True, cascade='all, delete-orphan')
+    payments = db.relationship('Payment', backref='user_obj', lazy=True, cascade='all, delete-orphan', foreign_keys='Payment.user_id')
     
     def set_password(self, password):
         self.password = generate_password_hash(password)
@@ -128,6 +128,7 @@ class User(db.Model):
     
     def __repr__(self):
         return f'<User {self.email}>'
+
 
 class PartnerEarnings(db.Model):
     __tablename__ = 'partner_earnings'
@@ -185,6 +186,9 @@ class ChallengeTemplate(db.Model):
     challenge_type = db.Column(db.String(20), nullable=False, default='one_phase', index=True)
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
     updated_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    
+    # Relationships - FIXED: using string reference
+    purchases = db.relationship('TradingJourney', backref='challenge_template', lazy=True)
     
     @property
     def profit_target(self):
@@ -347,19 +351,23 @@ class TradingJourney(db.Model):
     last_updated = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
     completed_at = db.Column(db.DateTime(timezone=True), nullable=True, index=True)
     
-    # Relationships
-    challenge_template = db.relationship('ChallengeTemplate', backref='purchases', lazy=True)
-    payouts = db.relationship('Payout', backref='challenge_purchase', lazy=True, cascade='all, delete-orphan')
-    payment = db.relationship('Payment', backref='challenge_purchase', uselist=False)
+    # FIXED: Added created_at for backward compatibility
+    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
+    
+    # Relationships - FIXED: using string references to avoid circular imports
+    payouts = db.relationship('Payout', backref='challenge_purchase_obj', lazy=True, cascade='all, delete-orphan')
+    payment = db.relationship('Payment', backref='challenge_purchase_obj', uselist=False)
     
     # EA monitoring relationships
-    account_snapshots = db.relationship('AccountSnapshot', backref='challenge', lazy=True, cascade='all, delete-orphan')
-    ea_trades = db.relationship('EATrade', backref='challenge', lazy=True, cascade='all, delete-orphan')
-    rule_violations = db.relationship('RuleViolation', backref='challenge', lazy=True, cascade='all, delete-orphan')
+    account_snapshots = db.relationship('AccountSnapshot', backref='challenge_obj', lazy=True, cascade='all, delete-orphan')
+    ea_trades = db.relationship('EATrade', backref='challenge_obj', lazy=True, cascade='all, delete-orphan')
+    rule_violations = db.relationship('RuleViolation', backref='challenge_obj', lazy=True, cascade='all, delete-orphan')
     
     # Rule engine relationships
-    rule_logs = db.relationship('RuleLog', backref='challenge', lazy=True, cascade='all, delete-orphan')
-    trade_history = db.relationship('TradeHistory', backref='challenge', lazy=True, cascade='all, delete-orphan')
+    rule_logs = db.relationship('RuleLog', backref='challenge_obj', lazy=True, cascade='all, delete-orphan')
+    trade_history = db.relationship('TradeHistory', backref='challenge_obj', lazy=True, cascade='all, delete-orphan')
+    trades = db.relationship('Trade', backref='challenge_purchase_obj', lazy=True)
+    coupon_usage = db.relationship('CouponUsage', backref='challenge_purchase_obj', uselist=False)
     
     # Simple methods only - business logic goes in engine
     def is_active(self):
@@ -657,6 +665,10 @@ class Payout(db.Model):
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
     updated_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     
+    # FIXED: Use string references for relationships
+    user = db.relationship('User', backref='payouts_list', foreign_keys=[user_id])
+    challenge_purchase = db.relationship('TradingJourney', backref='payouts_list', foreign_keys=[challenge_purchase_id])
+    
     def __repr__(self):
         return f'<Payout {self.id} - ${self.amount}>'
 
@@ -694,7 +706,10 @@ class Payment(db.Model):
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
     updated_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     
-    coupon = db.relationship('Coupon', backref='payments')
+    # FIXED: Use string references for relationships
+    user = db.relationship('User', backref='payments_list', foreign_keys=[user_id])
+    challenge_purchase = db.relationship('TradingJourney', backref='payment_obj', foreign_keys=[challenge_purchase_id])
+    coupon = db.relationship('Coupon', backref='payments_list')
 
     def __repr__(self):
         return f'<Payment {self.payment_id} - {self.status}>'
@@ -747,9 +762,8 @@ class AdminAuditLog(db.Model):
         return f'<AdminAuditLog {self.action} by {self.admin_id}>'
 
 
-# FIXED: Added __tablename__ to SupportTicket
 class SupportTicket(db.Model):
-    __tablename__ = 'support_ticket'  # <-- ADDED THIS LINE
+    __tablename__ = 'support_ticket'
     
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
@@ -775,12 +789,11 @@ class SupportTicket(db.Model):
         return f'<SupportTicket {self.ticket_number} - {self.subject}>'
 
 
-# FIXED: Changed ForeignKey to reference 'support_ticket.id' (without 's')
 class TicketMessage(db.Model):
-    __tablename__ = 'ticket_message'  # <-- ADDED THIS LINE
+    __tablename__ = 'ticket_message'
     
     id = db.Column(db.Integer, primary_key=True)
-    ticket_id = db.Column(db.Integer, db.ForeignKey('support_ticket.id'), nullable=False, index=True)  # <-- FIXED: 'support_ticket' not 'support_tickets'
+    ticket_id = db.Column(db.Integer, db.ForeignKey('support_ticket.id'), nullable=False, index=True)
     sender_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     message = db.Column(db.Text, nullable=False)
     is_admin_reply = db.Column(db.Boolean, default=False)
@@ -825,7 +838,7 @@ class Trade(db.Model):
     notes = db.Column(db.Text)
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
     updated_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
-    challenge_purchase = db.relationship('TradingJourney', backref='trades', lazy=True)
+    challenge_purchase = db.relationship('TradingJourney', backref='trade_list', lazy=True)
     
     def __repr__(self):
         return f'<Trade {self.trade_id} - {self.symbol}>'
@@ -843,17 +856,12 @@ class Notification(db.Model):
     created_by_admin_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     is_deleted = db.Column(db.Boolean, default=False, index=True)
 
-    # Relationships
     target_user = db.relationship('User', foreign_keys=[target_user_id], backref='targeted_notifications', lazy=True)
     admin = db.relationship('User', foreign_keys=[created_by_admin_id], backref='created_notifications', lazy=True)
     
     def __repr__(self):
         return f'<Notification {self.id} - {self.title}>'
 
-
-# ========================================================================
-# NEW: NOTIFICATION TEMPLATE MODEL
-# ========================================================================
 
 class NotificationTemplate(db.Model):
     __tablename__ = 'notification_template'
@@ -869,7 +877,6 @@ class NotificationTemplate(db.Model):
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     
-    # Relationship
     created_by = db.relationship('User', foreign_keys=[created_by_admin_id], backref='created_templates', lazy=True)
     
     def increment_use_count(self):
@@ -906,7 +913,6 @@ class UserNotification(db.Model):
         return f'<UserNotification {self.id} - User {self.user_id} - Read: {self.is_read}>'
 
 
-
 class WaitlistLead(db.Model):
     __tablename__ = 'waitlist_leads'
     
@@ -941,19 +947,15 @@ class BlogPost(db.Model):
         return f'<BlogPost {self.title}>'
 
 
-# ========================================================================
-# COUPON SYSTEM MODELS
-# ========================================================================
-
 class Coupon(db.Model):
     __tablename__ = 'coupon'
     id = db.Column(db.Integer, primary_key=True)
     code = db.Column(db.String(50), unique=True, nullable=False, index=True)
     description = db.Column(db.Text)
-    coupon_type = db.Column(db.String(20), nullable=False, default='universal') # 'universal' / 'specific' / 'influencer'
-    discount_type = db.Column(db.String(20), nullable=False, default='percent') # 'percent' / 'fixed'
+    coupon_type = db.Column(db.String(20), nullable=False, default='universal')
+    discount_type = db.Column(db.String(20), nullable=False, default='percent')
     discount_value = db.Column(db.Float, nullable=False)
-    max_uses = db.Column(db.Integer, nullable=True) # None = unlimited
+    max_uses = db.Column(db.Integer, nullable=True)
     used_count = db.Column(db.Integer, default=0, nullable=False)
     is_active = db.Column(db.Boolean, default=True, nullable=False, index=True)
     is_deleted = db.Column(db.Boolean, default=False, nullable=False, index=True)
@@ -977,18 +979,12 @@ class Coupon(db.Model):
         return expires_at < datetime.now(timezone.utc)
 
     def validate_for_user_and_price(self, user_id, challenge_price):
-        """
-        Validates the coupon against a specific user and price.
-        Returns (is_valid, error_msg, discount_amount, final_price)
-        """
         from datetime import datetime, timezone
-        from models import CouponUsage, CouponAssignment
         
         if not self.is_active or self.is_deleted:
             return False, "Coupon is inactive or deleted", 0.0, challenge_price
             
         if self.expires_at:
-            # Handle naive/aware datetime comparison
             expires_at = self.expires_at
             if expires_at.tzinfo is None:
                 expires_at = expires_at.replace(tzinfo=timezone.utc)
@@ -998,12 +994,10 @@ class Coupon(db.Model):
         if self.max_uses is not None and self.used_count >= self.max_uses:
             return False, "Coupon usage limit reached", 0.0, challenge_price
             
-        # Check single use limit per user per coupon
         usage_count = CouponUsage.query.filter_by(coupon_id=self.id, user_id=user_id).count()
         if usage_count > 0:
             return False, "You have already used this coupon code", 0.0, challenge_price
             
-        # Specific check
         if self.coupon_type == 'specific':
             assignment = CouponAssignment.query.filter_by(coupon_id=self.id, user_id=user_id).first()
             if not assignment:
@@ -1011,7 +1005,6 @@ class Coupon(db.Model):
             if assignment.is_used:
                 return False, "You have already used this assigned coupon code", 0.0, challenge_price
                 
-        # Calculate discount
         if self.discount_type == 'percent':
             discount_amount = round(challenge_price * (self.discount_value / 100.0), 2)
         elif self.discount_type == 'fixed':
@@ -1019,7 +1012,6 @@ class Coupon(db.Model):
         else:
             discount_amount = 0.0
             
-        # Cap price at ₹1 min
         final_price = max(1.0, challenge_price - discount_amount)
         discount_amount = round(challenge_price - final_price, 2)
         
@@ -1039,7 +1031,7 @@ class CouponUsage(db.Model):
 
     coupon = db.relationship('Coupon', backref=db.backref('usages', lazy=True))
     user = db.relationship('User', backref=db.backref('coupon_usages', lazy=True))
-    challenge_purchase = db.relationship('TradingJourney', backref='coupon_usage', uselist=False)
+    challenge_purchase = db.relationship('TradingJourney', backref='coupon_usage_obj')
 
 
 class CouponAssignment(db.Model):
