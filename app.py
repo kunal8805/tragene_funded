@@ -1298,6 +1298,101 @@ def help_center():
 def refund_policy():
     return render_template('refund.html')
 
+@app.route('/sitemap.xml')
+def sitemap():
+    """
+    Generates a dynamic XML sitemap conforming to Google's standard.
+    Includes static pages (Home, Blog index, FAQ, Contact, Terms, Privacy, Refund Policy)
+    and all public blog posts automatically from the database.
+    """
+    try:
+        import xml.etree.ElementTree as ET
+        from datetime import datetime, timezone
+        from flask import Response
+        
+        # Create root element for sitemap with standard namespace
+        urlset = ET.Element("urlset", xmlns="http://www.sitemaps.org/schemas/sitemap/0.9")
+        
+        # Static public pages list: (endpoint, changefreq, priority)
+        static_pages = [
+            ('home', 'daily', '1.0'),
+            ('blog.index', 'weekly', '0.8'),
+            ('faq', 'weekly', '0.7'),
+            ('contact', 'monthly', '0.6'),
+            ('refund_policy', 'monthly', '0.3'),
+            ('privacy', 'monthly', '0.3'),
+            ('terms', 'monthly', '0.3')
+        ]
+        
+        # Format the current UTC date for static page lastmod
+        today = datetime.now(timezone.utc).strftime('%Y-%m-%d')
+        
+        # Add static pages
+        for endpoint, changefreq, priority in static_pages:
+            try:
+                # Generate absolute URL for the endpoint
+                loc = url_for(endpoint, _external=True)
+                
+                url_elem = ET.SubElement(urlset, "url")
+                ET.SubElement(url_elem, "loc").text = loc
+                ET.SubElement(url_elem, "lastmod").text = today
+                ET.SubElement(url_elem, "changefreq").text = changefreq
+                ET.SubElement(url_elem, "priority").text = priority
+            except Exception as e:
+                # Log warning in case endpoint is not registered or fails to resolve
+                app.logger.warning(f"Sitemap: Failed to generate URL for endpoint {endpoint}: {e}")
+        
+        # Fetch blog posts dynamically from the database
+        # Optimized: only query columns needed for the sitemap (slug, date_published)
+        # to avoid pulling large content fields into memory
+        posts = db.session.query(BlogPost.slug, BlogPost.date_published).order_by(BlogPost.date_published.desc()).all()
+        
+        # Add dynamic blog posts to sitemap
+        for post_slug, date_published in posts:
+            try:
+                # Generate absolute URL for the blog detail page
+                loc = url_for('blog.detail', slug=post_slug, _external=True)
+                
+                # Format publishing date, fallback to today's date if missing
+                lastmod = date_published.strftime('%Y-%m-%d') if date_published else today
+                
+                url_elem = ET.SubElement(urlset, "url")
+                ET.SubElement(url_elem, "loc").text = loc
+                ET.SubElement(url_elem, "lastmod").text = lastmod
+                ET.SubElement(url_elem, "changefreq").text = 'weekly'
+                ET.SubElement(url_elem, "priority").text = '0.7'
+            except Exception as e:
+                app.logger.warning(f"Sitemap: Failed to generate URL for blog post {post_slug}: {e}")
+                
+        # Generate the XML string representation
+        xml_string = ET.tostring(urlset, encoding='utf-8', method='xml')
+        xml_content = b'<?xml version="1.0" encoding="UTF-8"?>\n' + xml_string
+        
+        # Return response with correct Content-Type header
+        return Response(xml_content, mimetype='application/xml')
+        
+    except Exception as e:
+        app.logger.error(f"Sitemap generation failed: {e}")
+        # Static fallback containing home page to ensure search engines still get a valid response
+        try:
+            fallback_loc = url_for('home', _external=True)
+        except Exception:
+            fallback_loc = '/'
+            
+        fallback_today = datetime.now(timezone.utc).strftime('%Y-%m-%d')
+        fallback_xml = (
+            f'<?xml version="1.0" encoding="UTF-8"?>\n'
+            f'<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+            f'  <url>\n'
+            f'    <loc>{fallback_loc}</loc>\n'
+            f'    <lastmod>{fallback_today}</lastmod>\n'
+            f'    <changefreq>daily</changefreq>\n'
+            f'    <priority>1.0</priority>\n'
+            f'  </url>\n'
+            f'</urlset>'
+        )
+        return Response(fallback_xml, mimetype='application/xml', status=500)
+
 # ========================================================================
 # N8N AUTOMATION ENDPOINTS
 # ========================================================================

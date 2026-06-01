@@ -16,8 +16,7 @@
             </div>
             <div>
                 <p class="text-sm text-gray-500 dark:text-gray-400 font-medium">Total Revenue</p>
-                <h3 class="text-2xl font-bold text-gray-900 dark:text-white">₹{{ "%.2f"|format(stats.total_revenue) or
-                    0.00 }}</h3>
+                <h3 class="text-2xl font-bold text-gray-900 dark:text-white">₹{{ "%.2f"|format(stats.total_revenue) or 0.00 }}</h3>
             </div>
         </div>
     </div>
@@ -32,8 +31,7 @@
                 <p class="text-sm text-gray-500 dark:text-gray-400 font-medium">Purchases</p>
                 <div class="flex items-baseline space-x-2">
                     <h3 class="text-2xl font-bold text-gray-900 dark:text-white">{{ stats.total_purchases or 0 }}</h3>
-                    <span class="text-xs font-medium text-green-600 dark:text-green-400">+{{ stats.today_purchases or 0
-                        }} today</span>
+                    <span class="text-xs font-medium text-green-600 dark:text-green-400">+{{ stats.today_purchases or 0 }} today</span>
                 </div>
             </div>
         </div>
@@ -48,10 +46,8 @@
             <div>
                 <p class="text-sm text-gray-500 dark:text-gray-400 font-medium">Pending Payouts</p>
                 <div class="flex items-baseline space-x-2">
-                    <h3 class="text-2xl font-bold text-gray-900 dark:text-white">₹{{
-                        "%.2f"|format(stats.pending_payouts) or 0.00 }}</h3>
-                    <span class="text-xs font-medium text-blue-600 dark:text-blue-400">{{ stats.payout_eligible or 0 }}
-                        traders</span>
+                    <h3 class="text-2xl font-bold text-gray-900 dark:text-white">₹{{ "%.2f"|format(stats.pending_payouts) or 0.00 }}</h3>
+                    <span class="text-xs font-medium text-blue-600 dark:text-blue-400">{{ stats.payout_eligible or 0 }} traders</span>
                 </div>
             </div>
         </div>
@@ -67,13 +63,13 @@
                 <p class="text-sm text-gray-500 dark:text-gray-400 font-medium">Active Challenges</p>
                 <div class="flex items-baseline space-x-2">
                     <h3 class="text-2xl font-bold text-gray-900 dark:text-white">{{ stats.active_challenges or 0 }}</h3>
-                    <span class="text-xs font-medium text-red-600 dark:text-red-400">{{ stats.expiring_soon or 0 }}
-                        expiring</span>
+                    <span class="text-xs font-medium text-red-600 dark:text-red-400">{{ stats.expiring_soon or 0 }} expiring</span>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
 <!-- Search Bar -->
 <div class="mb-6">
     <div class="flex gap-4">
@@ -117,32 +113,25 @@
         <table class="w-full" id="challengeTable">
             <thead class="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
                 <tr>
-                    <th
-                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         Serial No.
                     </th>
-                    <th
-                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         User
                     </th>
-                    <th
-                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         Challenge
                     </th>
-                    <th
-                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         Price
                     </th>
-                    <th
-                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         Status
                     </th>
-                    <th
-                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         Purchase Date
                     </th>
-                    <th
-                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         Actions
                     </th>
                 </tr>
@@ -160,10 +149,10 @@
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap">
                         <div class="text-sm font-medium text-gray-900 dark:text-white">
-                            {{ challenge.user.first_name }} {{ challenge.user.last_name }}
+                            {{ challenge.user_obj.first_name }} {{ challenge.user_obj.last_name }}
                         </div>
                         <div class="text-sm text-gray-500 dark:text-gray-400">
-                            {{ challenge.user.email }}
+                            {{ challenge.user_obj.email }}
                         </div>
                     </td>
                     <td class="px-6 py-4">
@@ -181,15 +170,13 @@
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap">
                         {% set status_colors = {
-                        'pending_credentials': 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800
-                        dark:text-yellow-400',
+                        'pending_credentials': 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400',
                         'active': 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400',
                         'passed': 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400',
                         'failed': 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400',
                         'expired': 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300'
                         } %}
-                        <span
-                            class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full {{ status_colors.get(challenge.status, 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300') }}">
+                        <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full {{ status_colors.get(challenge.status, 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300') }}">
                             {{ challenge.status|replace('_', ' ')|title }}
                         </span>
                     </td>
