@@ -26,16 +26,16 @@
             <div>
                 <p class="text-sm text-gray-500 dark:text-gray-400">Name</p>
                 <p class="font-semibold text-gray-900 dark:text-white">
-                    {{ challenge.user.first_name }} {{ challenge.user.last_name }}
+                    {{ challenge.user_obj.first_name }} {{ challenge.user_obj.last_name }}
                 </p>
             </div>
             <div>
                 <p class="text-sm text-gray-500 dark:text-gray-400">Email</p>
-                <p class="font-semibold text-gray-900 dark:text-white">{{ challenge.user.email }}</p>
+                <p class="font-semibold text-gray-900 dark:text-white">{{ challenge.user_obj.email }}</p>
             </div>
             <div>
                 <p class="text-sm text-gray-500 dark:text-gray-400">Phone</p>
-                <p class="font-semibold text-gray-900 dark:text-white">{{ challenge.user.phone or 'N/A' }}</p>
+                <p class="font-semibold text-gray-900 dark:text-white">{{ challenge.user_obj.phone or 'N/A' }}</p>
             </div>
         </div>
     </div>
@@ -61,7 +61,7 @@
             </div>
             <div>
                 <p class="text-sm text-gray-500 dark:text-gray-400">Price</p>
-                <p class="font-semibold text-gray-900 dark:text-white">${{ "%.2f"|format(challenge.amount) }}</p>
+                <p class="font-semibold text-gray-900 dark:text-white">₹{{ "%.2f"|format(challenge.amount) }}</p>
             </div>
             <div>
                 <p class="text-sm text-gray-500 dark:text-gray-400">Status</p>
