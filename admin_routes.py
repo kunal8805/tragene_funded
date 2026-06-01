@@ -1264,8 +1264,8 @@ def api_all_challenges():
         result.append({
             'id': ch.id,
             'user_id': ch.user_id,
-            'user_name': ch.user.get_full_name() if ch.user else 'Unknown',
-            'user_email': ch.user.email if ch.user else 'Unknown',
+            'user_name': ch.user_obj.get_full_name() if ch.user_obj else 'Unknown',
+            'user_email': ch.user_obj.email if ch.user_obj else 'Unknown',
             'challenge_name': ch.challenge_template.name if ch.challenge_template else 'Challenge',
             'status': ch.status,
             'current_phase': ch.current_phase,
@@ -1307,8 +1307,8 @@ def api_challenge_details(challenge_id):
         'success': True,
         'challenge': {
             'id': ch.id,
-            'user_name': ch.user.get_full_name() if ch.user else 'Unknown',
-            'user_email': ch.user.email if ch.user else 'Unknown',
+            'user_name': ch.user_obj.get_full_name() if ch.user_obj else 'Unknown',
+            'user_email': ch.user_obj.email if ch.user_obj else 'Unknown',
             'challenge_name': ch.challenge_template.name if ch.challenge_template else 'Challenge',
             'status': ch.status,
             'current_phase': ch.current_phase,
@@ -1986,7 +1986,7 @@ def api_palantir():
         'email': u.email,
         'country': u.country or 'N/A',
         'created_at': u.created_at.isoformat() if u.created_at else None
-    } for u in latest_users]  # FIXED: was 'la@admin_bp.route('/api/palantir')test_users'
+    } for u in latest_users]
     
     # ===== REVENUE =====
     def get_revenue(start=None, end=None):
