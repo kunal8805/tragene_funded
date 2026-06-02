@@ -94,7 +94,7 @@ if REDIS_ENABLED and not DEV_MODE:
         limiter = Limiter(
             key_func=get_identifier,
             app=app,
-            default_limits=["200 per day", "50 per hour", "10 per minute"],
+            default_limits=["1000 per day", "200 per hour", "60 per minute"],
             storage_uri=storage_uri,
             strategy="fixed-window",
             storage_options={"socket_connect_timeout": 5},
@@ -106,7 +106,7 @@ if REDIS_ENABLED and not DEV_MODE:
         limiter = Limiter(
             key_func=get_identifier,
             app=app,
-            default_limits=["200 per day", "50 per hour", "10 per minute"],
+            default_limits=["1000 per day", "200 per hour", "60 per minute"],
             storage_uri="memory://",
             strategy="fixed-window",
         )
@@ -114,7 +114,7 @@ else:
     limiter = Limiter(
         key_func=get_identifier,
         app=app,
-        default_limits=["200 per day", "50 per hour", "10 per minute"],
+        default_limits=["1000 per day", "200 per hour", "60 per minute"],
         storage_uri="memory://",
         strategy="fixed-window",
     )
@@ -1397,7 +1397,7 @@ def sitemap():
 # N8N AUTOMATION ENDPOINTS
 # ========================================================================
 
-N8N_API_KEY = "tragene-n8n-secret-2024"
+N8N_API_KEY = os.getenv("N8N_API_KEY")
 
 def require_n8n_api_key(f):
     """Decorator to check X-API-KEY header for n8n endpoints"""
@@ -1665,6 +1665,32 @@ def n8n_create_blog():
         
     except Exception as e:
         db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+
+@app.route('/api/n8n/blog/titles', methods=['GET'])
+@require_n8n_api_key
+def get_blog_titles():
+    """Returns all blog titles for AI blog generation"""
+    try:
+        blogs = BlogPost.query.order_by(BlogPost.date_published.desc()).all()
+
+        return jsonify({
+            'success': True,
+            'count': len(blogs),
+            'titles': [
+                {
+                    'id': blog.id,
+                    'title': blog.title,
+                    'slug': blog.slug,
+                    'date_published': blog.date_published.isoformat() if blog.date_published else None
+                }
+                for blog in blogs
+            ]
+        })
+
+    except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/n8n/health')
