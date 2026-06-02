@@ -1738,6 +1738,40 @@ def n8n_health():
         'timestamp': datetime.now(timezone.utc).isoformat()
     })
 
+
+
+@app.route('/api/n8n/blog/titles', methods=['GET'])
+@require_n8n_api_key
+def get_blog_titles():
+    try:
+        blogs = BlogPost.query.order_by(
+            BlogPost.date_published.desc()
+        ).all()
+
+        titles = []
+
+        for blog in blogs:
+            titles.append({
+                "id": blog.id,
+                "title": blog.title,
+                "slug": blog.slug,
+                "date_published": blog.date_published.isoformat() if blog.date_published else None
+            })
+
+        return jsonify({
+            "success": True,
+            "count": len(titles),
+            "titles": titles
+        })
+
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+
+
 # ===== MAIN =====
 if __name__ == '__main__':
     print("\n" + "="*60)
