@@ -1397,7 +1397,7 @@ def sitemap():
 # N8N AUTOMATION ENDPOINTS
 # ========================================================================
 
-N8N_API_KEY = "tragene-n8n-secret-2024"
+N8N_API_KEY = os.getenv("N8N_API_KEY")
 
 def require_n8n_api_key(f):
     """Decorator to check X-API-KEY header for n8n endpoints"""
@@ -1612,6 +1612,67 @@ def n8n_newusers():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
+# ========================================================================
+# NEW ENDPOINT: GET /api/n8n/blog/titles
+# ========================================================================
+# Purpose: Provides existing blog titles to n8n/Claude for SEO content generation
+# Used in the automated SEO workflow: 
+#   GET /api/n8n/blog/titles → Claude generates unique blog → POST /api/n8n/blog → Google Indexing
+# Returns only the fields needed by the AI to avoid generating duplicate content:
+#   - id: Database identifier for reference
+#   - title: Existing blog title for duplicate detection
+#   - slug: URL-friendly identifier
+#   - date_published: Publication date for chronological awareness
+# Sorted by newest first so the AI sees recent content first.
+# ========================================================================
+@app.route('/api/n8n/blog/titles')
+@require_n8n_api_key
+def n8n_blog_titles():
+    """
+    Returns all blog post titles and basic metadata for AI content generation.
+    
+    This endpoint is part of the automated SEO workflow:
+    1. n8n fetches existing titles weekly
+    2. Claude analyzes existing titles to generate unique content
+    3. New blog is posted via POST /api/n8n/blog
+    4. Google Indexing API is notified
+    
+    Returns JSON with only the essential fields needed by the AI,
+    keeping the response lightweight and focused.
+    """
+    try:
+        # Query all blog posts, newest first
+        # Only select the fields needed for AI content generation
+        posts = BlogPost.query.with_entities(
+            BlogPost.id,
+            BlogPost.title,
+            BlogPost.slug,
+            BlogPost.date_published
+        ).order_by(BlogPost.date_published.desc()).all()
+        
+        # Format the response with only the fields needed by Claude/n8n
+        titles_data = [{
+            'id': post.id,
+            'title': post.title,
+            'slug': post.slug,
+            'date_published': post.date_published.isoformat() if post.date_published else None
+        } for post in posts]
+        
+        return jsonify({
+            'success': True,
+            'count': len(titles_data),
+            'titles': titles_data
+        })
+        
+    except Exception as e:
+        # Log the error for debugging
+        app.logger.error(f"Failed to fetch blog titles: {e}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to fetch blog titles',
+            'message': str(e) if DEV_MODE else 'Internal server error'
+        }), 500
+
 @app.route('/api/n8n/blog', methods=['POST'])
 @require_n8n_api_key
 def n8n_create_blog():
@@ -1691,7 +1752,8 @@ if __name__ == '__main__':
         cashfree_enabled = bool(CASHFREE_APP_ID and CASHFREE_SECRET_KEY)
         print(f"Cashfree: {'ENABLED' if cashfree_enabled else 'DISABLED'}")
         print(f"Redis: {'ENABLED' if REDIS_ENABLED else 'DISABLED'}")
-        print(f"N8N API: ENABLED (key: {N8N_API_KEY[:10]}...)")
+        n8n_status = f"ENABLED (key: {N8N_API_KEY[:10]}...)" if N8N_API_KEY else "DISABLED"
+        print(f"N8N API: {n8n_status}")
         important_templates = ['index.html', 'user/user_dashboard.html', 'login.html', 
                               'user/payment_status.html', 'user/payment_failed.html']
         for template in important_templates:

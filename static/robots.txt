@@ -1,0 +1,11 @@
+User-agent: *
+Disallow: /admin/
+Disallow: /user/
+Disallow: /partner/
+Disallow: /login
+Disallow: /register
+Disallow: /logout
+Disallow: /api/
+Disallow: /cashfree-webhook
+
+Sitemap: https://tragene.com/sitemap.xml
