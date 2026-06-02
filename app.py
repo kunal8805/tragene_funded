@@ -850,7 +850,9 @@ def create_cashfree_order():
         
         coupon_code = request.form.get('coupon_code')
         coupon_id = None
-        expected_payable_amount = float(challenge.price)
+        base_price = float(challenge.price)
+        gateway_charge = round(base_price * 0.02, 2)
+        expected_payable_amount = round(base_price + gateway_charge, 2)
         
         if coupon_code:
             coupon = Coupon.query.filter_by(code=coupon_code.upper().strip(), is_deleted=False).first()
@@ -868,7 +870,7 @@ def create_cashfree_order():
         
         customer_details = CustomerDetails(
             customer_id=f"USER_{user.id}",
-            customer_phone=user.phone or "9999999999",
+            customer_phone=(user.phone or "9999999999").replace("+91", "").replace("+", "").replace(" ", "").strip()[-10:],
             customer_email=user.email,
             customer_name=f"{user.first_name} {user.last_name}"
         )
@@ -1310,10 +1312,8 @@ def sitemap():
         from datetime import datetime, timezone
         from flask import Response
         
-        # Create root element for sitemap with standard namespace
         urlset = ET.Element("urlset", xmlns="http://www.sitemaps.org/schemas/sitemap/0.9")
         
-        # Static public pages list: (endpoint, changefreq, priority)
         static_pages = [
             ('home', 'daily', '1.0'),
             ('blog.index', 'weekly', '0.8'),
@@ -1324,13 +1324,10 @@ def sitemap():
             ('terms', 'monthly', '0.3')
         ]
         
-        # Format the current UTC date for static page lastmod
         today = datetime.now(timezone.utc).strftime('%Y-%m-%d')
         
-        # Add static pages
         for endpoint, changefreq, priority in static_pages:
             try:
-                # Generate absolute URL for the endpoint
                 loc = url_for(endpoint, _external=True)
                 
                 url_elem = ET.SubElement(urlset, "url")
@@ -1339,21 +1336,14 @@ def sitemap():
                 ET.SubElement(url_elem, "changefreq").text = changefreq
                 ET.SubElement(url_elem, "priority").text = priority
             except Exception as e:
-                # Log warning in case endpoint is not registered or fails to resolve
                 app.logger.warning(f"Sitemap: Failed to generate URL for endpoint {endpoint}: {e}")
         
-        # Fetch blog posts dynamically from the database
-        # Optimized: only query columns needed for the sitemap (slug, date_published)
-        # to avoid pulling large content fields into memory
         posts = db.session.query(BlogPost.slug, BlogPost.date_published).order_by(BlogPost.date_published.desc()).all()
         
-        # Add dynamic blog posts to sitemap
         for post_slug, date_published in posts:
             try:
-                # Generate absolute URL for the blog detail page
                 loc = url_for('blog.detail', slug=post_slug, _external=True)
                 
-                # Format publishing date, fallback to today's date if missing
                 lastmod = date_published.strftime('%Y-%m-%d') if date_published else today
                 
                 url_elem = ET.SubElement(urlset, "url")
@@ -1364,16 +1354,13 @@ def sitemap():
             except Exception as e:
                 app.logger.warning(f"Sitemap: Failed to generate URL for blog post {post_slug}: {e}")
                 
-        # Generate the XML string representation
         xml_string = ET.tostring(urlset, encoding='utf-8', method='xml')
         xml_content = b'<?xml version="1.0" encoding="UTF-8"?>\n' + xml_string
         
-        # Return response with correct Content-Type header
         return Response(xml_content, mimetype='application/xml')
         
     except Exception as e:
         app.logger.error(f"Sitemap generation failed: {e}")
-        # Static fallback containing home page to ensure search engines still get a valid response
         try:
             fallback_loc = url_for('home', _external=True)
         except Exception:
@@ -1409,7 +1396,6 @@ def require_n8n_api_key(f):
         return f(*args, **kwargs)
     return decorated_function
 
-# Helper function to get all Palantir-style summary data
 def get_palantir_summary_data():
     """Returns all data that the Palantir dashboard shows - reused by n8n endpoint"""
     from sqlalchemy import func, extract
@@ -1419,11 +1405,9 @@ def get_palantir_summary_data():
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     
-    # Users
     total_users = User.query.count()
     new_users_today = User.query.filter(User.created_at >= today_start).count()
     
-    # Revenue
     revenue_today = float(db.session.query(
         func.coalesce(func.sum(Payment.amount), 0)
     ).filter(
@@ -1438,32 +1422,26 @@ def get_palantir_summary_data():
         Payment.created_at >= month_start
     ).scalar() or 0)
     
-    # Challenges
     active_challenges = ChallengePurchase.query.filter(
         ChallengePurchase.status.in_(['active', 'phase1_active', 'phase2_active']),
         ChallengePurchase.is_terminated == False
     ).count()
     
-    # KYC
     pending_kyc = User.query.filter_by(kyc_status='submitted').count()
     
-    # Support
     open_tickets = SupportTicket.query.filter_by(status='open').count()
     
-    # Coupons
     active_coupons = Coupon.query.filter_by(is_active=True, is_deleted=False).count()
     expired_coupons = Coupon.query.filter_by(is_deleted=False).filter(
         Coupon.expires_at < now
     ).count()
     
-    # Payments
     successful_payments = Payment.query.filter(Payment.status.in_(['SUCCESS', 'success'])).count()
     failed_payments = Payment.query.filter(Payment.status.ilike('failed')).count()
     pending_payments = Payment.query.filter(Payment.status.ilike('pending')).count()
     total_payments = successful_payments + failed_payments + pending_payments
     payment_success_rate = f"{round((successful_payments / max(total_payments, 1)) * 100, 1)}%"
     
-    # Risk
     near_breach = ChallengePurchase.query.filter(
         ChallengePurchase.status.in_(['active', 'phase1_active', 'phase2_active']),
         ChallengePurchase.is_terminated == False,
@@ -1475,10 +1453,8 @@ def get_palantir_summary_data():
     
     need_review = ChallengePurchase.query.filter_by(review_required=True).count()
     
-    # Partners
     total_partners = User.query.filter_by(role='partner', is_banned=False).count()
     
-    # Most sold challenge
     top_challenge = db.session.query(
         ChallengeTemplate.name,
         func.count(ChallengePurchase.id).label('count')
@@ -1490,7 +1466,6 @@ def get_palantir_summary_data():
     
     most_sold_challenge = top_challenge.name if top_challenge else 'None'
     
-    # System status
     system_status = 'NORMAL'
     if pending_kyc > 10 or open_tickets > 10 or near_breach > 5 or need_review > 5:
         system_status = 'NEEDS ATTENTION'
@@ -1612,37 +1587,13 @@ def n8n_newusers():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
-# ========================================================================
-# NEW ENDPOINT: GET /api/n8n/blog/titles
-# ========================================================================
-# Purpose: Provides existing blog titles to n8n/Claude for SEO content generation
-# Used in the automated SEO workflow: 
-#   GET /api/n8n/blog/titles → Claude generates unique blog → POST /api/n8n/blog → Google Indexing
-# Returns only the fields needed by the AI to avoid generating duplicate content:
-#   - id: Database identifier for reference
-#   - title: Existing blog title for duplicate detection
-#   - slug: URL-friendly identifier
-#   - date_published: Publication date for chronological awareness
-# Sorted by newest first so the AI sees recent content first.
-# ========================================================================
 @app.route('/api/n8n/blog/titles')
 @require_n8n_api_key
 def n8n_blog_titles():
     """
     Returns all blog post titles and basic metadata for AI content generation.
-    
-    This endpoint is part of the automated SEO workflow:
-    1. n8n fetches existing titles weekly
-    2. Claude analyzes existing titles to generate unique content
-    3. New blog is posted via POST /api/n8n/blog
-    4. Google Indexing API is notified
-    
-    Returns JSON with only the essential fields needed by the AI,
-    keeping the response lightweight and focused.
     """
     try:
-        # Query all blog posts, newest first
-        # Only select the fields needed for AI content generation
         posts = BlogPost.query.with_entities(
             BlogPost.id,
             BlogPost.title,
@@ -1650,7 +1601,6 @@ def n8n_blog_titles():
             BlogPost.date_published
         ).order_by(BlogPost.date_published.desc()).all()
         
-        # Format the response with only the fields needed by Claude/n8n
         titles_data = [{
             'id': post.id,
             'title': post.title,
@@ -1665,7 +1615,6 @@ def n8n_blog_titles():
         })
         
     except Exception as e:
-        # Log the error for debugging
         app.logger.error(f"Failed to fetch blog titles: {e}")
         return jsonify({
             'success': False,
@@ -1690,16 +1639,13 @@ def n8n_create_blog():
         if not title or not content:
             return jsonify({'success': False, 'error': 'Title and content are required'}), 400
         
-        # Generate slug from title
         import re
         slug = re.sub(r'[^a-zA-Z0-9]+', '-', title.lower()).strip('-')
         
-        # Check if slug exists, append number if needed
         existing = BlogPost.query.filter_by(slug=slug).first()
         if existing:
             slug = f"{slug}-{int(time.time())}"
         
-        # Create meta description from first 150 chars of content
         meta_description = content[:150].strip() + '...' if len(content) > 150 else content
         
         blog_post = BlogPost(
@@ -1728,32 +1674,6 @@ def n8n_create_blog():
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
 
-
-
-@app.route('/api/n8n/blog/titles', methods=['GET'])
-@require_n8n_api_key
-def get_blog_titles():
-    """Returns all blog titles for AI blog generation"""
-    try:
-        blogs = BlogPost.query.order_by(BlogPost.date_published.desc()).all()
-
-        return jsonify({
-            'success': True,
-            'count': len(blogs),
-            'titles': [
-                {
-                    'id': blog.id,
-                    'title': blog.title,
-                    'slug': blog.slug,
-                    'date_published': blog.date_published.isoformat() if blog.date_published else None
-                }
-                for blog in blogs
-            ]
-        })
-
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
-
 @app.route('/api/n8n/health')
 @require_n8n_api_key
 def n8n_health():
@@ -1763,40 +1683,6 @@ def n8n_health():
         'status': 'healthy',
         'timestamp': datetime.now(timezone.utc).isoformat()
     })
-
-
-
-@app.route('/api/n8n/blog/titles', methods=['GET'])
-@require_n8n_api_key
-def get_blog_titles():
-    try:
-        blogs = BlogPost.query.order_by(
-            BlogPost.date_published.desc()
-        ).all()
-
-        titles = []
-
-        for blog in blogs:
-            titles.append({
-                "id": blog.id,
-                "title": blog.title,
-                "slug": blog.slug,
-                "date_published": blog.date_published.isoformat() if blog.date_published else None
-            })
-
-        return jsonify({
-            "success": True,
-            "count": len(titles),
-            "titles": titles
-        })
-
-    except Exception as e:
-        return jsonify({
-            "success": False,
-            "error": str(e)
-        }), 500
-
-
 
 # ===== MAIN =====
 if __name__ == '__main__':

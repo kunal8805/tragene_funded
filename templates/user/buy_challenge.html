@@ -452,8 +452,12 @@
                 </div>
                 <div class="border-t dark:border-gray-700 pt-3 mt-3 space-y-2">
                     <div class="flex justify-between text-sm" id="originalPriceRow">
-                        <span class="text-gray-600 dark:text-gray-400">Original Price:</span>
+                        <span class="text-gray-600 dark:text-gray-400">Challenge Price:</span>
                         <span class="font-medium text-gray-900 dark:text-white">₹{{ challenge.price }}</span>
+                    </div>
+                    <div class="flex justify-between text-sm text-orange-500">
+                        <span>Gateway Charge (2%):</span>
+                        <span>+₹{{ "%.2f"|format(challenge.price * 0.02) }}</span>
                     </div>
                     <div class="flex justify-between text-sm text-green-600 dark:text-green-400 hidden" id="discountRow">
                         <span>Coupon Discount:</span>
@@ -461,10 +465,10 @@
                     </div>
                     <div class="flex justify-between text-lg border-t dark:border-gray-700 pt-2" id="totalPriceRow">
                         <span class="font-semibold text-gray-900 dark:text-white">Total Payable:</span>
-                        <span class="font-bold text-gray-900 dark:text-white" id="finalPayableText">₹{{ challenge.price }}</span>
+                        <span class="font-bold text-gray-900 dark:text-white" id="finalPayableText">₹{{ "%.2f"|format(challenge.price * 1.02) }}</span>
                     </div>
                     <div class="text-right text-sm text-gray-600 dark:text-gray-400" id="usdPriceRow">
-                        ≈ $<span id="usdPriceText">{{ (challenge.price * 0.012)|round(2) }}</span> USD
+                        ≈ $<span id="usdPriceText">{{ ((challenge.price * 1.02) * 0.012)|round(2) }}</span> USD
                     </div>
                 </div>
 
@@ -755,8 +759,8 @@
         
         document.getElementById('discountRow').classList.add('hidden');
         document.getElementById('discountValueText').textContent = '-₹0.00';
-        document.getElementById('finalPayableText').textContent = '₹{{ challenge.price }}';
-        document.getElementById('usdPriceText').textContent = '{{ (challenge.price * 0.012)|round(2) }}';
+        document.getElementById('finalPayableText').textContent = '₹{{ "%.2f"|format(challenge.price * 1.02) }}';
+        document.getElementById('usdPriceText').textContent = '{{ ((challenge.price * 1.02) * 0.012)|round(2) }}';
         
         const applyBtn = document.getElementById('applyCouponBtn');
         applyBtn.onclick = applyCoupon;
@@ -893,9 +897,5 @@
             e.returnValue = 'Your payment is being processed. Are you sure you want to leave?';
         }
     });
-
-
-
-
 </script>
 {% endblock %}
