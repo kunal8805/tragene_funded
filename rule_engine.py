@@ -7,6 +7,7 @@ CHANGES:
 - Overall drawdown is STATIC (anchored to CHALLENGE_ACCOUNT_SIZE)
 - DAYS REMAINING: Counts from purchase/creation date, NOT first trade
 - When admin clears flag, fresh start baseline is set
+- Manual trade editing (SL/TP modifications) allowed without flagging
 """
 
 from datetime import datetime, timezone, date, timedelta
@@ -42,7 +43,7 @@ RISK_WEIGHTS = {
     'leverage_abuse':       25,
     'account_reset':        50,
     'multiple_accounts':    40,
-    'manual_trade_edit':    30,
+    # 'manual_trade_edit': 30,  # REMOVED - Manual trade editing is now allowed
     'hedging_detected':     20,
     'martingale_pattern':   25,
     'equity_spike':         35,
@@ -770,7 +771,7 @@ def check_anti_cheat(challenge, data):
             log_rule(challenge.id, "multiple_accounts", Severity.WARNING,
                      f"Multiple challenges running same positions")
 
-    # ── 10. Manual Trade Editing ──────────────────────────────────────────
+    # ── 10. Manual Trade Editing (ALLOWED - No Flagging) ─────────────────
     for td in open_trades:
         ticket = td.get('ticket')
         if not ticket:
@@ -783,11 +784,17 @@ def check_anti_cheat(challenge, data):
             tp_now = _safe_float(td.get('tp'))
             sl_old = _safe_float(getattr(existing, 'sl'))
             tp_old = _safe_float(getattr(existing, 'tp'))
-            if (sl_old != sl_now or tp_old != tp_now) and (sl_old != 0 or tp_old != 0):
-                added_risk += RISK_WEIGHTS['manual_trade_edit']
-                new_flags.append('manual_trade_edit')
-                log_rule(challenge.id, "manual_trade_edit", Severity.WARNING,
-                         f"SL/TP modified ticket {ticket}: SL {sl_old}→{sl_now}, TP {tp_old}→{tp_now}")
+            
+            # Log SL/TP changes as INFO only - no flagging, no risk increase
+            if sl_old != sl_now or tp_old != tp_now:
+                log_rule(
+                    challenge.id,
+                    "manual_trade_edit",
+                    Severity.INFO,
+                    f"SL/TP modified ticket {ticket}: SL {sl_old}→{sl_now}, TP {tp_old}→{tp_now}"
+                )
+            
+            # Update the trade with new SL/TP values
             existing.sl = sl_now
             existing.tp = tp_now
 
@@ -816,7 +823,7 @@ def check_anti_cheat(challenge, data):
                     'equity_spike':         'Unexplained Equity Spike',
                     'copy_trading':         'Copy Trading Detected',
                     'multiple_accounts':    'Multiple Accounts Detected',
-                    'manual_trade_edit':    'Manual Trade Modification Detected',
+                    # 'manual_trade_edit': 'Manual Trade Modification Detected',  # REMOVED
                 }
                 primary_flag = new_flags[0]
                 readable = flag_names.get(primary_flag, primary_flag.replace('_', ' ').title())
