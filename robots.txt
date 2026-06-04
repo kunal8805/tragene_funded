@@ -1,4 +1,5 @@
 User-agent: *
+
 Disallow: /admin/
 Disallow: /user/
 Disallow: /partner/
@@ -8,4 +9,4 @@ Disallow: /logout
 Disallow: /api/
 Disallow: /cashfree-webhook
 
-Sitemap: https://tragene.com/sitemap.xml
+Sitemap: https://www.tragenefunded.com/sitemap.xml
