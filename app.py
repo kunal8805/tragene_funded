@@ -1,5 +1,5 @@
 # ===== COMPLETE WORKING app.py WITH RULE ENGINE, RATE LIMITING & N8N AUTOMATION =====
-from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, g
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, g, Response
 from datetime import datetime, date, timedelta, timezone
 import os
 import secrets
@@ -1299,6 +1299,22 @@ def help_center():
 @app.route('/refund-policy')
 def refund_policy():
     return render_template('refund.html')
+
+@app.route('/robots.txt')
+def robots_txt():
+    robots_content = """User-agent: *
+Disallow: /admin/
+Disallow: /user/
+Disallow: /partner/
+Disallow: /login
+Disallow: /register
+Disallow: /logout
+Disallow: /api/
+Disallow: /cashfree-webhook
+
+Sitemap: https://www.tragenefunded.com/sitemap.xml
+"""
+    return Response(robots_content, mimetype='text/plain')
 
 @app.route('/sitemap.xml')
 def sitemap():
