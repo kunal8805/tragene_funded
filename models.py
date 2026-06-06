@@ -656,10 +656,22 @@ class Payout(db.Model):
     amount = db.Column(db.Float, nullable=False)
     profit_share_percentage = db.Column(db.Float, nullable=False)
     status = db.Column(db.String(20), default='pending', index=True)
+    username_snapshot = db.Column(db.String(120), default='')
+    challenge_name_snapshot = db.Column(db.String(150), default='')
+    account_type_snapshot = db.Column(db.String(50), default='')
+    account_size_snapshot = db.Column(db.Float, default=0.0)
+    available_profit_snapshot = db.Column(db.Float, default=0.0)
     admin_notes = db.Column(db.Text, default='')
+    rejection_reason = db.Column(db.Text, default='')
+    expected_payment_time = db.Column(db.String(100), default='')
+    approved_at = db.Column(db.DateTime(timezone=True), nullable=True, index=True)
+    reviewed_at = db.Column(db.DateTime(timezone=True), nullable=True, index=True)
+    paid_at = db.Column(db.DateTime(timezone=True), nullable=True, index=True)
     payout_date = db.Column(db.DateTime(timezone=True), index=True)
     due_date = db.Column(db.DateTime(timezone=True), index=True)
     payment_method = db.Column(db.String(50))
+    account_holder_name = db.Column(db.String(120), default='')
+    upi_id = db.Column(db.String(120), default='')
     transaction_id = db.Column(db.String(100))
     bank_account_details = db.Column(db.Text)
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
@@ -671,6 +683,23 @@ class Payout(db.Model):
     
     def __repr__(self):
         return f'<Payout {self.id} - ${self.amount}>'
+
+
+class PayoutAuditLog(db.Model):
+    __tablename__ = 'payout_audit_log'
+    id = db.Column(db.Integer, primary_key=True)
+    payout_id = db.Column(db.Integer, db.ForeignKey('payout.id'), nullable=False, index=True)
+    action = db.Column(db.String(50), nullable=False, index=True)
+    admin_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True, index=True)
+    admin_username = db.Column(db.String(120), default='')
+    notes = db.Column(db.Text, default='')
+    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
+
+    payout = db.relationship('Payout', backref=db.backref('audit_logs', cascade='all, delete-orphan', lazy=True))
+    admin = db.relationship('User', foreign_keys=[admin_user_id])
+
+    def __repr__(self):
+        return f'<PayoutAuditLog {self.action} - Payout {self.payout_id}>'
 
 
 class Payment(db.Model):

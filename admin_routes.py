@@ -1,10 +1,69 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify, abort
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify, abort, Response
 from functools import wraps
-from models import db, User, ChallengeTemplate, ChallengePurchase, Payout, FAQ, SupportTicket, TicketMessage, Payment, AdminLog, Notification, UserNotification, NotificationTemplate, Coupon, CouponUsage, CouponAssignment
+from models import db, User, ChallengeTemplate, ChallengePurchase, Payout, PayoutAuditLog, FAQ, SupportTicket, TicketMessage, Payment, AdminLog, Notification, UserNotification, NotificationTemplate, Coupon, CouponUsage, CouponAssignment
 from datetime import datetime, timedelta, timezone
 import secrets
+import csv
+import io
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
+
+PAYOUT_ACTIVE_STATUSES = ['pending', 'under_review', 'approved']
+
+def _admin_name(user):
+    return user.get_full_name() if user else 'System'
+
+def _notify_user(user_id, title, message, admin_id=None):
+    notification = Notification(
+        title=title,
+        message=message,
+        is_global=False,
+        target_user_id=user_id,
+        created_by_admin_id=admin_id,
+        expires_at=datetime.now(timezone.utc) + timedelta(days=30)
+    )
+    db.session.add(notification)
+    db.session.flush()
+    db.session.add(UserNotification(notification_id=notification.id, user_id=user_id))
+
+def _payout_audit(payout, action, admin_user=None, notes=''):
+    db.session.add(PayoutAuditLog(
+        payout_id=payout.id,
+        action=action,
+        admin_user_id=admin_user.id if admin_user else None,
+        admin_username=_admin_name(admin_user),
+        notes=notes or ''
+    ))
+
+def _eligible_funded_count():
+    return ChallengePurchase.query.filter(
+        db.or_(
+            ChallengePurchase.status == 'funded_active',
+            ChallengePurchase.challenge_type == 'instant'
+        ),
+        ChallengePurchase.status.notin_(['failed', 'expired', 'revoked'])
+    ).count()
+
+def _payout_stats(query=None):
+    q = query or Payout.query
+    payouts = q.all()
+    by_status = {status: 0 for status in ['pending', 'under_review', 'approved', 'rejected', 'paid']}
+    for payout in payouts:
+        by_status[payout.status] = by_status.get(payout.status, 0) + 1
+    paid = sum(p.amount or 0 for p in payouts if p.status == 'paid')
+    pending = sum(p.amount or 0 for p in payouts if p.status in PAYOUT_ACTIVE_STATUSES)
+    return {
+        'total': len(payouts),
+        'pending': by_status.get('pending', 0),
+        'under_review': by_status.get('under_review', 0),
+        'approved': by_status.get('approved', 0),
+        'rejected': by_status.get('rejected', 0),
+        'paid': by_status.get('paid', 0),
+        'total_paid': paid,
+        'total_pending': pending,
+        'eligible_accounts': _eligible_funded_count(),
+        'average': (sum(p.amount or 0 for p in payouts) / len(payouts)) if payouts else 0
+    }
 
 def admin_required(f):
     @wraps(f)
@@ -998,6 +1057,150 @@ def export_payments():
     
     flash('Export feature would generate CSV file with payment data.', 'info')
     return redirect(url_for('admin.admin_payments'))
+
+@admin_bp.route('/payouts')
+@admin_required
+def admin_payouts():
+    payouts = Payout.query.order_by(Payout.created_at.desc()).all()
+    stats = _payout_stats(Payout.query)
+    now = datetime.now(timezone.utc)
+    week_start = now - timedelta(days=7)
+    month_start = datetime(now.year, now.month, 1, tzinfo=timezone.utc)
+    paid_payouts = [p for p in payouts if p.status == 'paid']
+    approved_payouts = [p for p in payouts if p.status in ['approved', 'paid']]
+    rejected_payouts = [p for p in payouts if p.status == 'rejected']
+    analytics = {
+        'week_paid': sum(p.amount or 0 for p in paid_payouts if p.paid_at and (p.paid_at.replace(tzinfo=timezone.utc) if p.paid_at.tzinfo is None else p.paid_at) >= week_start),
+        'month_paid': sum(p.amount or 0 for p in paid_payouts if p.paid_at and (p.paid_at.replace(tzinfo=timezone.utc) if p.paid_at.tzinfo is None else p.paid_at) >= month_start),
+        'all_paid': sum(p.amount or 0 for p in paid_payouts),
+        'approved_amount': sum(p.amount or 0 for p in approved_payouts),
+        'paid_amount': sum(p.amount or 0 for p in paid_payouts),
+        'rejected_amount': sum(p.amount or 0 for p in rejected_payouts),
+        'average_size': stats['average'],
+        'pending_liability': stats['total_pending'],
+        'top_traders': db.session.query(User.first_name, User.last_name, db.func.count(Payout.id).label('count'), db.func.coalesce(db.func.sum(Payout.amount), 0).label('amount'))
+            .join(Payout, Payout.user_id == User.id)
+            .group_by(User.id)
+            .order_by(db.func.count(Payout.id).desc())
+            .limit(5).all()
+    }
+    return render_template('admin/payouts.html', payouts=payouts, stats=stats, analytics=analytics)
+
+@admin_bp.route('/payouts/history')
+@admin_required
+def admin_payout_history():
+    query = Payout.query.join(User, Payout.user_id == User.id).join(ChallengePurchase, Payout.challenge_purchase_id == ChallengePurchase.id)
+    username = request.args.get('username', '').strip()
+    challenge = request.args.get('challenge', '').strip()
+    status = request.args.get('status', '').strip()
+    date_from = request.args.get('date_from', '').strip()
+    date_to = request.args.get('date_to', '').strip()
+    amount_min = request.args.get('amount_min', '').strip()
+    amount_max = request.args.get('amount_max', '').strip()
+
+    if username:
+        query = query.filter(db.or_(User.first_name.ilike(f'%{username}%'), User.last_name.ilike(f'%{username}%'), User.email.ilike(f'%{username}%'), Payout.username_snapshot.ilike(f'%{username}%')))
+    if challenge:
+        query = query.filter(Payout.challenge_name_snapshot.ilike(f'%{challenge}%'))
+    if status:
+        query = query.filter(Payout.status == status)
+    if date_from:
+        query = query.filter(Payout.created_at >= datetime.fromisoformat(date_from))
+    if date_to:
+        query = query.filter(Payout.created_at < datetime.fromisoformat(date_to) + timedelta(days=1))
+    if amount_min:
+        query = query.filter(Payout.amount >= float(amount_min))
+    if amount_max:
+        query = query.filter(Payout.amount <= float(amount_max))
+
+    payouts = query.order_by(Payout.created_at.desc()).all()
+    return render_template('admin/payout_history.html', payouts=payouts, stats=_payout_stats(query))
+
+@admin_bp.route('/payouts/export')
+@admin_required
+def export_payouts():
+    payouts = Payout.query.order_by(Payout.created_at.desc()).all()
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(['Request Date', 'Username', 'Challenge', 'Account Size', 'Account Type', 'Requested Amount', 'Status', 'Payment Method', 'Approval Date', 'Payment Date', 'Transaction Reference', 'Rejection Reason'])
+    for payout in payouts:
+        writer.writerow([
+            payout.created_at.strftime('%Y-%m-%d %H:%M') if payout.created_at else '',
+            payout.username_snapshot or (payout.user.get_full_name() if payout.user else ''),
+            payout.challenge_name_snapshot,
+            payout.account_size_snapshot,
+            payout.account_type_snapshot,
+            payout.amount,
+            payout.status,
+            payout.payment_method,
+            payout.approved_at.strftime('%Y-%m-%d %H:%M') if payout.approved_at else '',
+            payout.paid_at.strftime('%Y-%m-%d %H:%M') if payout.paid_at else '',
+            payout.transaction_id or '',
+            payout.rejection_reason or ''
+        ])
+    return Response(output.getvalue(), mimetype='text/csv', headers={'Content-Disposition': 'attachment; filename=payouts.csv'})
+
+@admin_bp.route('/payouts/<int:payout_id>/<action>', methods=['POST'])
+@admin_required
+def admin_payout_action(payout_id, action):
+    payout = Payout.query.get_or_404(payout_id)
+    admin_user = User.query.get(session['user_id'])
+    now = datetime.now(timezone.utc)
+
+    if action == 'review':
+        if payout.status != 'pending':
+            flash('Only pending requests can be moved to review.', 'error')
+            return redirect(url_for('admin.admin_payouts'))
+        payout.status = 'under_review'
+        payout.reviewed_at = now
+        _payout_audit(payout, 'under_review', admin_user, 'Moved to review.')
+        _notify_user(payout.user_id, 'Payout under review', f'Your ${payout.amount:.2f} payout request is now under review.', admin_user.id)
+    elif action == 'approve':
+        if payout.status not in ['pending', 'under_review']:
+            flash('Only pending or under review requests can be approved.', 'error')
+            return redirect(url_for('admin.admin_payouts'))
+        expected = request.form.get('expected_payment_time', '').strip()
+        if not expected:
+            flash('Expected payment time is required.', 'error')
+            return redirect(url_for('admin.admin_payouts'))
+        payout.status = 'approved'
+        payout.approved_at = now
+        payout.expected_payment_time = expected
+        _payout_audit(payout, 'approved', admin_user, f'Expected payment: {expected}')
+        _notify_user(payout.user_id, 'Payout approved', f'Your payout was approved. Expected payment: {expected}.', admin_user.id)
+    elif action == 'reject':
+        reason = request.form.get('rejection_reason', '').strip()
+        if not reason:
+            flash('Rejection reason is required.', 'error')
+            return redirect(url_for('admin.admin_payouts'))
+        payout.status = 'rejected'
+        payout.rejection_reason = reason
+        payout.reviewed_at = now
+        _payout_audit(payout, 'rejected', admin_user, reason)
+        _notify_user(payout.user_id, 'Payout rejected', f'Your payout request was rejected: {reason}', admin_user.id)
+    elif action == 'paid':
+        if payout.status != 'approved':
+            flash('Only approved requests can be marked as paid.', 'error')
+            return redirect(url_for('admin.admin_payouts'))
+        tx_ref = request.form.get('transaction_id', '').strip()
+        notes = request.form.get('admin_notes', '').strip()
+        payment_date = request.form.get('payment_date', '').strip()
+        if not tx_ref:
+            flash('Transaction reference is required.', 'error')
+            return redirect(url_for('admin.admin_payouts'))
+        payout.status = 'paid'
+        payout.transaction_id = tx_ref
+        payout.admin_notes = notes
+        payout.paid_at = datetime.fromisoformat(payment_date) if payment_date else now
+        payout.payout_date = payout.paid_at
+        _payout_audit(payout, 'paid', admin_user, notes or tx_ref)
+        _notify_user(payout.user_id, 'Payout paid successfully', f'Your ${payout.amount:.2f} payout was paid successfully.', admin_user.id)
+    else:
+        abort(404)
+
+    db.session.commit()
+    flash('Payout updated successfully.', 'success')
+    return redirect(request.referrer or url_for('admin.admin_payouts'))
 
 # ===== CHALLENGE MANAGEMENT ROUTES =====
 

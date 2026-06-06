@@ -324,6 +324,12 @@
                 <span>Payments</span>
             </a>
 
+            <a href="/admin/payouts"
+                class="flex items-center space-x-3 p-3 {% if 'admin_payout' in request.endpoint or 'export_payouts' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
+                <i class="fas fa-wallet w-5"></i>
+                <span>Payouts</span>
+            </a>
+
             <a href="/admin/coupons"
                 class="flex items-center space-x-3 p-3 {% if 'admin.admin_coupons' in request.endpoint or 'admin.admin_coupon_detail' in request.endpoint or 'admin.admin_coupon_analytics' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
                 <i class="fas fa-ticket-alt w-5"></i>
@@ -472,6 +478,13 @@
                 onclick="toggleSidebar()">
                 <i class="fas fa-money-bill-wave w-5"></i>
                 <span>Payments</span>
+            </a>
+
+            <a href="/admin/payouts"
+                class="flex items-center space-x-3 p-3 {% if 'admin_payout' in request.endpoint or 'export_payouts' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition"
+                onclick="toggleSidebar()">
+                <i class="fas fa-wallet w-5"></i>
+                <span>Payouts</span>
             </a>
 
             <a href="/admin/coupons"

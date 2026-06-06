@@ -1,0 +1,113 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Payout Management - Tragene Admin{% endblock %}
+{% block header_title %}Payout Management{% endblock %}
+{% block header_subtitle %}Review funded-account payout requests{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+        {% for label, value in [('Total', stats.total), ('Pending', stats.pending), ('Review', stats.under_review), ('Approved', stats.approved), ('Paid', stats.paid)] %}
+        <div class="glass-card p-4">
+            <p class="text-xs text-gray-500 dark:text-gray-400">{{ label }}</p>
+            <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ value }}</p>
+        </div>
+        {% endfor %}
+        <div class="glass-card p-4"><p class="text-xs text-gray-500">Rejected</p><p class="text-2xl font-bold">{{ stats.rejected }}</p></div>
+        <div class="glass-card p-4"><p class="text-xs text-gray-500">Total Paid</p><p class="text-2xl font-bold">${{ '%.2f'|format(stats.total_paid) }}</p></div>
+        <div class="glass-card p-4"><p class="text-xs text-gray-500">Pending Amount</p><p class="text-2xl font-bold">${{ '%.2f'|format(stats.total_pending) }}</p></div>
+        <div class="glass-card p-4"><p class="text-xs text-gray-500">Eligible Accounts</p><p class="text-2xl font-bold">{{ stats.eligible_accounts }}</p></div>
+        <div class="glass-card p-4"><p class="text-xs text-gray-500">Average</p><p class="text-2xl font-bold">${{ '%.2f'|format(stats.average) }}</p></div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div class="glass-card p-5 lg:col-span-2">
+            <h2 class="font-bold text-gray-900 dark:text-white mb-4">Analytics</h2>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                <div><p class="text-gray-500">This Week</p><p class="font-bold">${{ '%.2f'|format(analytics.week_paid) }}</p></div>
+                <div><p class="text-gray-500">This Month</p><p class="font-bold">${{ '%.2f'|format(analytics.month_paid) }}</p></div>
+                <div><p class="text-gray-500">All Time</p><p class="font-bold">${{ '%.2f'|format(analytics.all_paid) }}</p></div>
+                <div><p class="text-gray-500">Approved Amount</p><p class="font-bold">${{ '%.2f'|format(analytics.approved_amount) }}</p></div>
+                <div><p class="text-gray-500">Paid Amount</p><p class="font-bold">${{ '%.2f'|format(analytics.paid_amount) }}</p></div>
+                <div><p class="text-gray-500">Rejected Amount</p><p class="font-bold">${{ '%.2f'|format(analytics.rejected_amount) }}</p></div>
+                <div><p class="text-gray-500">Average Size</p><p class="font-bold">${{ '%.2f'|format(analytics.average_size) }}</p></div>
+                <div><p class="text-gray-500">Pending Liability</p><p class="font-bold">${{ '%.2f'|format(analytics.pending_liability) }}</p></div>
+            </div>
+        </div>
+        <div class="glass-card p-5">
+            <h2 class="font-bold text-gray-900 dark:text-white mb-4">Most Active Funded Traders</h2>
+            <div class="space-y-2 text-sm">
+                {% for trader in analytics.top_traders %}
+                <div class="flex justify-between border-b dark:border-dark-border pb-2">
+                    <span>{{ trader.first_name }} {{ trader.last_name }}</span>
+                    <span class="font-bold">{{ trader.count }} / ${{ '%.2f'|format(trader.amount) }}</span>
+                </div>
+                {% else %}
+                <p class="text-gray-500">No payout activity yet.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <div class="glass-card p-5">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+            <h2 class="text-xl font-bold text-gray-900 dark:text-white">Requests</h2>
+            <div class="flex gap-2">
+                <a href="{{ url_for('admin.admin_payout_history') }}" class="px-4 py-2 rounded-lg bg-gray-100 dark:bg-gray-800 font-semibold">History</a>
+                <a href="{{ url_for('admin.export_payouts') }}" class="px-4 py-2 rounded-lg bg-emerald-600 text-white font-semibold">CSV Export</a>
+            </div>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="text-left text-gray-500 border-b dark:border-dark-border">
+                    <tr>
+                        <th class="py-3">Username</th><th>Challenge</th><th>Size</th><th>Type</th><th>Available</th><th>Requested</th><th>Profit %</th><th>Method</th><th>Details</th><th>Date</th><th>Status</th><th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for payout in payouts %}
+                    <tr class="border-b dark:border-dark-border align-top">
+                        <td class="py-3">{{ payout.username_snapshot or (payout.user.get_full_name() if payout.user else '-') }}</td>
+                        <td>{{ payout.challenge_name_snapshot }}</td>
+                        <td>${{ '%.2f'|format(payout.account_size_snapshot or 0) }}</td>
+                        <td>{{ payout.account_type_snapshot }}</td>
+                        <td>${{ '%.2f'|format(payout.available_profit_snapshot or 0) }}</td>
+                        <td class="font-bold">${{ '%.2f'|format(payout.amount) }}</td>
+                        <td>{{ '%.0f'|format(payout.profit_share_percentage or 0) }}%</td>
+                        <td>{{ payout.payment_method|replace('_',' ')|title }}</td>
+                        <td class="max-w-xs">{{ payout.upi_id or payout.bank_account_details or '-' }}</td>
+                        <td>{{ payout.created_at.strftime('%d %b %Y') if payout.created_at else '-' }}</td>
+                        <td><span class="px-2 py-1 rounded text-xs font-bold bg-gray-100 dark:bg-gray-800">{{ payout.status|replace('_',' ')|title }}</span></td>
+                        <td class="space-y-2 min-w-56">
+                            {% if payout.status == 'pending' %}
+                            <form method="POST" action="{{ url_for('admin.admin_payout_action', payout_id=payout.id, action='review') }}"><button class="w-full px-3 py-1.5 rounded bg-blue-600 text-white">Move to Review</button></form>
+                            {% endif %}
+                            {% if payout.status in ['pending', 'under_review'] %}
+                            <form method="POST" action="{{ url_for('admin.admin_payout_action', payout_id=payout.id, action='approve') }}" class="flex gap-2">
+                                <input name="expected_payment_time" placeholder="24 Hours" required class="w-28 px-2 py-1 rounded border">
+                                <button class="px-3 py-1.5 rounded bg-emerald-600 text-white">Approve</button>
+                            </form>
+                            <form method="POST" action="{{ url_for('admin.admin_payout_action', payout_id=payout.id, action='reject') }}" class="flex gap-2">
+                                <input name="rejection_reason" placeholder="Reason" required class="w-28 px-2 py-1 rounded border">
+                                <button class="px-3 py-1.5 rounded bg-red-600 text-white">Reject</button>
+                            </form>
+                            {% endif %}
+                            {% if payout.status == 'approved' %}
+                            <form method="POST" action="{{ url_for('admin.admin_payout_action', payout_id=payout.id, action='paid') }}" class="space-y-2">
+                                <input name="transaction_id" placeholder="Transaction Reference" required class="w-full px-2 py-1 rounded border">
+                                <input type="datetime-local" name="payment_date" class="w-full px-2 py-1 rounded border">
+                                <input name="admin_notes" placeholder="Internal notes" class="w-full px-2 py-1 rounded border">
+                                <button class="w-full px-3 py-1.5 rounded bg-gray-900 text-white">Mark as Paid</button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="12" class="py-8 text-center text-gray-500">No payout requests yet.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

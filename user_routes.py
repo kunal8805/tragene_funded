@@ -1,10 +1,11 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify
 from functools import wraps
-from models import db, User, ChallengeTemplate, ChallengePurchase, Payment, Payout, SupportTicket, TicketMessage, FAQ, RuleLog, TradeHistory, Notification, UserNotification, Coupon, CouponUsage, CouponAssignment
+from models import db, User, ChallengeTemplate, ChallengePurchase, Payment, Payout, PayoutAuditLog, SupportTicket, TicketMessage, FAQ, RuleLog, TradeHistory, Notification, UserNotification, Coupon, CouponUsage, CouponAssignment
 from datetime import datetime, timezone, timedelta
 import os
 import secrets
 import random
+import json
 from werkzeug.utils import secure_filename
 from PIL import Image
 import time
@@ -41,6 +42,110 @@ def compress_and_save_ticket_attachment(attachment, ticket_number, prefix=""):
     return None
 
 user_bp = Blueprint('user', __name__, url_prefix='/user')
+
+ACTIVE_PAYOUT_STATUSES = ['pending', 'under_review', 'approved']
+
+def _cycle_days(cycle):
+    cycle = (cycle or '').lower()
+    if cycle in ['weekly', 'week', '7_days']:
+        return 7
+    if cycle in ['monthly', 'month']:
+        return 30
+    return 14
+
+def _aware(dt):
+    if not dt:
+        return None
+    return dt.replace(tzinfo=timezone.utc) if dt.tzinfo is None else dt
+
+def _payout_notification(user_id, title, message):
+    notification = Notification(
+        title=title,
+        message=message,
+        is_global=False,
+        target_user_id=user_id,
+        expires_at=datetime.now(timezone.utc) + timedelta(days=30)
+    )
+    db.session.add(notification)
+    db.session.flush()
+    db.session.add(UserNotification(notification_id=notification.id, user_id=user_id))
+
+def payout_account_type(challenge):
+    if challenge.challenge_type == 'instant':
+        return 'Instant Funding Account'
+    if challenge.status == 'funded_active':
+        return 'Funded Account'
+    return (challenge.status or 'Challenge').replace('_', ' ').title()
+
+def payout_eligibility(challenge):
+    template = challenge.challenge_template
+    account_size = float(template.account_size if template else challenge.starting_balance or challenge.current_balance or 0)
+    profit_share = float(template.user_profit_share if template else 0)
+    minimum = round(account_size * 0.05, 2)
+    is_funded = challenge.status == 'funded_active' or challenge.challenge_type == 'instant'
+    if not is_funded or challenge.status in ['phase1_active', 'phase2_active', 'failed', 'expired', 'revoked']:
+        return {
+            'eligible': False,
+            'reason': 'Only Instant Funding Accounts and Funded Accounts can request payouts.',
+            'account_size': account_size,
+            'minimum': minimum,
+            'available_profit': 0.0,
+            'profit_share': profit_share,
+            'next_date': None,
+            'cycle_days': _cycle_days(template.payout_cycle if template else None),
+            'account_type': payout_account_type(challenge)
+        }
+
+    funded_at = _aware(challenge.funded_at or challenge.start_date or challenge.purchase_date or challenge.created_at)
+    cycle_days = _cycle_days(template.payout_cycle if template else None)
+    cycle_start = funded_at or _aware(challenge.created_at) or datetime.now(timezone.utc)
+    last_completed = Payout.query.filter(
+        Payout.challenge_purchase_id == challenge.id,
+        Payout.status == 'paid'
+    ).order_by(Payout.updated_at.desc()).first()
+    if last_completed:
+        cycle_start = _aware(last_completed.paid_at or last_completed.updated_at or last_completed.created_at) or cycle_start
+    next_date = cycle_start + timedelta(days=cycle_days)
+
+    active_request = Payout.query.filter(
+        Payout.challenge_purchase_id == challenge.id,
+        Payout.status.in_(ACTIVE_PAYOUT_STATUSES)
+    ).first()
+
+    baseline = float(challenge.phase_start_balance or challenge.starting_balance or account_size or 0)
+    current_value = float(challenge.current_equity or challenge.current_balance or baseline)
+    funded_profit = max(0.0, current_value - baseline)
+    paid_amount = db.session.query(db.func.coalesce(db.func.sum(Payout.amount), 0)).filter(
+        Payout.challenge_purchase_id == challenge.id,
+        Payout.status == 'paid'
+    ).scalar() or 0
+    available_profit = round(max(0.0, (funded_profit * (profit_share / 100.0)) - float(paid_amount)), 2)
+
+    now = datetime.now(timezone.utc)
+    eligible = True
+    reason = ''
+    if active_request:
+        eligible = False
+        reason = 'A payout request is already active for this account.'
+    elif available_profit < minimum:
+        eligible = False
+        reason = 'Minimum payout threshold not reached.'
+    elif now < next_date:
+        eligible = False
+        reason = f"Next payout date: {next_date.strftime('%d %B %Y')}"
+
+    return {
+        'eligible': eligible,
+        'reason': reason,
+        'account_size': account_size,
+        'minimum': minimum,
+        'available_profit': available_profit,
+        'profit_share': profit_share,
+        'next_date': next_date,
+        'cycle_days': cycle_days,
+        'account_type': payout_account_type(challenge),
+        'active_request': active_request
+    }
 
 def login_required(f):
     @wraps(f)
@@ -93,7 +198,10 @@ def dashboard():
     available_challenges = ChallengeTemplate.query.filter_by(is_active=True).order_by(ChallengeTemplate.price).limit(3).all()
     
     # Pending payouts count
-    pending_payouts_count = Payout.query.filter_by(user_id=user.id, status='pending').count()
+    pending_payouts_count = Payout.query.filter(
+        Payout.user_id == user.id,
+        Payout.status.in_(ACTIVE_PAYOUT_STATUSES)
+    ).count()
     
     # Open tickets
     open_tickets = SupportTicket.query.filter_by(user_id=user.id, status='open').order_by(SupportTicket.updated_at.desc()).limit(3).all()
@@ -410,43 +518,105 @@ def payments():
 @login_required
 def payouts():
     user = User.query.get(session['user_id'])
-    user_payouts = Payout.query.filter_by(user_id=user.id).join(ChallengePurchase).all()
+    purchases = ChallengePurchase.query.filter_by(user_id=user.id).order_by(ChallengePurchase.created_at.desc()).all()
+    eligible_accounts = []
+    blocked_accounts = []
+    for purchase in purchases:
+        info = payout_eligibility(purchase)
+        row = {'challenge': purchase, 'info': info}
+        if purchase.status == 'funded_active' or purchase.challenge_type == 'instant':
+            eligible_accounts.append(row)
+        elif purchase.status in ['phase1_active', 'phase2_active', 'failed', 'expired', 'revoked', 'active']:
+            blocked_accounts.append(row)
+    user_payouts = Payout.query.filter_by(user_id=user.id).order_by(Payout.created_at.desc()).all()
+    active_payouts_count = sum(1 for payout in user_payouts if payout.status in ACTIVE_PAYOUT_STATUSES)
     
     return render_template('user/payouts.html', 
                          user=user, 
-                         payouts=user_payouts)
+                         payouts=user_payouts,
+                         active_payouts_count=active_payouts_count,
+                         eligible_accounts=eligible_accounts,
+                         blocked_accounts=blocked_accounts)
 
 @user_bp.route('/request-payout', methods=['POST'])
 @login_required
 def request_payout():
     try:
         user = User.query.get(session['user_id'])
-        challenge_id = request.form.get('challenge_id')
+        challenge_id = request.form.get('challenge_id', type=int)
         amount = float(request.form.get('amount', 0))
+        payment_method = request.form.get('payment_method', '').strip()
+        account_holder_name = request.form.get('account_holder_name', '').strip()
         
         challenge = ChallengePurchase.query.filter_by(
             id=challenge_id,
-            user_id=user.id,
-            status='active'
+            user_id=user.id
         ).first()
         
         if not challenge:
             flash('Invalid challenge selected.', 'error')
             return redirect(url_for('user.payouts'))
+
+        info = payout_eligibility(challenge)
+        if not info['eligible']:
+            flash(info['reason'] or 'This account is not eligible for payout yet.', 'error')
+            return redirect(url_for('user.payouts'))
         
-        if amount <= 0 or amount > challenge.current_profit:
+        if amount < info['minimum'] or amount > info['available_profit']:
             flash('Invalid payout amount.', 'error')
             return redirect(url_for('user.payouts'))
+
+        if payment_method not in ['upi', 'bank_transfer']:
+            flash('Please select a valid payout method.', 'error')
+            return redirect(url_for('user.payouts'))
+
+        if not account_holder_name:
+            flash('Account holder name is required.', 'error')
+            return redirect(url_for('user.payouts'))
+
+        upi_id = ''
+        bank_details = {}
+        if payment_method == 'upi':
+            upi_id = request.form.get('upi_id', '').strip()
+            if not upi_id or '@' not in upi_id:
+                flash('Please enter a valid UPI ID.', 'error')
+                return redirect(url_for('user.payouts'))
+        else:
+            bank_details = {
+                'bank_name': request.form.get('bank_name', '').strip(),
+                'account_number': request.form.get('account_number', '').strip(),
+                'ifsc_code': request.form.get('ifsc_code', '').strip().upper()
+            }
+            if not all(bank_details.values()):
+                flash('Please complete all bank transfer fields.', 'error')
+                return redirect(url_for('user.payouts'))
         
         payout = Payout(
             user_id=user.id,
             challenge_purchase_id=challenge.id,
             amount=amount,
+            profit_share_percentage=info['profit_share'],
             status='pending',
-            payout_method=request.form.get('payout_method', 'bank_transfer')
+            username_snapshot=user.get_full_name(),
+            challenge_name_snapshot=challenge.challenge_template.name if challenge.challenge_template else 'Challenge',
+            account_type_snapshot=info['account_type'],
+            account_size_snapshot=info['account_size'],
+            available_profit_snapshot=info['available_profit'],
+            due_date=info['next_date'],
+            payment_method=payment_method,
+            account_holder_name=account_holder_name,
+            upi_id=upi_id,
+            bank_account_details=json.dumps(bank_details) if bank_details else ''
         )
         
         db.session.add(payout)
+        db.session.flush()
+        db.session.add(PayoutAuditLog(
+            payout_id=payout.id,
+            action='request_created',
+            notes='User submitted payout request.'
+        ))
+        _payout_notification(user.id, 'Payout request submitted', f'Your ${amount:.2f} payout request is pending review.')
         db.session.commit()
         
         flash('Payout request submitted successfully!', 'success')

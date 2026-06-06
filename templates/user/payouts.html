@@ -1,62 +1,142 @@
 {% extends "user/base.html" %}
 
 {% block title %}Payouts - Tragene Funded{% endblock %}
-
 {% block header_title %}Payouts{% endblock %}
-{% block header_subtitle %}Manage your earnings and withdrawals{% endblock %}
+{% block header_subtitle %}Request funded-account payouts and track history{% endblock %}
 
 {% block content %}
-<div class="max-w-4xl mx-auto">
-    <div class="glass-card p-10 lg:p-16 border dark:border-dark-border text-center relative overflow-hidden" data-aos="zoom-in">
-        <!-- Decorative Background Element -->
-        <div class="absolute -top-10 -right-10 w-40 h-40 bg-green-500/10 rounded-full blur-3xl"></div>
-        <div class="absolute -bottom-10 -left-10 w-40 h-40 bg-blue-500/10 rounded-full blur-3xl"></div>
-
-        <div class="relative z-10">
-            <div class="w-24 h-24 bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center mx-auto mb-8 shadow-inner">
-                <i class="fas fa-wallet text-green-600 dark:text-green-400 text-4xl"></i>
-            </div>
-            
-            <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-6">Payout Information</h2>
-            
-            <div class="bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30 p-8 rounded-3xl mb-10">
-                <p class="text-xl text-blue-800 dark:text-blue-300 font-medium leading-relaxed">
-                    "When you are applicable for payout you will get updated on this page. We will update."
-                </p>
-            </div>
-
-            <p class="text-gray-500 dark:text-gray-400 max-w-xl mx-auto mb-10">
-                Our team regularly reviews accounts for payout eligibility based on challenge completion and rule adherence. Please continue your trading journey, and we will notify you here once you are eligible for your first withdrawal.
-            </p>
-
-            <div class="flex flex-col sm:flex-row gap-4 justify-center">
-                <a href="{{ url_for('user.dashboard') }}" class="bg-gray-900 dark:bg-white text-white dark:text-black px-8 py-4 rounded-2xl font-bold transition hover:opacity-90">
-                    Return to Dashboard
-                </a>
-                <a href="{{ url_for('user.help') }}" class="bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white px-8 py-4 rounded-2xl font-bold transition hover:bg-gray-200 dark:hover:bg-gray-700">
-                    Support Center
-                </a>
-            </div>
+<div class="space-y-8">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="glass-card p-5 border dark:border-dark-border">
+            <p class="text-xs text-gray-500 dark:text-gray-400">Eligible Accounts</p>
+            <p class="text-3xl font-bold text-gray-900 dark:text-white">{{ eligible_accounts|length }}</p>
+        </div>
+        <div class="glass-card p-5 border dark:border-dark-border">
+            <p class="text-xs text-gray-500 dark:text-gray-400">Pending Requests</p>
+            <p class="text-3xl font-bold text-amber-600">{{ active_payouts_count }}</p>
+        </div>
+        <div class="glass-card p-5 border dark:border-dark-border">
+            <p class="text-xs text-gray-500 dark:text-gray-400">Paid Successfully</p>
+            <p class="text-3xl font-bold text-emerald-600">{{ payouts|selectattr('status', 'equalto', 'paid')|list|length }}</p>
         </div>
     </div>
 
-    <!-- Payout Requirements Card -->
-    <div class="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div class="glass-card p-6 border dark:border-dark-border" data-aos="fade-up" style="animation-delay: 0.1s;">
-            <div class="text-blue-500 mb-4 text-xl"><i class="fas fa-check-circle"></i></div>
-            <h4 class="font-bold text-gray-900 dark:text-white mb-2">KYC Approved</h4>
-            <p class="text-xs text-gray-500 dark:text-gray-400">Identity verification must be completed and approved before any payout request.</p>
+    <div class="glass-card p-5 border dark:border-dark-border">
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <h2 class="text-xl font-bold text-gray-900 dark:text-white">Funded Accounts</h2>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Minimum payout is 5% of account size. Only post-funded profit is counted.</p>
+            </div>
         </div>
-        <div class="glass-card p-6 border dark:border-dark-border" data-aos="fade-up" style="animation-delay: 0.2s;">
-            <div class="text-green-500 mb-4 text-xl"><i class="fas fa-bullseye"></i></div>
-            <h4 class="font-bold text-gray-900 dark:text-white mb-2">Profit Target</h4>
-            <p class="text-xs text-gray-500 dark:text-gray-400">Ensure you have reached the minimum profit share requirements for your challenge phase.</p>
+
+        {% if eligible_accounts %}
+        <div class="space-y-5">
+            {% for item in eligible_accounts %}
+            {% set ch = item.challenge %}
+            {% set info = item.info %}
+            <div class="border border-gray-200 dark:border-dark-border rounded-lg p-4 bg-white/70 dark:bg-gray-900/30">
+                <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+                    <div>
+                        <div class="flex flex-wrap items-center gap-2 mb-2">
+                            <h3 class="font-bold text-gray-900 dark:text-white">{{ ch.challenge_template.name if ch.challenge_template else 'Challenge' }}</h3>
+                            <span class="px-2 py-1 rounded text-xs font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">{{ info.account_type }}</span>
+                            <span class="px-2 py-1 rounded text-xs font-bold bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300">{{ ch.status|replace('_',' ')|title }}</span>
+                        </div>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                            <div><p class="text-gray-500">Account Size</p><p class="font-semibold">${{ '%.2f'|format(info.account_size) }}</p></div>
+                            <div><p class="text-gray-500">Funded Date</p><p class="font-semibold">{{ (ch.funded_at or ch.start_date or ch.created_at).strftime('%d %b %Y') if (ch.funded_at or ch.start_date or ch.created_at) else '-' }}</p></div>
+                            <div><p class="text-gray-500">Available Profit</p><p class="font-semibold text-emerald-600">${{ '%.2f'|format(info.available_profit) }}</p></div>
+                            <div><p class="text-gray-500">Profit Share</p><p class="font-semibold">{{ '%.0f'|format(info.profit_share) }}%</p></div>
+                            <div><p class="text-gray-500">Minimum Payout</p><p class="font-semibold">${{ '%.2f'|format(info.minimum) }}</p></div>
+                            <div><p class="text-gray-500">Next Eligible</p><p class="font-semibold">{{ info.next_date.strftime('%d %b %Y') if info.next_date else '-' }}</p></div>
+                            <div><p class="text-gray-500">Frequency</p><p class="font-semibold">{{ info.cycle_days }} days</p></div>
+                            <div><p class="text-gray-500">Status</p><p class="font-semibold">{{ 'Eligible' if info.eligible else info.reason }}</p></div>
+                        </div>
+                    </div>
+                    <div class="lg:w-80">
+                        {% if info.eligible %}
+                        <form method="POST" action="{{ url_for('user.request_payout') }}" class="space-y-3">
+                            <input type="hidden" name="challenge_id" value="{{ ch.id }}">
+                            <input type="number" step="0.01" min="{{ info.minimum }}" max="{{ info.available_profit }}" name="amount" required placeholder="Amount"
+                                class="w-full px-3 py-2 rounded-lg border dark:border-dark-border bg-white dark:bg-gray-900">
+                            <select name="payment_method" required onchange="togglePayoutFields(this)"
+                                class="w-full px-3 py-2 rounded-lg border dark:border-dark-border bg-white dark:bg-gray-900">
+                                <option value="">Payment Method</option>
+                                <option value="upi">UPI</option>
+                                <option value="bank_transfer">Bank Transfer</option>
+                            </select>
+                            <input name="account_holder_name" required placeholder="Account Holder Name"
+                                class="w-full px-3 py-2 rounded-lg border dark:border-dark-border bg-white dark:bg-gray-900">
+                            <div class="upi-fields hidden">
+                                <input name="upi_id" placeholder="UPI ID" class="w-full px-3 py-2 rounded-lg border dark:border-dark-border bg-white dark:bg-gray-900">
+                            </div>
+                            <div class="bank-fields hidden space-y-3">
+                                <input name="bank_name" placeholder="Bank Name" class="w-full px-3 py-2 rounded-lg border dark:border-dark-border bg-white dark:bg-gray-900">
+                                <input name="account_number" placeholder="Account Number" class="w-full px-3 py-2 rounded-lg border dark:border-dark-border bg-white dark:bg-gray-900">
+                                <input name="ifsc_code" placeholder="IFSC Code" class="w-full px-3 py-2 rounded-lg border dark:border-dark-border bg-white dark:bg-gray-900">
+                            </div>
+                            <p class="text-xs text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-900/30 p-2 rounded">
+                                Account holder name must exactly match your verified KYC/Aadhaar details. Incorrect information may result in payout rejection.
+                            </p>
+                            <button class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-lg">Request Payout</button>
+                        </form>
+                        {% else %}
+                        <div class="p-4 rounded-lg bg-gray-50 dark:bg-gray-900 border dark:border-dark-border text-sm text-gray-600 dark:text-gray-300">
+                            {{ info.reason or 'You are not yet eligible for payout. Minimum payout requirement not reached.' }}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
         </div>
-        <div class="glass-card p-6 border dark:border-dark-border" data-aos="fade-up" style="animation-delay: 0.3s;">
-            <div class="text-amber-500 mb-4 text-xl"><i class="fas fa-shield-alt"></i></div>
-            <h4 class="font-bold text-gray-900 dark:text-white mb-2">Rule Compliance</h4>
-            <p class="text-xs text-gray-500 dark:text-gray-400">All trading rules and risk management parameters must be maintained throughout the session.</p>
+        {% else %}
+        <div class="text-center py-10 text-gray-500 dark:text-gray-400">No funded or instant funding accounts are eligible to display yet.</div>
+        {% endif %}
+    </div>
+
+    <div class="glass-card p-5 border dark:border-dark-border">
+        <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Payout History</h2>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="text-left text-gray-500 border-b dark:border-dark-border">
+                    <tr>
+                        <th class="py-3">Request Date</th><th>Challenge</th><th>Amount</th><th>Status</th><th>Approval</th><th>Payment</th><th>Reference</th><th>Reason</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for payout in payouts %}
+                    <tr class="border-b dark:border-dark-border">
+                        <td class="py-3">{{ payout.created_at.strftime('%d %b %Y') if payout.created_at else '-' }}</td>
+                        <td>{{ payout.challenge_name_snapshot or (payout.challenge_purchase.challenge_template.name if payout.challenge_purchase and payout.challenge_purchase.challenge_template else 'Challenge') }}</td>
+                        <td>${{ '%.2f'|format(payout.amount) }}</td>
+                        <td>
+                            <span class="px-2 py-1 rounded text-xs font-bold bg-gray-100 dark:bg-gray-800">{{ payout.status|replace('_',' ')|title }}</span>
+                            {% if payout.status == 'approved' and payout.expected_payment_time %}
+                            <div class="text-xs text-emerald-600 mt-1">Expected Payment: {{ payout.expected_payment_time }}</div>
+                            {% elif payout.status == 'paid' %}
+                            <div class="text-xs text-emerald-600 mt-1">Paid Successfully</div>
+                            {% endif %}
+                        </td>
+                        <td>{{ payout.approved_at.strftime('%d %b %Y') if payout.approved_at else '-' }}</td>
+                        <td>{{ payout.paid_at.strftime('%d %b %Y') if payout.paid_at else '-' }}</td>
+                        <td>{{ payout.transaction_id or '-' }}</td>
+                        <td>{{ payout.rejection_reason or '-' }}</td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="8" class="py-8 text-center text-gray-500">No payout history yet.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
 </div>
+
+<script>
+function togglePayoutFields(select) {
+    const form = select.closest('form');
+    form.querySelector('.upi-fields').classList.toggle('hidden', select.value !== 'upi');
+    form.querySelector('.bank-fields').classList.toggle('hidden', select.value !== 'bank_transfer');
+}
+</script>
 {% endblock %}
