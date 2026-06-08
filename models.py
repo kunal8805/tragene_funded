@@ -495,6 +495,8 @@ class TradeHistory(db.Model):
     open_price = db.Column(db.Float, nullable=False)
     close_price = db.Column(db.Float, nullable=True)
     profit = db.Column(db.Float, default=0.0)
+    swap = db.Column(db.Float, default=0.0)
+    commission = db.Column(db.Float, default=0.0)
     sl = db.Column(db.Float, default=0.0)
     tp = db.Column(db.Float, default=0.0)
     open_time = db.Column(db.DateTime(timezone=True), nullable=False, index=True)

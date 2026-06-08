@@ -851,20 +851,21 @@ def create_cashfree_order():
         coupon_code = request.form.get('coupon_code')
         coupon_id = None
         base_price = float(challenge.price)
-        gateway_charge = round(base_price * 0.02, 2)
-        expected_payable_amount = round(base_price + gateway_charge, 2)
-        
+
         if coupon_code:
             coupon = Coupon.query.filter_by(code=coupon_code.upper().strip(), is_deleted=False).first()
             if not coupon:
                 return jsonify({'success': False, 'error': 'Invalid coupon code'})
             
-            is_valid, msg, discount_amount, final_price = coupon.validate_for_user_and_price(user.id, expected_payable_amount)
+            is_valid, msg, discount_amount, discounted_base = coupon.validate_for_user_and_price(user.id, base_price)
             if not is_valid:
                 return jsonify({'success': False, 'error': msg})
-                
-            expected_payable_amount = final_price
+            
+            base_price = discounted_base
             coupon_id = coupon.id
+
+        gateway_charge = round(base_price * 0.02, 2)
+        expected_payable_amount = round(base_price + gateway_charge, 2)
             
         internal_order_id = f"ORDER_{user.id}_{int(time.time())}_{secrets.token_hex(4)}"
         
