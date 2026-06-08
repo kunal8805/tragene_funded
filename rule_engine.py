@@ -303,46 +303,48 @@ def save_trade_history(challenge, data):
         if not ticket:
             continue
 
-        existing = TradeHistory.query.filter_by(
-            challenge_id=challenge.id,
-            ticket=ticket
-        ).first()
+        try:
+            existing = TradeHistory.query.filter_by(
+                challenge_id=challenge.id,
+                ticket=ticket
+            ).first()
 
-        if existing:
-            if td.get('close_time') and existing.is_open:
-                # Trade just closed — update all fields including swap/commission
-                existing.close_time  = parse_datetime(td.get('close_time'))
-                existing.close_price = _safe_float(td.get('close_price'))
-                existing.profit      = _safe_float(td.get('profit'))
-                # FIX 1: persist swap and commission when trade closes
-                existing.swap        = _safe_float(td.get('swap'))
-                existing.commission  = _safe_float(td.get('commission'))
-                existing.is_open     = False
-            elif existing.is_open:
-                # Still open — update SL/TP silently (manual edit, allowed)
-                existing.sl = _safe_float(td.get('sl'))
-                existing.tp = _safe_float(td.get('tp'))
-        else:
-            trade = TradeHistory(
-                challenge_id = challenge.id,
-                ticket       = _safe_int(ticket),
-                symbol       = td.get('symbol', 'UNKNOWN'),
-                lots         = _safe_float(td.get('lots')),
-                open_price   = _safe_float(td.get('open_price')),
-                close_price  = _safe_float(td.get('close_price')) if td.get('close_price') else None,
-                profit       = _safe_float(td.get('profit')),
-                # FIX 1: store swap and commission from the start
-                swap         = _safe_float(td.get('swap')),
-                commission   = _safe_float(td.get('commission')),
-                sl           = _safe_float(td.get('sl')),
-                tp           = _safe_float(td.get('tp')),
-                open_time    = parse_datetime(td.get('open_time')),
-                close_time   = parse_datetime(td.get('close_time')) if td.get('close_time') else None,
-                is_open      = not bool(td.get('close_time')),
-                magic_number = _safe_int(td.get('magic')),
-                comment      = (td.get('comment') or '')[:200],
-            )
-            db.session.add(trade)
+            if existing:
+                if td.get('close_time') and existing.is_open:
+                    existing.close_time  = parse_datetime(td.get('close_time'))
+                    existing.close_price = _safe_float(td.get('close_price'))
+                    existing.profit      = _safe_float(td.get('profit'))
+                    existing.swap        = _safe_float(td.get('swap'))
+                    existing.commission  = _safe_float(td.get('commission'))
+                    existing.is_open     = False
+                elif existing.is_open:
+                    existing.sl = _safe_float(td.get('sl'))
+                    existing.tp = _safe_float(td.get('tp'))
+            else:
+                trade = TradeHistory(
+                    challenge_id = challenge.id,
+                    ticket       = _safe_int(ticket),
+                    symbol       = td.get('symbol', 'UNKNOWN'),
+                    lots         = _safe_float(td.get('lots')),
+                    open_price   = _safe_float(td.get('open_price')),
+                    close_price  = _safe_float(td.get('close_price')) if td.get('close_price') else None,
+                    profit       = _safe_float(td.get('profit')),
+                    swap         = _safe_float(td.get('swap')),
+                    commission   = _safe_float(td.get('commission')),
+                    sl           = _safe_float(td.get('sl')),
+                    tp           = _safe_float(td.get('tp')),
+                    open_time    = parse_datetime(td.get('open_time')),
+                    close_time   = parse_datetime(td.get('close_time')) if td.get('close_time') else None,
+                    is_open      = not bool(td.get('close_time')),
+                    magic_number = _safe_int(td.get('magic')),
+                    comment      = (td.get('comment') or '')[:200],
+                )
+                db.session.add(trade)
+
+        except Exception as e:
+            db.session.rollback()
+            print(f"[TRADE SKIP] ticket {ticket} skipped: {e}")
+            continue
 
     db.session.commit()
 
