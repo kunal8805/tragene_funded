@@ -61,6 +61,48 @@
     </div>
 </div>
 
+<!-- Progression Requests -->
+<div class="glass-card overflow-hidden mb-8" data-aos="fade-up" data-aos-delay="350">
+    <div class="px-6 py-4 border-b border-gray-100 dark:border-dark-border bg-white dark:bg-dark-card">
+        <h2 class="text-lg font-bold text-gray-900 dark:text-white">Progression Requests</h2>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="w-full">
+            <thead class="bg-gray-50 dark:bg-gray-800/50">
+                <tr>
+                    <th class="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Request</th>
+                    <th class="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Challenge ID</th>
+                    <th class="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Created</th>
+                    <th class="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
+                    <th class="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Reason</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100 dark:divide-dark-border">
+                {% for req in progression_requests %}
+                <tr>
+                    <td class="px-6 py-4 text-sm font-bold text-gray-900 dark:text-white">{{ req.request_type|replace('_', ' ')|title }}</td>
+                    <td class="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">#{{ req.challenge_purchase.serial_no or req.challenge_purchase.id }}</td>
+                    <td class="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">{{ req.created_at.strftime('%Y-%m-%d %H:%M') if req.created_at else 'N/A' }}</td>
+                    <td class="px-6 py-4">
+                        <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full
+                            {% if req.status == 'approved' %}bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400
+                            {% elif req.status == 'declined' %}bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400
+                            {% else %}bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400{% endif %}">
+                            {{ req.status|title }}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">{{ req.admin_reason or '-' }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5" class="px-6 py-8 text-center text-gray-500 dark:text-gray-400">No progression requests yet</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
 <!-- History Table -->
 <div class="glass-card overflow-hidden" data-aos="fade-up" data-aos-delay="400">
     <div
@@ -159,6 +201,10 @@
                         'active': 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400',
                         'phase1_active': 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400',
                         'phase2_active': 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400',
+                        'funded': 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400',
+                        'pending_phase2': 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400',
+                        'pending_funded': 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400',
+                        'inactive': 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-300',
                         'passed': 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400',
                         'failed': 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400',
                         'expired': 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-300'

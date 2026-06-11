@@ -15,10 +15,32 @@ class ChallengeStatus:
     ACTIVE = 'active'
     PASSED = 'passed'
     FAILED = 'failed'
+    PENDING_PHASE2 = 'pending_phase2'
+    PENDING_FUNDED = 'pending_funded'
+    FUNDED = 'funded'
+    INACTIVE = 'inactive'
     EXPIRED = 'expired'
     REVOKED = 'revoked'
     
-    ALL = [PENDING_CREDENTIALS, ACTIVE, PASSED, FAILED, EXPIRED, REVOKED]
+    ALL = [
+        PENDING_CREDENTIALS, ACTIVE, PASSED, FAILED, PENDING_PHASE2,
+        PENDING_FUNDED, FUNDED, INACTIVE, EXPIRED, REVOKED
+    ]
+
+
+class ProgressionRequestType:
+    PHASE2 = 'phase2'
+    FUNDED = 'funded'
+
+    ALL = [PHASE2, FUNDED]
+
+
+class ProgressionRequestStatus:
+    PENDING = 'pending'
+    APPROVED = 'approved'
+    DECLINED = 'declined'
+
+    ALL = [PENDING, APPROVED, DECLINED]
 
 class KYCStatus:
     PENDING = 'pending'
@@ -87,10 +109,11 @@ class User(db.Model):
     trader_level = db.Column(db.String(50), default='Starter')
     is_compact_view = db.Column(db.Boolean, default=False)
 
-    # Relationships - FIXED: using string reference with proper backref names
+    # Relationships
     challenge_purchases = db.relationship('TradingJourney', backref='user_obj', lazy=True, cascade='all, delete-orphan')
     payouts = db.relationship('Payout', backref='user_obj', lazy=True, cascade='all, delete-orphan')
     payments = db.relationship('Payment', backref='user_obj', lazy=True, cascade='all, delete-orphan', foreign_keys='Payment.user_id')
+    reviewed_violations = db.relationship('ViolationEvidence', backref='reviewer', lazy=True, foreign_keys='ViolationEvidence.reviewed_by')
     
     def set_password(self, password):
         self.password = generate_password_hash(password)
@@ -187,7 +210,6 @@ class ChallengeTemplate(db.Model):
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
     updated_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     
-    # Relationships - FIXED: using string reference
     purchases = db.relationship('TradingJourney', backref='challenge_template', lazy=True)
     
     @property
@@ -283,10 +305,18 @@ class TradingJourney(db.Model):
     highest_equity_today = db.Column(db.Float, nullable=True)
     day_start_equity = db.Column(db.Float, nullable=True)
     
+    # NEW: Lifetime lowest equity tracking (never resets)
+    lowest_equity_lifetime = db.Column(db.Float, nullable=True)
+    lowest_equity_phase = db.Column(db.Float, nullable=True)
+    
     # Risk and monitoring
     risk_score = db.Column(db.Integer, default=0)
     monitoring_status = db.Column(db.String(30), default=MonitoringStatus.ACTIVE)
     review_required = db.Column(db.Boolean, default=False)
+    
+    # NEW: Violation review tracking
+    violation_reviewed = db.Column(db.Boolean, default=False)
+    last_violation_evidence_id = db.Column(db.Integer, nullable=True)
     
     # Phase progression tracking
     phase1_completed_at = db.Column(db.DateTime(timezone=True), nullable=True)
@@ -319,7 +349,7 @@ class TradingJourney(db.Model):
     last_balance_check_time = db.Column(db.DateTime(timezone=True), nullable=True)
     balance_check_hash = db.Column(db.String(64), default='')
     
-    # NEW: Fresh start baseline for manipulation checks
+    # Fresh start baseline for manipulation checks
     manipulation_check_baseline = db.Column(db.Float, nullable=True)
     manipulation_baseline_set_at = db.Column(db.DateTime(timezone=True), nullable=True)
     
@@ -350,26 +380,21 @@ class TradingJourney(db.Model):
     # Timestamps
     last_updated = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
     completed_at = db.Column(db.DateTime(timezone=True), nullable=True, index=True)
-    
-    # FIXED: Added created_at for backward compatibility
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
     
-    # Relationships - FIXED: using string references to avoid circular imports
+    # Relationships
     payouts = db.relationship('Payout', backref='challenge_purchase_obj', lazy=True, cascade='all, delete-orphan')
     payment = db.relationship('Payment', backref='challenge_purchase_obj', uselist=False)
-    
-    # EA monitoring relationships
     account_snapshots = db.relationship('AccountSnapshot', backref='challenge_obj', lazy=True, cascade='all, delete-orphan')
     ea_trades = db.relationship('EATrade', backref='challenge_obj', lazy=True, cascade='all, delete-orphan')
     rule_violations = db.relationship('RuleViolation', backref='challenge_obj', lazy=True, cascade='all, delete-orphan')
-    
-    # Rule engine relationships
+    violation_evidences = db.relationship('ViolationEvidence', backref='challenge', lazy=True, cascade='all, delete-orphan', foreign_keys='ViolationEvidence.challenge_purchase_id')
     rule_logs = db.relationship('RuleLog', backref='challenge_obj', lazy=True, cascade='all, delete-orphan')
     trade_history = db.relationship('TradeHistory', backref='challenge_obj', lazy=True, cascade='all, delete-orphan')
     trades = db.relationship('Trade', backref='challenge_purchase_obj', lazy=True)
     coupon_usage = db.relationship('CouponUsage', backref='challenge_purchase_obj', uselist=False)
+    progression_requests = db.relationship('ProgressionRequest', backref='challenge_purchase', lazy=True, cascade='all, delete-orphan')
     
-    # Simple methods only - business logic goes in engine
     def is_active(self):
         return self.status == ChallengeStatus.ACTIVE
     
@@ -403,6 +428,12 @@ class TradingJourney(db.Model):
             self.phase_day_start_equity = float(self.current_equity) if self.current_equity else float(self.starting_equity)
             self.phase_lowest_equity_today = float(self.current_equity) if self.current_equity else float(self.starting_equity)
             self.phase_daily_start_date = datetime.now(timezone.utc).date()
+        
+        # Initialize lifetime tracking
+        if not self.lowest_equity_lifetime:
+            self.lowest_equity_lifetime = float(self.current_equity) if self.current_equity else float(self.starting_equity)
+        if not self.lowest_equity_phase:
+            self.lowest_equity_phase = float(self.current_equity) if self.current_equity else float(self.starting_equity)
         
         if challenge_token:
             self.challenge_token = challenge_token
@@ -448,7 +479,10 @@ class TradingJourney(db.Model):
             'phase_profit_percent': self.phase_profit_percent,
             'phase_trading_days': self.phase_trading_days,
             'distance_to_payout': self.distance_to_payout,
-            'distance_to_breach': self.distance_to_breach
+            'distance_to_breach': self.distance_to_breach,
+            'lowest_equity_lifetime': self.lowest_equity_lifetime,
+            'lowest_equity_phase': self.lowest_equity_phase,
+            'violation_reviewed': self.violation_reviewed
         }
     
     def __repr__(self):
@@ -459,8 +493,117 @@ ChallengePurchase = TradingJourney
 
 
 # ========================================================================
+# VIOLATION EVIDENCE SYSTEM (IMMUTABLE FORENSIC RECORDS)
+# ========================================================================
+
+class ViolationEvidence(db.Model):
+    __tablename__ = 'violation_evidence'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    challenge_purchase_id = db.Column(db.Integer, db.ForeignKey('challenge_purchase.id'), nullable=False, index=True)
+    snapshot_id = db.Column(db.Integer, db.ForeignKey('account_snapshot.id'), nullable=True)
+    
+    # Violation Type & Rule
+    violation_type = db.Column(db.String(50), nullable=False, index=True)
+    rule_name = db.Column(db.String(100), nullable=False)
+    rule_limit = db.Column(db.Float, nullable=True)
+    actual_value = db.Column(db.Float, nullable=True)
+    
+    # Account State AT VIOLATION MOMENT (immutable)
+    balance = db.Column(db.Float, nullable=True)
+    equity = db.Column(db.Float, nullable=True)
+    floating_pnl = db.Column(db.Float, nullable=True)
+    profit_percent = db.Column(db.Float, nullable=True)
+    daily_drawdown = db.Column(db.Float, nullable=True)
+    overall_drawdown = db.Column(db.Float, nullable=True)
+    trading_days = db.Column(db.Integer, nullable=True)
+    
+    # Violation Details
+    reason = db.Column(db.Text, nullable=False)
+    severity = db.Column(db.String(20), default='hard_breach', index=True)
+    
+    # Forensic Evidence (JSON - stored as dict, never modified)
+    open_positions_snapshot = db.Column(db.JSON, nullable=True)
+    recent_trades_snapshot = db.Column(db.JSON, nullable=True)
+    account_snapshot_data = db.Column(db.JSON, nullable=True)
+    
+    # Admin Review
+    is_reviewed = db.Column(db.Boolean, default=False, index=True)
+    reviewed_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    reviewed_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    review_decision = db.Column(db.String(50), nullable=True)
+    review_notes = db.Column(db.Text, nullable=True)
+    
+    # Timestamps
+    violation_timestamp = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
+    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    
+    # Relationships
+    snapshot = db.relationship('AccountSnapshot', backref='violation_evidence_refs', foreign_keys=[snapshot_id])
+    
+    __table_args__ = (
+        Index('idx_ve_challenge_type', 'challenge_purchase_id', 'violation_type'),
+        Index('idx_ve_challenge_created', 'challenge_purchase_id', 'created_at'),
+        Index('idx_ve_reviewed', 'is_reviewed', 'violation_type'),
+        Index('idx_ve_severity', 'severity', 'created_at'),
+    )
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'challenge_purchase_id': self.challenge_purchase_id,
+            'violation_type': self.violation_type,
+            'rule_name': self.rule_name,
+            'rule_limit': self.rule_limit,
+            'actual_value': self.actual_value,
+            'balance': self.balance,
+            'equity': self.equity,
+            'floating_pnl': self.floating_pnl,
+            'profit_percent': self.profit_percent,
+            'daily_drawdown': self.daily_drawdown,
+            'overall_drawdown': self.overall_drawdown,
+            'reason': self.reason,
+            'severity': self.severity,
+            'open_positions_snapshot': self.open_positions_snapshot,
+            'recent_trades_snapshot': self.recent_trades_snapshot,
+            'account_snapshot_data': self.account_snapshot_data,
+            'is_reviewed': self.is_reviewed,
+            'review_decision': self.review_decision,
+            'review_notes': self.review_notes,
+            'violation_timestamp': self.violation_timestamp.isoformat() if self.violation_timestamp else None,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }
+    
+    def __repr__(self):
+        return f'<ViolationEvidence {self.id} - {self.violation_type} - Challenge {self.challenge_purchase_id}>'
+
+
+# ========================================================================
 # NEW MODELS FOR RULE ENGINE
 # ========================================================================
+
+class ProgressionRequest(db.Model):
+    __tablename__ = 'progression_requests'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    challenge_purchase_id = db.Column(db.Integer, db.ForeignKey('challenge_purchase.id'), nullable=False, index=True)
+    request_type = db.Column(db.String(20), nullable=False, index=True)
+    status = db.Column(db.String(20), nullable=False, default=ProgressionRequestStatus.PENDING, index=True)
+    admin_reason = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
+    approved_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    declined_at = db.Column(db.DateTime(timezone=True), nullable=True)
+
+    user = db.relationship('User', backref=db.backref('progression_requests', lazy=True, cascade='all, delete-orphan'))
+
+    __table_args__ = (
+        Index('idx_progression_request_user_status', 'user_id', 'status'),
+        Index('idx_progression_request_challenge_type_status', 'challenge_purchase_id', 'request_type', 'status'),
+    )
+
+    def __repr__(self):
+        return f'<ProgressionRequest {self.id} - {self.request_type} - {self.status}>'
 
 class RuleLog(db.Model):
     __tablename__ = 'rule_logs'
@@ -518,7 +661,7 @@ class TradeHistory(db.Model):
 
 
 # ========================================================================
-# EXISTING MODELS (unchanged below)
+# EXISTING MODELS
 # ========================================================================
 
 class AccountSnapshot(db.Model):
@@ -679,7 +822,6 @@ class Payout(db.Model):
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
     updated_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     
-    # FIXED: Use string references for relationships
     user = db.relationship('User', backref='payouts_list', foreign_keys=[user_id])
     challenge_purchase = db.relationship('TradingJourney', backref='payouts_list', foreign_keys=[challenge_purchase_id])
     
@@ -737,7 +879,6 @@ class Payment(db.Model):
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
     updated_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     
-    # FIXED: Use string references for relationships
     user = db.relationship('User', backref='payments_list', foreign_keys=[user_id])
     challenge_purchase = db.relationship('TradingJourney', backref='payment_obj', foreign_keys=[challenge_purchase_id])
     coupon = db.relationship('Coupon', backref='payments_list')

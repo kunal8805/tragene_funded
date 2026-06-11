@@ -1,0 +1,907 @@
+{% extends "admin/base.html" %}
+{% block title %}User Analytics | Tragene Funded Admin{% endblock %}
+{% block header_title %}User Analytics{% endblock %}
+{% block header_subtitle %}Viewing {{ user_name }}'s trading performance{% endblock %}
+
+{% block header_actions %}
+<div class="flex items-center gap-3">
+    <a href="{{ url_for('admin.admin_analytics') }}" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-xl text-sm font-semibold transition flex items-center gap-2">
+        <i class="fas fa-arrow-left"></i> Back to All Challenges
+    </a>
+</div>
+{% endblock %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #080c14;
+  --surface: #0d1321;
+  --surface2: #111827;
+  --border: rgba(56,189,248,0.1);
+  --border2: rgba(56,189,248,0.2);
+  --accent: #38bdf8;
+  --accent2: #818cf8;
+  --green: #34d399;
+  --red: #f87171;
+  --yellow: #fbbf24;
+  --text: #f1f5f9;
+  --muted: #64748b;
+  --mono: 'Space Mono', monospace;
+  --sans: 'DM Sans', sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+.ana-wrap {
+  font-family: var(--sans);
+  color: var(--text);
+  max-width: 1300px;
+  margin: 0 auto;
+  padding: 0 4px 60px;
+}
+
+/* ── NO ACTIVE STATE ── */
+.no-active {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  text-align: center;
+  gap: 16px;
+}
+.no-active-icon {
+  width: 80px; height: 80px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(56,189,248,0.15), rgba(129,140,248,0.15));
+  border: 1px solid var(--border2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 32px;
+}
+.no-active h2 { font-size: 22px; font-weight: 700; }
+.no-active p { color: var(--muted); font-size: 14px; }
+
+/* ── SECTION LABEL ── */
+.sec-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sec-label::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+/* ── ACTIVE CHALLENGES STRIP ── */
+.challenges-strip {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  margin-bottom: 28px;
+  scrollbar-width: none;
+}
+.challenges-strip::-webkit-scrollbar { display: none; }
+
+.ch-pill {
+  flex-shrink: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px 18px;
+  min-width: 200px;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+.ch-pill::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.ch-pill:hover, .ch-pill.active {
+  border-color: var(--border2);
+  background: var(--surface2);
+}
+.ch-pill:hover::before, .ch-pill.active::before { opacity: 1; }
+.ch-pill-name { font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ch-pill-stats { display: flex; gap: 12px; }
+.ch-pill-stat { font-family: var(--mono); font-size: 11px; }
+.ch-pill-stat span { color: var(--muted); font-size: 10px; display: block; }
+.ch-pill-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+.badge-active { background: rgba(52,211,153,0.15); color: var(--green); border: 1px solid rgba(52,211,153,0.3); }
+.badge-flagged { background: rgba(251,191,36,0.15); color: var(--yellow); border: 1px solid rgba(251,191,36,0.3); }
+
+/* ── OVERVIEW STATS ── */
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+  margin-bottom: 28px;
+}
+.stat-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px;
+  transition: border-color 0.2s;
+}
+.stat-box:hover { border-color: var(--border2); }
+.stat-box-label {
+  font-size: 10px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-family: var(--mono);
+  margin-bottom: 8px;
+}
+.stat-box-val {
+  font-size: 24px;
+  font-weight: 700;
+  font-family: var(--mono);
+  line-height: 1;
+}
+.stat-box-sub { font-size: 11px; color: var(--muted); margin-top: 4px; }
+.val-green { color: var(--green); }
+.val-red { color: var(--red); }
+.val-blue { color: var(--accent); }
+.val-purple { color: var(--accent2); }
+
+/* ── CHARTS GRID ── */
+.charts-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+.chart-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 20px;
+}
+.chart-box-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.chart-box-title span { color: var(--muted); font-size: 11px; font-family: var(--mono); }
+.chart-wrap { position: relative; height: 200px; }
+
+/* ── CALENDAR ── */
+.cal-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 28px;
+}
+.cal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+.cal-title { font-size: 15px; font-weight: 700; }
+.cal-nav { display: flex; align-items: center; gap: 12px; }
+.cal-nav-btn {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+.cal-nav-btn:hover { border-color: var(--border2); color: var(--accent); }
+.cal-month-label { font-family: var(--mono); font-size: 13px; color: var(--accent); min-width: 110px; text-align: center; }
+
+.cal-legend { display: flex; gap: 16px; margin-bottom: 16px; }
+.cal-legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); }
+.cal-dot { width: 10px; height: 10px; border-radius: 3px; }
+.dot-green { background: rgba(52,211,153,0.7); }
+.dot-red { background: rgba(248,113,113,0.7); }
+.dot-grey { background: rgba(100,116,139,0.3); border: 1px solid rgba(100,116,139,0.3); }
+
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.cal-day-header {
+  text-align: center;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--muted);
+  padding: 6px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.cal-day {
+  aspect-ratio: 1;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s;
+  position: relative;
+  border: 1px solid transparent;
+  min-height: 44px;
+}
+.cal-day.empty { cursor: default; }
+.cal-day.no-trade {
+  background: rgba(100,116,139,0.08);
+  border-color: rgba(100,116,139,0.1);
+}
+.cal-day.profit {
+  background: rgba(52,211,153,0.1);
+  border-color: rgba(52,211,153,0.25);
+}
+.cal-day.loss {
+  background: rgba(248,113,113,0.1);
+  border-color: rgba(248,113,113,0.25);
+}
+.cal-day.profit:hover {
+  background: rgba(52,211,153,0.2);
+  border-color: rgba(52,211,153,0.5);
+  transform: scale(1.05);
+  z-index: 2;
+}
+.cal-day.loss:hover {
+  background: rgba(248,113,113,0.2);
+  border-color: rgba(248,113,113,0.5);
+  transform: scale(1.05);
+  z-index: 2;
+}
+.cal-day.no-trade:hover {
+  background: rgba(100,116,139,0.15);
+  border-color: rgba(100,116,139,0.25);
+}
+.cal-day.today {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 1px var(--accent);
+}
+.cal-day-num {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+}
+.cal-day.no-trade .cal-day-num { color: var(--muted); }
+.cal-day-pnl {
+  font-size: 9px;
+  font-family: var(--mono);
+  font-weight: 700;
+  margin-top: 2px;
+}
+.cal-day.profit .cal-day-pnl { color: var(--green); }
+.cal-day.loss .cal-day-pnl { color: var(--red); }
+
+/* ── CALENDAR SUMMARY ── */
+.cal-summary {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+.cal-sum-item { text-align: center; }
+.cal-sum-label { font-size: 10px; color: var(--muted); font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+.cal-sum-val { font-size: 16px; font-weight: 700; font-family: var(--mono); }
+
+/* ── DAY POPUP ── */
+.day-popup-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  backdrop-filter: blur(4px);
+}
+.day-popup {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 20px;
+  padding: 24px;
+  width: 100%;
+  max-width: 520px;
+  max-height: 80vh;
+  overflow-y: auto;
+  animation: popIn 0.2s ease;
+}
+@keyframes popIn {
+  from { transform: scale(0.95); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+.popup-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.popup-date { font-size: 16px; font-weight: 700; font-family: var(--mono); }
+.popup-close {
+  width: 30px; height: 30px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--muted);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px;
+  transition: all 0.2s;
+}
+.popup-close:hover { color: var(--text); border-color: var(--border2); }
+.popup-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.popup-sum-box {
+  background: var(--surface2);
+  border-radius: 10px;
+  padding: 10px;
+  text-align: center;
+}
+.popup-sum-box-label { font-size: 9px; color: var(--muted); font-family: var(--mono); text-transform: uppercase; margin-bottom: 4px; }
+.popup-sum-box-val { font-size: 14px; font-weight: 700; font-family: var(--mono); }
+
+.trade-list { display: flex; flex-direction: column; gap: 6px; }
+.trade-row {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.trade-row-left { display: flex; flex-direction: column; gap: 2px; }
+.trade-symbol { font-family: var(--mono); font-size: 13px; font-weight: 700; }
+.trade-meta { font-size: 10px; color: var(--muted); }
+.trade-challenge { font-size: 10px; color: var(--accent); }
+.trade-profit {
+  font-family: var(--mono);
+  font-size: 14px;
+  font-weight: 700;
+  text-align: right;
+}
+.trade-lots { font-size: 10px; color: var(--muted); text-align: right; }
+
+/* ── LOADING / ERROR ── */
+.loading-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--muted);
+}
+.loading-state .spin {
+  width: 36px; height: 36px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: 0 auto 12px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 900px) {
+  .stats-row { grid-template-columns: repeat(3, 1fr); }
+  .charts-grid { grid-template-columns: 1fr; }
+  .cal-summary { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 600px) {
+  .stats-row { grid-template-columns: repeat(2, 1fr); }
+  .cal-summary { grid-template-columns: repeat(2, 1fr); }
+  .cal-day-num { font-size: 10px; }
+  .cal-day-pnl { font-size: 8px; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="ana-wrap" id="anaWrap">
+  <div class="loading-state" id="loadingState">
+    <div class="spin"></div>
+    <p>Loading {{ user_name }}'s analytics...</p>
+  </div>
+</div>
+
+<!-- Day Popup -->
+<div class="day-popup-overlay" id="dayPopup" style="display:none;" onclick="closePopup(event)">
+  <div class="day-popup">
+    <div class="popup-header">
+      <div class="popup-date" id="popupDate">—</div>
+      <button class="popup-close" onclick="closePopupDirect()">✕</button>
+    </div>
+    <div class="popup-summary" id="popupSummary"></div>
+    <div class="trade-list" id="popupTrades"></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const API = window.location.origin;
+const USER_ID = {{ user_id }};
+let profitChart = null, winChart = null;
+let calYear = new Date().getFullYear();
+let calMonth = new Date().getMonth() + 1;
+let calData = {};
+
+// ── INIT ──
+document.addEventListener('DOMContentLoaded', async () => {
+  const challenges = await fetchChallenges();
+  const wrap = document.getElementById('anaWrap');
+  document.getElementById('loadingState').remove();
+
+  const active = challenges.filter(c => ['active','funded','flagged','under_review'].includes(c.status));
+
+  if (!active.length) {
+    wrap.innerHTML = `
+      <div class="no-active">
+        <div class="no-active-icon">📊</div>
+        <h2>No Active Challenges</h2>
+        <p>{{ user_name }} has no active challenges to display analytics for.</p>
+      </div>`;
+    return;
+  }
+
+  wrap.innerHTML = buildSkeleton();
+  renderChallengeStrip(active);
+  renderStats(active);
+  await renderCharts(active);
+  await loadCalendar();
+});
+
+// ── API CALLS ──
+async function fetchChallenges() {
+  try {
+    const r = await fetch(`${API}/admin/api/user/${USER_ID}/challenges/metrics`, { credentials: 'include' });
+    const d = await r.json();
+    return d.success ? d.challenges : [];
+  } catch { return []; }
+}
+
+async function fetchHistory(id) {
+  try {
+    const r = await fetch(`${API}/api/challenge/${id}/history`, { credentials: 'include' });
+    const d = await r.json();
+    return d.success ? d : null;
+  } catch { return null; }
+}
+
+async function fetchCalendar(month) {
+  try {
+    const r = await fetch(`${API}/admin/api/user/${USER_ID}/calendar?month=${month}`, { credentials: 'include' });
+    const d = await r.json();
+    return d.success ? d : null;
+  } catch { return null; }
+}
+
+// ── SKELETON ──
+function buildSkeleton() {
+  return `
+    <div class="sec-label">Active Challenges</div>
+    <div class="challenges-strip" id="challengeStrip"></div>
+
+    <div class="sec-label">Performance Overview</div>
+    <div class="stats-row" id="statsRow"></div>
+
+    <div class="sec-label">Charts</div>
+    <div class="charts-grid">
+      <div class="chart-box">
+        <div class="chart-box-title">P&L by Day <span id="chartChallLabel">all active</span></div>
+        <div class="chart-wrap"><canvas id="profitChart"></canvas></div>
+      </div>
+      <div class="chart-box">
+        <div class="chart-box-title">Win Rate by Day <span id="winChartLabel">all active</span></div>
+        <div class="chart-wrap"><canvas id="winChart"></canvas></div>
+      </div>
+    </div>
+
+    <div class="sec-label">Trading Calendar</div>
+    <div class="cal-section">
+      <div class="cal-header">
+        <div class="cal-title">Monthly Performance</div>
+        <div class="cal-nav">
+          <button class="cal-nav-btn" onclick="changeMonth(-1)">‹</button>
+          <div class="cal-month-label" id="calMonthLabel">—</div>
+          <button class="cal-nav-btn" onclick="changeMonth(1)">›</button>
+        </div>
+      </div>
+      <div class="cal-legend">
+        <div class="cal-legend-item"><div class="cal-dot dot-green"></div> Profit day</div>
+        <div class="cal-legend-item"><div class="cal-dot dot-red"></div> Loss day</div>
+        <div class="cal-legend-item"><div class="cal-dot dot-grey"></div> No trades</div>
+      </div>
+      <div class="cal-grid" id="calGrid"></div>
+      <div class="cal-summary" id="calSummary"></div>
+    </div>
+  `;
+}
+
+// ── CHALLENGE STRIP ──
+function renderChallengeStrip(challenges) {
+  const strip = document.getElementById('challengeStrip');
+  strip.innerHTML = challenges.map((ch, i) => {
+    const profit = ch.profit_percent || 0;
+    const profitSign = profit > 0 ? '+' : '';
+    const isFlagged = ['flagged','under_review'].includes(ch.status);
+    return `
+    <div class="ch-pill ${i === 0 ? 'active' : ''}" onclick="selectChallenge(this)">
+      <div class="ch-pill-badge ${isFlagged ? 'badge-flagged' : 'badge-active'}">
+        ${isFlagged ? '⚠ Review' : '● Live'}
+      </div>
+      <div class="ch-pill-name">${ch.challenge_name || 'Challenge'}</div>
+      <div class="ch-pill-stats">
+        <div class="ch-pill-stat ${profit >= 0 ? 'val-green' : 'val-red'}">
+          ${profitSign}${profit.toFixed(2)}%
+          <span>Profit</span>
+        </div>
+        <div class="ch-pill-stat val-blue">
+          ${ch.days_remaining || 0}d
+          <span>Left</span>
+        </div>
+        <div class="ch-pill-stat" style="color:${(ch.daily_drawdown||0) > 4 ? 'var(--red)' : 'var(--muted)'}">
+          ${(ch.daily_drawdown||0).toFixed(1)}%
+          <span>Daily DD</span>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function selectChallenge(el) {
+  document.querySelectorAll('.ch-pill').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+}
+
+// ── STATS ──
+function renderStats(challenges) {
+  let totalProfit = 0, worstDD = 0, totalDays = 0, flagged = 0;
+  let bestProfit = -999, passed = 0;
+
+  challenges.forEach(ch => {
+    const p = ch.profit_percent || 0;
+    totalProfit += p;
+    totalDays += ch.trading_days || 0;
+    if (p > bestProfit) bestProfit = p;
+    const dd = ch.overall_drawdown || 0;
+    if (dd > worstDD) worstDD = dd;
+    if (['flagged','under_review'].includes(ch.status)) flagged++;
+    if (ch.status === 'passed') passed++;
+  });
+
+  const avg = challenges.length > 0 ? totalProfit / challenges.length : 0;
+  const avgSign = avg > 0 ? '+' : '';
+
+  document.getElementById('statsRow').innerHTML = `
+    <div class="stat-box">
+      <div class="stat-box-label">Active</div>
+      <div class="stat-box-val val-blue">${challenges.length}</div>
+      <div class="stat-box-sub">${flagged > 0 ? `<span style="color:var(--yellow)">${flagged} flagged</span>` : 'All clear ✓'}</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-box-label">Avg Profit</div>
+      <div class="stat-box-val ${avg >= 0 ? 'val-green' : 'val-red'}">${avgSign}${avg.toFixed(2)}%</div>
+      <div class="stat-box-sub">Best: <span style="color:var(--green)">+${bestProfit.toFixed(2)}%</span></div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-box-label">Max DD</div>
+      <div class="stat-box-val ${worstDD > 8 ? 'val-red' : worstDD > 4 ? 'val-yellow' : 'val-green'}">${worstDD.toFixed(2)}%</div>
+      <div class="stat-box-sub">Across all active</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-box-label">Trading Days</div>
+      <div class="stat-box-val val-purple">${totalDays}</div>
+      <div class="stat-box-sub">Total experience</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-box-label">Passed</div>
+      <div class="stat-box-val val-green">${passed}</div>
+      <div class="stat-box-sub">Challenges won</div>
+    </div>
+  `;
+}
+
+// ── CHARTS ──
+async function renderCharts(challenges) {
+  const allTrades = [];
+  for (const ch of challenges) {
+    const hist = await fetchHistory(ch.id);
+    if (hist && hist.trades) {
+      hist.trades.forEach(t => { t._challengeName = ch.challenge_name; });
+      allTrades.push(...hist.trades);
+    }
+  }
+
+  const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const pnlByDay = {}, winsBy = {}, totalBy = {};
+  days.forEach(d => { pnlByDay[d] = 0; winsBy[d] = 0; totalBy[d] = 0; });
+
+  allTrades.filter(t => t.close_time).forEach(t => {
+    const d = new Date(t.close_time);
+    const dayName = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()];
+    if (!(dayName in pnlByDay)) return;
+    pnlByDay[dayName] += t.profit || 0;
+    totalBy[dayName]++;
+    if ((t.profit || 0) > 0) winsBy[dayName]++;
+  });
+
+  const pnlData = days.map(d => parseFloat(pnlByDay[d].toFixed(2)));
+  const winData = days.map(d => totalBy[d] > 0 ? parseFloat((winsBy[d]/totalBy[d]*100).toFixed(1)) : 0);
+
+  const gridColor = 'rgba(255,255,255,0.04)';
+  const tickColor = '#64748b';
+
+  // P&L Chart
+  if (profitChart) profitChart.destroy();
+  const ctx1 = document.getElementById('profitChart').getContext('2d');
+  const grad1 = ctx1.createLinearGradient(0, 0, 0, 200);
+  grad1.addColorStop(0, 'rgba(56,189,248,0.25)');
+  grad1.addColorStop(1, 'rgba(56,189,248,0)');
+
+  profitChart = new Chart(ctx1, {
+    type: 'line',
+    data: {
+      labels: days,
+      datasets: [{
+        data: pnlData,
+        borderColor: '#38bdf8',
+        backgroundColor: grad1,
+        borderWidth: 2,
+        fill: true,
+        tension: 0.4,
+        pointRadius: 4,
+        pointBackgroundColor: pnlData.map(v => v >= 0 ? '#34d399' : '#f87171'),
+        pointBorderColor: 'transparent',
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: {
+        backgroundColor: '#0d1321',
+        borderColor: 'rgba(56,189,248,0.3)',
+        borderWidth: 1,
+        titleColor: '#94a3b8',
+        bodyColor: '#f1f5f9',
+        callbacks: { label: ctx => ` $${ctx.raw.toFixed(2)}` }
+      }},
+      scales: {
+        x: { grid: { color: gridColor }, ticks: { color: tickColor, font: { family: 'Space Mono', size: 10 } } },
+        y: { grid: { color: gridColor }, ticks: { color: tickColor, font: { family: 'Space Mono', size: 10 }, callback: v => `$${v}` } }
+      }
+    }
+  });
+
+  // Win Rate Chart
+  if (winChart) winChart.destroy();
+  const ctx2 = document.getElementById('winChart').getContext('2d');
+  winChart = new Chart(ctx2, {
+    type: 'bar',
+    data: {
+      labels: days,
+      datasets: [{
+        data: winData,
+        backgroundColor: winData.map(v => v >= 50 ? 'rgba(52,211,153,0.5)' : v > 0 ? 'rgba(248,113,113,0.5)' : 'rgba(100,116,139,0.2)'),
+        borderColor: winData.map(v => v >= 50 ? '#34d399' : v > 0 ? '#f87171' : 'transparent'),
+        borderWidth: 1,
+        borderRadius: 6,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: {
+        backgroundColor: '#0d1321',
+        borderColor: 'rgba(56,189,248,0.3)',
+        borderWidth: 1,
+        titleColor: '#94a3b8',
+        bodyColor: '#f1f5f9',
+        callbacks: { label: ctx => ` ${ctx.raw}%` }
+      }},
+      scales: {
+        x: { grid: { color: gridColor }, ticks: { color: tickColor, font: { family: 'Space Mono', size: 10 } } },
+        y: { max: 100, grid: { color: gridColor }, ticks: { color: tickColor, font: { family: 'Space Mono', size: 10 }, callback: v => `${v}%` } }
+      }
+    }
+  });
+}
+
+// ── CALENDAR ──
+async function loadCalendar() {
+  const monthStr = `${calYear}-${String(calMonth).padStart(2,'0')}`;
+  document.getElementById('calMonthLabel').textContent = new Date(calYear, calMonth-1, 1)
+    .toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+  const data = await fetchCalendar(monthStr);
+  calData = data ? data.days : {};
+  const summary = data ? data.summary : {};
+
+  renderCalGrid(calYear, calMonth, calData);
+  renderCalSummary(summary);
+}
+
+function renderCalGrid(year, month, days) {
+  const grid = document.getElementById('calGrid');
+  const dayHeaders = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const today = new Date();
+  const todayStr = today.toISOString().split('T')[0];
+
+  let html = dayHeaders.map(d => `<div class="cal-day-header">${d}</div>`).join('');
+
+  const firstDay = new Date(year, month-1, 1);
+  let startDow = firstDay.getDay();
+  startDow = startDow === 0 ? 6 : startDow - 1;
+
+  const daysInMonth = new Date(year, month, 0).getDate();
+
+  for (let i = 0; i < startDow; i++) html += `<div class="cal-day empty"></div>`;
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const dayData = days[dateStr];
+    const isToday = dateStr === todayStr;
+
+    let cls = 'cal-day';
+    let pnlHtml = '';
+
+    if (dayData) {
+      const profit = dayData.total_profit;
+      cls += profit >= 0 ? ' profit' : ' loss';
+      const sign = profit > 0 ? '+' : '';
+      pnlHtml = `<div class="cal-day-pnl">${sign}$${Math.abs(profit).toFixed(0)}</div>`;
+    } else {
+      cls += ' no-trade';
+    }
+
+    if (isToday) cls += ' today';
+
+    const clickAttr = dayData ? `onclick="showDayPopup('${dateStr}')"` : '';
+    html += `
+      <div class="${cls}" ${clickAttr}>
+        <div class="cal-day-num">${d}</div>
+        ${pnlHtml}
+      </div>`;
+  }
+
+  grid.innerHTML = html;
+}
+
+function renderCalSummary(s) {
+  const el = document.getElementById('calSummary');
+  if (!s || !s.total_trades) {
+    el.innerHTML = `<div style="grid-column:1/-1;text-align:center;color:var(--muted);font-size:13px;padding:12px 0;">No trades this month</div>`;
+    return;
+  }
+
+  const profitColor = s.total_profit >= 0 ? 'var(--green)' : 'var(--red)';
+  const profitSign = s.total_profit > 0 ? '+' : '';
+
+  el.innerHTML = `
+    <div class="cal-sum-item">
+      <div class="cal-sum-label">Month P&L</div>
+      <div class="cal-sum-val" style="color:${profitColor}">${profitSign}$${s.total_profit.toFixed(2)}</div>
+    </div>
+    <div class="cal-sum-item">
+      <div class="cal-sum-label">Win Rate</div>
+      <div class="cal-sum-val" style="color:${s.win_rate >= 50 ? 'var(--green)' : 'var(--red)'}">${s.win_rate}%</div>
+    </div>
+    <div class="cal-sum-item">
+      <div class="cal-sum-label">Win Streak</div>
+      <div class="cal-sum-val val-blue">${s.win_streak}🔥</div>
+    </div>
+    <div class="cal-sum-item">
+      <div class="cal-sum-label">Best Trade</div>
+      <div class="cal-sum-val val-green">${s.best_trade ? '+$'+s.best_trade.profit.toFixed(2) : '—'}</div>
+    </div>
+    <div class="cal-sum-item">
+      <div class="cal-sum-label">Top Symbol</div>
+      <div class="cal-sum-val val-purple">${s.top_symbol || '—'}</div>
+    </div>
+  `;
+}
+
+function changeMonth(dir) {
+  calMonth += dir;
+  if (calMonth > 12) { calMonth = 1; calYear++; }
+  if (calMonth < 1) { calMonth = 12; calYear--; }
+  loadCalendar();
+}
+
+// ── DAY POPUP ──
+function showDayPopup(dateStr) {
+  const day = calData[dateStr];
+  if (!day) return;
+
+  document.getElementById('popupDate').textContent = new Date(dateStr + 'T12:00:00Z')
+    .toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+  const profitColor = day.total_profit >= 0 ? 'var(--green)' : 'var(--red)';
+  const sign = day.total_profit > 0 ? '+' : '';
+  const winRate = day.total_trades > 0 ? Math.round(day.winning_trades / day.total_trades * 100) : 0;
+
+  document.getElementById('popupSummary').innerHTML = `
+    <div class="popup-sum-box">
+      <div class="popup-sum-box-label">P&L</div>
+      <div class="popup-sum-box-val" style="color:${profitColor}">${sign}$${day.total_profit.toFixed(2)}</div>
+    </div>
+    <div class="popup-sum-box">
+      <div class="popup-sum-box-label">Trades</div>
+      <div class="popup-sum-box-val val-blue">${day.total_trades}</div>
+    </div>
+    <div class="popup-sum-box">
+      <div class="popup-sum-box-label">Win Rate</div>
+      <div class="popup-sum-box-val" style="color:${winRate >= 50 ? 'var(--green)' : 'var(--red)'}">${winRate}%</div>
+    </div>
+  `;
+
+  document.getElementById('popupTrades').innerHTML = day.trades.map(t => {
+    const p = t.profit || 0;
+    const pSign = p > 0 ? '+' : '';
+    const pColor = p > 0 ? 'var(--green)' : p < 0 ? 'var(--red)' : 'var(--muted)';
+    const openTime = t.open_time ? new Date(t.open_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—';
+    const closeTime = t.close_time ? new Date(t.close_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—';
+    return `
+      <div class="trade-row">
+        <div class="trade-row-left">
+          <div class="trade-symbol">${t.symbol}</div>
+          <div class="trade-meta">${openTime} → ${closeTime}</div>
+          <div class="trade-challenge">${t.challenge_name}</div>
+        </div>
+        <div>
+          <div class="trade-profit" style="color:${pColor}">${pSign}$${p.toFixed(2)}</div>
+          <div class="trade-lots">${t.lots} lots</div>
+        </div>
+      </div>`;
+  }).join('');
+
+  document.getElementById('dayPopup').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+
+function closePopup(e) {
+  if (e.target === document.getElementById('dayPopup')) closePopupDirect();
+}
+function closePopupDirect() {
+  document.getElementById('dayPopup').style.display = 'none';
+  document.body.style.overflow = '';
+}
+</script>
+{% endblock %}

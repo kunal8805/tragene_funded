@@ -1,0 +1,110 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Progression Requests - Admin Panel{% endblock %}
+{% block header_title %}Progression Requests{% endblock %}
+{% block header_subtitle %}Approve or decline Phase 2 and funded account requests{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+    {% for label, value, icon, color in [
+        ('Pending Phase 2', stats.pending_phase2, 'fa-route', 'blue'),
+        ('Pending Funded', stats.pending_funded, 'fa-award', 'green'),
+        ('Approved', stats.approved, 'fa-check-circle', 'emerald'),
+        ('Declined', stats.declined, 'fa-times-circle', 'red')
+    ] %}
+    <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
+        <div class="flex items-center">
+            <div class="p-3 rounded-full bg-{{ color }}-100 dark:bg-{{ color }}-900/30 text-{{ color }}-600 dark:text-{{ color }}-400 mr-4">
+                <i class="fas {{ icon }} text-xl"></i>
+            </div>
+            <div>
+                <p class="text-sm text-gray-500 dark:text-gray-400 font-medium">{{ label }}</p>
+                <h3 class="text-2xl font-bold text-gray-900 dark:text-white">{{ value }}</h3>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="mb-6 flex flex-wrap gap-2">
+    {% for key, label in [('', 'All'), ('pending', 'Pending'), ('approved', 'Approved'), ('declined', 'Declined')] %}
+    <a href="{{ url_for('admin.admin_progression_requests', status=key) }}"
+       class="px-4 py-2 rounded-lg text-sm font-semibold transition {% if status == key %}bg-blue-600 text-white{% else %}bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700{% endif %}">
+        {{ label }}
+    </a>
+    {% endfor %}
+</div>
+
+<div class="glass-card overflow-hidden">
+    <div class="overflow-x-auto">
+        <table class="w-full">
+            <thead class="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">User</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Challenge ID</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Request Type</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Created Date</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+                {% for req in progression_requests %}
+                <tr>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm font-medium text-gray-900 dark:text-white">{{ req.user.first_name }} {{ req.user.last_name }}</div>
+                        <div class="text-sm text-gray-500 dark:text-gray-400">{{ req.user.email }}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap font-mono font-bold text-blue-600 dark:text-blue-400">
+                        #{{ req.challenge_purchase.serial_no or req.challenge_purchase.id }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                        {{ req.request_type|replace('_', ' ')|title }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                        {{ req.created_at.strftime('%Y-%m-%d %H:%M') if req.created_at else 'N/A' }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full
+                            {% if req.status == 'approved' %}bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400
+                            {% elif req.status == 'declined' %}bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400
+                            {% else %}bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400{% endif %}">
+                            {{ req.status|title }}
+                        </span>
+                        {% if req.admin_reason %}
+                        <div class="text-xs text-gray-500 mt-1">{{ req.admin_reason }}</div>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                        {% if req.status == 'pending' %}
+                        <div class="flex flex-col gap-2">
+                            <form method="POST" action="{{ url_for('admin.admin_progression_request_action', request_id=req.id, action='approve') }}">
+                                <button type="submit" class="text-green-600 hover:text-green-800 font-semibold">
+                                    <i class="fas fa-check-circle mr-1"></i>Approve
+                                </button>
+                            </form>
+                            <form method="POST" action="{{ url_for('admin.admin_progression_request_action', request_id=req.id, action='decline') }}" class="flex gap-2">
+                                <input name="admin_reason" required placeholder="Decline reason" class="px-2 py-1 rounded border dark:border-gray-700 bg-white dark:bg-gray-800 text-xs">
+                                <button type="submit" class="text-red-600 hover:text-red-800 font-semibold">
+                                    Decline
+                                </button>
+                            </form>
+                        </div>
+                        {% else %}
+                        <span class="text-gray-400">No actions</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6" class="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
+                        <i class="fas fa-inbox text-4xl mb-3"></i>
+                        <p class="text-lg">No progression requests found</p>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

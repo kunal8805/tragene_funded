@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify
 from functools import wraps
-from models import db, User, ChallengeTemplate, ChallengePurchase, Payment, Payout, PayoutAuditLog, SupportTicket, TicketMessage, FAQ, RuleLog, TradeHistory, Notification, UserNotification, Coupon, CouponUsage, CouponAssignment
+from models import db, User, ChallengeTemplate, ChallengePurchase, Payment, Payout, PayoutAuditLog, SupportTicket, TicketMessage, FAQ, RuleLog, TradeHistory, Notification, UserNotification, Coupon, CouponUsage, CouponAssignment, ProgressionRequest
 from datetime import datetime, timezone, timedelta
 import os
 import secrets
@@ -44,6 +44,8 @@ def compress_and_save_ticket_attachment(attachment, ticket_number, prefix=""):
 user_bp = Blueprint('user', __name__, url_prefix='/user')
 
 ACTIVE_PAYOUT_STATUSES = ['pending', 'under_review', 'approved']
+ACTIVE_CHALLENGE_STATUSES = ['active', 'funded']
+HISTORY_CHALLENGE_STATUSES = ['passed', 'failed', 'inactive']
 
 def _cycle_days(cycle):
     cycle = (cycle or '').lower()
@@ -59,6 +61,9 @@ def _aware(dt):
     return dt.replace(tzinfo=timezone.utc) if dt.tzinfo is None else dt
 
 def _payout_notification(user_id, title, message):
+    _user_notification(user_id, title, message)
+
+def _user_notification(user_id, title, message):
     notification = Notification(
         title=title,
         message=message,
@@ -73,7 +78,7 @@ def _payout_notification(user_id, title, message):
 def payout_account_type(challenge):
     if challenge.challenge_type == 'instant':
         return 'Instant Funding Account'
-    if challenge.status == 'funded_active':
+    if challenge.status in ['funded', 'funded_active']:
         return 'Funded Account'
     return (challenge.status or 'Challenge').replace('_', ' ').title()
 
@@ -82,8 +87,8 @@ def payout_eligibility(challenge):
     account_size = float(template.account_size if template else challenge.starting_balance or challenge.current_balance or 0)
     profit_share = float(template.user_profit_share if template else 0)
     minimum = round(account_size * 0.05, 2)
-    is_funded = challenge.status == 'funded_active' or challenge.challenge_type == 'instant'
-    if not is_funded or challenge.status in ['phase1_active', 'phase2_active', 'failed', 'expired', 'revoked']:
+    is_funded = challenge.status in ['funded', 'funded_active'] or challenge.challenge_type == 'instant'
+    if not is_funded or challenge.status in ['active', 'passed', 'pending_phase2', 'pending_funded', 'phase1_active', 'phase2_active', 'failed', 'expired', 'revoked']:
         return {
             'eligible': False,
             'reason': 'Only Instant Funding Accounts and Funded Accounts can request payouts.',
@@ -174,7 +179,7 @@ def dashboard():
     # Get user's active challenges (compact, limited to 3)
     active_challenges = ChallengePurchase.query.filter(
         ChallengePurchase.user_id == user.id,
-        ChallengePurchase.status.in_(['active', 'phase1_active', 'phase2_active', 'pending_credentials', 'funded_active'])
+        ChallengePurchase.status.in_(ACTIVE_CHALLENGE_STATUSES)
     ).order_by(ChallengePurchase.created_at.desc()).limit(3).all()
     
     # Calculate days remaining
@@ -226,8 +231,16 @@ def dashboard():
             if assignment:
                 active_coupons_count += 1
     
-    # Get ALL challenge purchases for history summary (passed/failed/active)
-    all_challenges = ChallengePurchase.query.filter_by(user_id=user.id).order_by(ChallengePurchase.created_at.desc()).limit(5).all()
+    all_challenges = ChallengePurchase.query.filter(
+        ChallengePurchase.user_id == user.id,
+        ChallengePurchase.status.in_(HISTORY_CHALLENGE_STATUSES)
+    ).order_by(ChallengePurchase.created_at.desc()).limit(5).all()
+    progression_requests = ProgressionRequest.query.filter_by(user_id=user.id).order_by(ProgressionRequest.created_at.desc()).limit(5).all()
+    progression_eligible_challenges = ChallengePurchase.query.filter(
+        ChallengePurchase.user_id == user.id,
+        ChallengePurchase.status == 'passed',
+        ChallengePurchase.current_phase.in_([1, 2])
+    ).order_by(ChallengePurchase.completed_at.desc().nullslast()).all()
     
     return render_template('user/user_dashboard.html',
                          user=user, 
@@ -237,6 +250,8 @@ def dashboard():
                          open_tickets=open_tickets,
                          active_coupons_count=active_coupons_count,
                          all_challenges=all_challenges,
+                         progression_requests=progression_requests,
+                         progression_eligible_challenges=progression_eligible_challenges,
                          SupportTicket=SupportTicket)
 
 @user_bp.route('/dashboard/stats')
@@ -247,7 +262,7 @@ def dashboard_stats():
     
     active_challenges = ChallengePurchase.query.filter(
         ChallengePurchase.user_id == user.id,
-        ChallengePurchase.status.in_(['active', 'phase1_active', 'phase2_active', 'funded_active'])
+        ChallengePurchase.status.in_(ACTIVE_CHALLENGE_STATUSES)
     ).all()
     
     total_balance = sum(c.current_balance or 0 for c in active_challenges)
@@ -437,7 +452,7 @@ def trading():
     user = User.query.get(session['user_id'])
     active_challenges = ChallengePurchase.query.filter(
         ChallengePurchase.user_id == user.id,
-        ChallengePurchase.status.in_(['active', 'phase1_active', 'phase2_active', 'pending_credentials'])
+        ChallengePurchase.status.in_(ACTIVE_CHALLENGE_STATUSES)
     ).join(ChallengeTemplate).all()
     
     now_utc = datetime.now(timezone.utc)
@@ -457,16 +472,24 @@ def trading():
 @login_required
 def user_history():
     user = User.query.get(session['user_id'])
-    purchases = ChallengePurchase.query.filter_by(user_id=user.id).all()
+    purchases = ChallengePurchase.query.filter(
+        ChallengePurchase.user_id == user.id,
+        ChallengePurchase.status.in_(HISTORY_CHALLENGE_STATUSES)
+    ).order_by(ChallengePurchase.created_at.desc()).all()
+    progression_requests = ProgressionRequest.query.filter_by(user_id=user.id).order_by(ProgressionRequest.created_at.desc()).all()
     
     stats = {
         'total': len(purchases),
         'passed': len([p for p in purchases if p.status == 'passed']),
         'failed': len([p for p in purchases if p.status == 'failed']),
-        'active': len([p for p in purchases if p.status in ['active', 'phase1_active', 'phase2_active', 'pending_credentials', 'funded_active']])
+        'active': ChallengePurchase.query.filter(
+            ChallengePurchase.user_id == user.id,
+            ChallengePurchase.status.in_(ACTIVE_CHALLENGE_STATUSES)
+        ).count(),
+        'progression_requests': len(progression_requests)
     }
     
-    return render_template('user/user_history.html', user=user, purchases=purchases, stats=stats)
+    return render_template('user/user_history.html', user=user, purchases=purchases, progression_requests=progression_requests, stats=stats)
 
 @user_bp.route('/trading/history')
 @login_required
@@ -524,9 +547,9 @@ def payouts():
     for purchase in purchases:
         info = payout_eligibility(purchase)
         row = {'challenge': purchase, 'info': info}
-        if purchase.status == 'funded_active' or purchase.challenge_type == 'instant':
+        if purchase.status in ['funded', 'funded_active'] or purchase.challenge_type == 'instant':
             eligible_accounts.append(row)
-        elif purchase.status in ['phase1_active', 'phase2_active', 'failed', 'expired', 'revoked', 'active']:
+        elif purchase.status in ['active', 'passed', 'failed', 'expired', 'revoked']:
             blocked_accounts.append(row)
     user_payouts = Payout.query.filter_by(user_id=user.id).order_by(Payout.created_at.desc()).all()
     active_payouts_count = sum(1 for payout in user_payouts if payout.status in ACTIVE_PAYOUT_STATUSES)
@@ -626,6 +649,62 @@ def request_payout():
         flash('Error requesting payout. Please try again.', 'error')
     
     return redirect(url_for('user.payouts'))
+
+
+@user_bp.route('/progression/request/<int:challenge_id>/<request_type>', methods=['POST'])
+@login_required
+def request_progression(challenge_id, request_type):
+    try:
+        user = User.query.get(session['user_id'])
+        challenge = ChallengePurchase.query.filter_by(id=challenge_id, user_id=user.id).first_or_404()
+
+        if request_type not in ['phase2', 'funded']:
+            flash('Invalid progression request type.', 'error')
+            return redirect(url_for('user.dashboard'))
+
+        if challenge.status != 'passed':
+            flash('Only passed challenges can request progression.', 'error')
+            return redirect(url_for('user.dashboard'))
+
+        if request_type == 'phase2':
+            allowed = challenge.challenge_type == 'two_phase' and challenge.current_phase == 1
+            submitted_title = 'Phase 2 Request Submitted'
+            submitted_message = 'Your Phase 2 account request is pending admin review.'
+        else:
+            allowed = challenge.current_phase == 2
+            submitted_title = 'Funded Request Submitted'
+            submitted_message = 'Your funded account request is pending admin review.'
+
+        if not allowed:
+            flash('This challenge is not eligible for that progression request.', 'error')
+            return redirect(url_for('user.dashboard'))
+
+        existing = ProgressionRequest.query.filter(
+            ProgressionRequest.challenge_purchase_id == challenge.id,
+            ProgressionRequest.request_type == request_type,
+            ProgressionRequest.status == 'pending'
+        ).first()
+        if existing:
+            flash('You already have a pending progression request for this challenge.', 'info')
+            return redirect(url_for('user.dashboard'))
+
+        progression_request = ProgressionRequest(
+            user_id=user.id,
+            challenge_purchase_id=challenge.id,
+            request_type=request_type,
+            status='pending'
+        )
+        db.session.add(progression_request)
+        _user_notification(user.id, submitted_title, submitted_message)
+        db.session.commit()
+
+        flash('Progression request submitted successfully.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        print(f"Progression request error: {e}")
+        flash('Error submitting progression request. Please try again.', 'error')
+
+    return redirect(url_for('user.dashboard'))
 
 # ===== SETTINGS ROUTES =====
 @user_bp.route('/settings')
@@ -736,12 +815,9 @@ def get_challenge_credentials(challenge_id):
     ).first_or_404()
     
     return jsonify({
-        'success': True,
-        'challenge_name': challenge.challenge_template.name if challenge.challenge_template else 'Challenge',
-        'mt5_server': challenge.mt5_server or 'Not assigned',
-        'mt5_login': challenge.mt5_login or 'Not assigned',
-        'mt5_password': challenge.mt5_password or 'Not assigned'
-    })
+        'success': False,
+        'message': 'MT5 credentials are sent by email only and are not shown on the dashboard.'
+    }), 403
 
 @user_bp.route('/credentials/<int:challenge_id>')
 @login_required
@@ -753,17 +829,16 @@ def view_credentials(challenge_id):
         user_id=user.id
     ).first_or_404()
     
-    if not challenge.mt5_login:
-        flash('Credentials not available for this challenge', 'error')
-        return redirect(url_for('user.trading'))
-    
-    return render_template('user/credentials.html',
-                         user=user,
-                         challenge=challenge)
+    flash('MT5 credentials are sent by email only and are not shown on the dashboard.', 'info')
+    return redirect(url_for('user.trading'))
 
 @user_bp.route('/start-phase2/<int:challenge_id>', methods=['POST'])
 @login_required
 def start_phase2(challenge_id):
+    return jsonify({
+        'success': False,
+        'error': 'Phase 2 accounts must be requested and approved by admin.'
+    }), 403
     try:
         user = User.query.get(session['user_id'])
         
@@ -995,7 +1070,7 @@ def api_challenge_history(challenge_id):
         return jsonify({'error': 'Challenge not found'}), 404
     
     violations = RuleLog.query.filter_by(challenge_id=challenge_id).order_by(RuleLog.created_at.desc()).all()
-    trades = TradeHistory.query.filter_by(challenge_id=challenge_id).order_by(TradeHistory.close_time.desc()).limit(50).all()
+    trades = TradeHistory.query.filter_by(challenge_id=challenge_id).order_by(TradeHistory.close_time.desc()).limit(200).all()
     
     return jsonify({
         'success': True,
@@ -1249,3 +1324,126 @@ def validate_coupon_api():
     except Exception as e:
         print(f"Error validating coupon: {e}")
         return jsonify({'success': False, 'error': 'An error occurred while validating the coupon'})
+
+# ===== TRADING CALENDAR API =====
+@user_bp.route('/api/calendar')
+@login_required
+def api_trading_calendar():
+    try:
+        user_id = session.get('user_id')
+        month_str = request.args.get('month')  # format: 2026-06
+        
+        if month_str:
+            try:
+                year, month = int(month_str.split('-')[0]), int(month_str.split('-')[1])
+            except:
+                year, month = datetime.now(timezone.utc).year, datetime.now(timezone.utc).month
+        else:
+            year, month = datetime.now(timezone.utc).year, datetime.now(timezone.utc).month
+
+        # Get all challenges for this user (all time, not just active)
+        all_challenges = ChallengePurchase.query.filter_by(user_id=user_id).all()
+        challenge_map = {c.id: c for c in all_challenges}
+
+        if not all_challenges:
+            return jsonify({'success': True, 'days': {}, 'summary': {}})
+
+        challenge_ids = [c.id for c in all_challenges]
+
+        # Date range for the month
+        from calendar import monthrange
+        _, days_in_month = monthrange(year, month)
+        month_start = datetime(year, month, 1, tzinfo=timezone.utc)
+        month_end = datetime(year, month, days_in_month, 23, 59, 59, tzinfo=timezone.utc)
+
+        # Fetch all closed trades for this month across all challenges
+        trades = TradeHistory.query.filter(
+            TradeHistory.challenge_id.in_(challenge_ids),
+            TradeHistory.is_open == False,
+            TradeHistory.close_time >= month_start,
+            TradeHistory.close_time <= month_end
+        ).order_by(TradeHistory.close_time.asc()).all()
+
+        # Group by date
+        days = {}
+        for t in trades:
+            if not t.close_time:
+                continue
+            close_utc = t.close_time.replace(tzinfo=timezone.utc) if t.close_time.tzinfo is None else t.close_time
+            day_key = close_utc.strftime('%Y-%m-%d')
+            
+            if day_key not in days:
+                days[day_key] = {
+                    'date': day_key,
+                    'total_profit': 0.0,
+                    'total_trades': 0,
+                    'winning_trades': 0,
+                    'losing_trades': 0,
+                    'trades': []
+                }
+            
+            profit = float(t.profit or 0)
+            challenge = challenge_map.get(t.challenge_id)
+            challenge_name = challenge.challenge_template.name if challenge and challenge.challenge_template else 'Challenge'
+            
+            days[day_key]['total_profit'] = round(days[day_key]['total_profit'] + profit, 2)
+            days[day_key]['total_trades'] += 1
+            if profit > 0:
+                days[day_key]['winning_trades'] += 1
+            elif profit < 0:
+                days[day_key]['losing_trades'] += 1
+            
+            days[day_key]['trades'].append({
+                'ticket': t.ticket,
+                'symbol': t.symbol,
+                'lots': t.lots,
+                'profit': round(profit, 2),
+                'open_time': t.open_time.isoformat() if t.open_time else None,
+                'close_time': t.close_time.isoformat() if t.close_time else None,
+                'challenge_name': challenge_name,
+                'challenge_id': t.challenge_id
+            })
+
+        # Monthly summary
+        all_trades_flat = [t for day in days.values() for t in day['trades']]
+        total_profit = round(sum(t['profit'] for t in all_trades_flat), 2)
+        total_trades = len(all_trades_flat)
+        winning = sum(1 for t in all_trades_flat if t['profit'] > 0)
+        win_rate = round(winning / total_trades * 100, 1) if total_trades > 0 else 0
+        best_trade = max(all_trades_flat, key=lambda t: t['profit']) if all_trades_flat else None
+        
+        # Win streak
+        sorted_trades = sorted(all_trades_flat, key=lambda t: t['close_time'] or '')
+        streak = 0
+        for t in reversed(sorted_trades):
+            if t['profit'] > 0:
+                streak += 1
+            else:
+                break
+
+        # Most traded symbol
+        from collections import Counter
+        symbol_counts = Counter(t['symbol'] for t in all_trades_flat)
+        top_symbol = symbol_counts.most_common(1)[0][0] if symbol_counts else None
+
+        summary = {
+            'total_profit': total_profit,
+            'total_trades': total_trades,
+            'win_rate': win_rate,
+            'win_streak': streak,
+            'best_trade': best_trade,
+            'top_symbol': top_symbol,
+            'month': month_str or f'{year}-{month:02d}'
+        }
+
+        return jsonify({
+            'success': True,
+            'days': days,
+            'summary': summary
+        })
+
+    except Exception as e:
+        print(f"Calendar API error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500

@@ -184,7 +184,7 @@ def not_found_error(error):
     return render_template('404.html'), 404
 
 # ===== INITIALIZE DATABASE & MIGRATE =====
-from models import db, User, Notification, NotificationTemplate, ChallengeTemplate, Payment, ChallengePurchase, WebhookLog, FAQ, BlogPost, Coupon, CouponUsage, CouponAssignment, AdminLog
+from models import db, User, Notification, NotificationTemplate, ChallengeTemplate, Payment, ChallengePurchase, WebhookLog, FAQ, BlogPost, Coupon, CouponUsage, CouponAssignment, AdminLog, ViolationEvidence  # Add ViolationEvidence
 
 db.init_app(app)
 migrate = Migrate(app, db)
@@ -1264,6 +1264,103 @@ def get_user_all_challenges_metrics():
         'success': True,
         'challenges': result
     })
+
+# ========================================================================
+# REAL-TIME DASHBOARD ENDPOINT
+# ========================================================================
+
+@app.route('/api/challenge/<int:challenge_id>/live')
+@login_required
+def get_live_challenge_data(challenge_id):
+    """
+    Real-time endpoint for dashboard updates.
+    Returns current equity, balance, floating PnL, and open positions.
+    No caching - always returns fresh data.
+    """
+    user_id = session.get('user_id')
+    user = User.query.get(user_id)
+    
+    challenge = ChallengePurchase.query.filter_by(id=challenge_id).first()
+    
+    if not challenge:
+        return jsonify({'error': 'Challenge not found'}), 404
+    
+    if challenge.user_id != user_id and not user.is_admin:
+        return jsonify({'error': 'Access denied'}), 403
+    
+    # Get open positions
+    from models import EATrade
+    open_trades = EATrade.query.filter_by(
+        challenge_purchase_id=challenge.id,
+        status='open'
+    ).all()
+    
+    open_positions = []
+    total_floating_pnl = 0.0
+    
+    for t in open_trades:
+        floating_pnl = t.floating_pnl or 0.0
+        total_floating_pnl += floating_pnl
+        open_positions.append({
+            'ticket': t.ticket,
+            'symbol': t.symbol,
+            'type': 'BUY' if t.trade_type == 0 else 'SELL',
+            'lots': t.lots,
+            'open_price': t.open_price,
+            'current_price': t.current_price,
+            'floating_pnl': floating_pnl,
+            'sl': t.sl,
+            'tp': t.tp
+        })
+    
+    # Load rules for drawdown limits
+    from rule_engine import get_active_rules
+    rules = get_active_rules(challenge)
+    
+    def safe_round(value, decimals=2):
+        if value is None:
+            return None
+        try:
+            return round(float(value), decimals)
+        except (TypeError, ValueError):
+            return None
+    
+    response = jsonify({
+        'success': True,
+        'challenge_id': challenge.id,
+        'timestamp': datetime.now(timezone.utc).isoformat(),
+        'account': {
+            'balance': safe_round(challenge.current_balance, 2),
+            'equity': safe_round(challenge.current_equity, 2),
+            'floating_pnl': safe_round(total_floating_pnl, 2),
+            'profit_percent': safe_round(challenge.profit_percent, 2),
+            'daily_drawdown': safe_round(challenge.daily_drawdown, 2),
+            'overall_drawdown': safe_round(challenge.overall_drawdown, 2),
+            'trading_days': challenge.trading_days or 0,
+            'days_remaining': challenge.days_remaining or 0,
+            'risk_score': challenge.risk_score or 0
+        },
+        'rules': {
+            'daily_loss_limit': rules.get('daily_loss'),
+            'overall_loss_limit': rules.get('overall_loss'),
+            'profit_target': rules.get('profit_target')
+        },
+        'status': {
+            'challenge_status': challenge.status,
+            'monitoring_status': challenge.monitoring_status,
+            'review_required': challenge.review_required
+        },
+        'open_positions': open_positions,
+        'open_positions_count': len(open_positions),
+        'total_floating_pnl': safe_round(total_floating_pnl, 2)
+    })
+    
+    # Prevent caching
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    
+    return response
 
 # ===== MAIN ROUTES =====
 @app.route('/')

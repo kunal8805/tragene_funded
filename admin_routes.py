@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify, abort, Response
 from functools import wraps
-from models import db, User, ChallengeTemplate, ChallengePurchase, Payout, PayoutAuditLog, FAQ, SupportTicket, TicketMessage, Payment, AdminLog, Notification, UserNotification, NotificationTemplate, Coupon, CouponUsage, CouponAssignment
+from models import db, User, ChallengeTemplate, ChallengePurchase, Payout, PayoutAuditLog, FAQ, SupportTicket, TicketMessage, Payment, AdminLog, Notification, UserNotification, NotificationTemplate, Coupon, CouponUsage, CouponAssignment, ProgressionRequest
 from datetime import datetime, timedelta, timezone
 import secrets
 import csv
@@ -26,6 +26,50 @@ def _notify_user(user_id, title, message, admin_id=None):
     db.session.flush()
     db.session.add(UserNotification(notification_id=notification.id, user_id=user_id))
 
+def _activate_progression_stage(challenge, request_type):
+    now = datetime.now(timezone.utc)
+    challenge.status = 'active' if request_type == 'phase2' else 'funded'
+    challenge.monitoring_status = 'active'
+    challenge.review_required = False
+    challenge.is_terminated = False
+    challenge.completed_at = None
+
+    if request_type == 'phase2':
+        challenge.current_phase = 2
+        challenge.phase = 2
+        challenge.phase2_started_at = now
+        duration = challenge.challenge_template.phase2_duration if challenge.challenge_template else None
+    else:
+        challenge.current_phase = 3
+        challenge.phase = 3
+        challenge.funded_at = now
+        duration = 365
+
+    challenge.start_date = now
+    if duration:
+        challenge.end_date = now + timedelta(days=int(duration))
+        challenge.days_remaining = int(duration)
+    else:
+        challenge.end_date = None
+        challenge.days_remaining = None
+
+    baseline_balance = float(challenge.current_balance or challenge.starting_balance or 0)
+    baseline_equity = float(challenge.current_equity or challenge.starting_equity or baseline_balance)
+    challenge.phase_start_balance = baseline_balance
+    challenge.phase_start_equity = baseline_equity
+    challenge.phase_start_date = now
+    challenge.phase_trading_days = 0
+    challenge.phase_profit_percent = 0.0
+    challenge.phase_day_start_equity = baseline_equity
+    challenge.phase_lowest_equity_today = baseline_equity
+    challenge.phase_daily_start_date = now.date()
+    challenge.phase_daily_drawdown = 0.0
+    challenge.progress_percentage = 0.0
+    challenge.current_profit = 0.0
+    challenge.current_loss = 0.0
+    challenge.manipulation_check_baseline = baseline_balance
+    challenge.manipulation_baseline_set_at = now
+
 def _payout_audit(payout, action, admin_user=None, notes=''):
     db.session.add(PayoutAuditLog(
         payout_id=payout.id,
@@ -38,7 +82,7 @@ def _payout_audit(payout, action, admin_user=None, notes=''):
 def _eligible_funded_count():
     return ChallengePurchase.query.filter(
         db.or_(
-            ChallengePurchase.status == 'funded_active',
+            ChallengePurchase.status.in_(['funded', 'funded_active']),
             ChallengePurchase.challenge_type == 'instant'
         ),
         ChallengePurchase.status.notin_(['failed', 'expired', 'revoked'])
@@ -332,28 +376,33 @@ def admin_challenge_action():
         if action == 'force_pass_phase1':
             ctype = purchase.challenge_type or 'one_phase'
             if ctype == 'two_phase':
-                purchase.current_phase = 2
-                purchase.status = 'phase2_active'
-                purchase.phase = 2
+                purchase.current_phase = 1
+                purchase.status = 'passed'
+                purchase.phase = 1
+                purchase.phase1_completed_at = datetime.now(timezone.utc)
+                purchase.completed_at = datetime.now(timezone.utc)
             else:
                 purchase.current_phase = 3
-                purchase.status = 'funded_active'
+                purchase.status = 'funded'
                 purchase.phase = 3
             
         elif action == 'force_pass_phase2':
-            purchase.current_phase = 3
-            purchase.status = 'funded_active'
-            purchase.phase = 3
+            purchase.current_phase = 2
+            purchase.status = 'passed'
+            purchase.phase = 2
+            purchase.completed_at = datetime.now(timezone.utc)
             
         elif action == 'force_pass_all':
             purchase.current_phase = 3
-            purchase.status = 'funded_active'
+            purchase.status = 'funded'
             purchase.phase = 3
+            purchase.funded_at = datetime.now(timezone.utc)
             
         elif action == 'force_fail':
-            purchase.status = 'breached'
+            purchase.status = 'failed'
             purchase.is_terminated = True
             purchase.credentials_revoked_at = datetime.now(timezone.utc)
+            _notify_user(purchase.user_id, 'Challenge Failed', 'Your challenge has failed and has been moved to history.', session.get('user_id'))
             
         elif action.startswith('extend_'):
             days = int(action.split('_')[1])
@@ -386,28 +435,33 @@ def admin_bulk_challenge_action():
             if action == 'force_pass_phase1':
                 ctype = purchase.challenge_type or 'one_phase'
                 if ctype == 'two_phase':
-                    purchase.current_phase = 2
-                    purchase.status = 'phase2_active'
-                    purchase.phase = 2
+                    purchase.current_phase = 1
+                    purchase.status = 'passed'
+                    purchase.phase = 1
+                    purchase.phase1_completed_at = datetime.now(timezone.utc)
+                    purchase.completed_at = datetime.now(timezone.utc)
                 else:
                     purchase.current_phase = 3
-                    purchase.status = 'funded_active'
+                    purchase.status = 'funded'
                     purchase.phase = 3
                 
             elif action == 'force_pass_phase2':
-                purchase.current_phase = 3
-                purchase.status = 'funded_active'
-                purchase.phase = 3
+                purchase.current_phase = 2
+                purchase.status = 'passed'
+                purchase.phase = 2
+                purchase.completed_at = datetime.now(timezone.utc)
                 
             elif action == 'force_pass_all':
                 purchase.current_phase = 3
-                purchase.status = 'funded_active'
+                purchase.status = 'funded'
                 purchase.phase = 3
+                purchase.funded_at = datetime.now(timezone.utc)
                 
             elif action == 'force_fail':
-                purchase.status = 'breached'
+                purchase.status = 'failed'
                 purchase.is_terminated = True
                 purchase.credentials_revoked_at = datetime.now(timezone.utc)
+                _notify_user(purchase.user_id, 'Challenge Failed', 'Your challenge has failed and has been moved to history.', session.get('user_id'))
                 
             elif action.startswith('extend_'):
                 days = int(action.split('_')[1])
@@ -978,9 +1032,21 @@ def get_challenges_dashboard_data():
     total_purchases = ChallengePurchase.query.count()
     today_purchases = ChallengePurchase.query.filter(ChallengePurchase.purchase_date >= today_start).count()
     
-    active_challenges = ChallengePurchase.query.filter_by(status='active').count()
+    active_challenges = ChallengePurchase.query.filter(
+        ChallengePurchase.status.in_(['active', 'funded'])
+    ).count()
+    passed_phase1 = ChallengePurchase.query.filter_by(status='passed', current_phase=1).count()
+    passed_phase2 = ChallengePurchase.query.filter_by(status='passed', current_phase=2).count()
+    funded_accounts = ChallengePurchase.query.filter_by(status='funded').count()
+    failed_accounts = ChallengePurchase.query.filter(
+        ChallengePurchase.status.in_(['failed', 'breached'])
+    ).count()
+    pending_phase2_requests = ProgressionRequest.query.filter_by(request_type='phase2', status='pending').count()
+    pending_funded_requests = ProgressionRequest.query.filter_by(request_type='funded', status='pending').count()
+    approved_requests = ProgressionRequest.query.filter_by(status='approved').count()
+    declined_requests = ProgressionRequest.query.filter_by(status='declined').count()
     expiring_soon = ChallengePurchase.query.filter(
-        ChallengePurchase.status == 'active',
+        ChallengePurchase.status.in_(['active', 'funded']),
         ChallengePurchase.end_date <= expiring_threshold,
         ChallengePurchase.end_date >= now_utc
     ).count()
@@ -996,6 +1062,14 @@ def get_challenges_dashboard_data():
         'today_purchases': today_purchases,
         'pending_payouts': pending_payouts,
         'active_challenges': active_challenges,
+        'passed_phase1': passed_phase1,
+        'passed_phase2': passed_phase2,
+        'funded_accounts': funded_accounts,
+        'failed_accounts': failed_accounts,
+        'pending_phase2_requests': pending_phase2_requests,
+        'pending_funded_requests': pending_funded_requests,
+        'approved_requests': approved_requests,
+        'declined_requests': declined_requests,
         'expiring_soon': expiring_soon,
         'payout_eligible': payout_eligible
     }
@@ -1057,6 +1131,72 @@ def export_payments():
     
     flash('Export feature would generate CSV file with payment data.', 'info')
     return redirect(url_for('admin.admin_payments'))
+
+
+@admin_bp.route('/progression-requests')
+@admin_required
+def admin_progression_requests():
+    requests_query = ProgressionRequest.query.join(ProgressionRequest.user).join(ProgressionRequest.challenge_purchase)
+    status = request.args.get('status', '').strip()
+    if status:
+        requests_query = requests_query.filter(ProgressionRequest.status == status)
+    progression_requests = requests_query.order_by(ProgressionRequest.created_at.desc()).all()
+    stats = {
+        'pending_phase2': ProgressionRequest.query.filter_by(request_type='phase2', status='pending').count(),
+        'pending_funded': ProgressionRequest.query.filter_by(request_type='funded', status='pending').count(),
+        'approved': ProgressionRequest.query.filter_by(status='approved').count(),
+        'declined': ProgressionRequest.query.filter_by(status='declined').count()
+    }
+    return render_template('admin/progression_requests.html', progression_requests=progression_requests, stats=stats, status=status)
+
+
+@admin_bp.route('/progression-requests/<int:request_id>/<action>', methods=['POST'])
+@admin_required
+def admin_progression_request_action(request_id, action):
+    progression_request = ProgressionRequest.query.get_or_404(request_id)
+    admin_user = User.query.get(session['user_id'])
+    now = datetime.now(timezone.utc)
+
+    if progression_request.status != 'pending':
+        flash('Only pending progression requests can be updated.', 'error')
+        return redirect(url_for('admin.admin_progression_requests'))
+
+    challenge = progression_request.challenge_purchase
+    if action == 'approve':
+        progression_request.status = 'approved'
+        progression_request.approved_at = now
+        _activate_progression_stage(challenge, progression_request.request_type)
+        if progression_request.request_type == 'phase2':
+            title = 'Phase 2 Request Approved'
+            message = (
+                'Your request has been approved. Your new trading account is currently being prepared. '
+                'You will receive your MT5 credentials via your verified email address within 24 hours. '
+                'Please do not trade on your previous account.'
+            )
+        else:
+            title = 'Funded Request Approved'
+            message = (
+                'Your funded account request has been approved. Your funded account credentials will be sent '
+                'to your verified email address within 24 hours.'
+            )
+        _notify_user(progression_request.user_id, title, message, admin_user.id)
+        flash('Progression request approved.', 'success')
+    elif action == 'decline':
+        reason = request.form.get('admin_reason', '').strip()
+        if not reason:
+            flash('Decline reason is required.', 'error')
+            return redirect(url_for('admin.admin_progression_requests'))
+        progression_request.status = 'declined'
+        progression_request.admin_reason = reason
+        progression_request.declined_at = now
+        title = 'Phase 2 Request Declined' if progression_request.request_type == 'phase2' else 'Funded Request Declined'
+        _notify_user(progression_request.user_id, title, f'Request Declined. Reason: {reason}', admin_user.id)
+        flash('Progression request declined.', 'success')
+    else:
+        abort(404)
+
+    db.session.commit()
+    return redirect(url_for('admin.admin_progression_requests'))
 
 @admin_bp.route('/payouts')
 @admin_required
@@ -1448,11 +1588,191 @@ def admin_delete_user(user_id):
     return redirect(url_for('admin.admin_users'))
 
 
+# ===== ANALYTICS ROUTES =====
+
 @admin_bp.route('/analytics')
 @admin_required
 def admin_analytics():
     """Admin analytics dashboard"""
     return render_template('admin/admin_analytics.html')
+
+
+# ─── NEW: Admin User-Specific Analytics ───────────────────────────────
+
+@admin_bp.route('/user/<int:user_id>/analytics')
+@admin_required
+def admin_user_analytics(user_id):
+    """Admin view of a specific user's analytics dashboard"""
+    user = User.query.get_or_404(user_id)
+    return render_template('admin/admin_user_analytics.html', 
+                          user_id=user_id, 
+                          user_name=user.get_full_name())
+
+
+@admin_bp.route('/api/user/<int:user_id>/challenges/metrics')
+@admin_required
+def api_user_challenges_metrics(user_id):
+    """Get all active challenges with metrics for a specific user"""
+    challenges = ChallengePurchase.query.filter_by(user_id=user_id).filter(
+        ChallengePurchase.status.in_(['active', 'funded', 'flagged', 'under_review'])
+    ).all()
+    
+    result = []
+    for ch in challenges:
+        result.append({
+            'id': ch.id,
+            'user_id': ch.user_id,
+            'challenge_name': ch.challenge_template.name if ch.challenge_template else 'Challenge',
+            'status': ch.status,
+            'current_phase': ch.current_phase,
+            'profit_percent': ch.profit_percent or 0,
+            'daily_drawdown': ch.daily_drawdown or 0,
+            'overall_drawdown': ch.overall_drawdown or 0,
+            'risk_score': ch.risk_score or 0,
+            'trading_days': ch.trading_days or 0,
+            'days_remaining': ch.days_remaining or 0,
+            'current_balance': ch.current_balance or 0,
+            'current_equity': ch.current_equity or 0,
+            'min_trading_days': ch.challenge_template.phase1_min_days if ch.challenge_template else 5,
+            'completed_at': ch.completed_at.isoformat() if ch.completed_at else None
+        })
+    
+    return jsonify({'success': True, 'challenges': result})
+
+
+@admin_bp.route('/api/user/<int:user_id>/calendar')
+@admin_required
+def api_user_calendar(user_id):
+    """Get calendar data for a specific user by month"""
+    from models import Trade
+    
+    month_str = request.args.get('month', '')
+    if not month_str:
+        now = datetime.now(timezone.utc)
+        month_str = f"{now.year}-{now.month:02d}"
+    
+    try:
+        year, month = map(int, month_str.split('-'))
+    except ValueError:
+        return jsonify({'success': False, 'message': 'Invalid month format'}), 400
+    
+    # Get all challenges for this user
+    user_challenges = ChallengePurchase.query.filter_by(user_id=user_id).all()
+    challenge_ids = [ch.id for ch in user_challenges]
+    
+    if not challenge_ids:
+        return jsonify({
+            'success': True,
+            'days': {},
+            'summary': {
+                'total_trades': 0,
+                'total_profit': 0,
+                'win_rate': 0,
+                'win_streak': 0,
+                'best_trade': None,
+                'top_symbol': None
+            }
+        })
+    
+    # Get trades for this month across all user's challenges
+    start_date = datetime(year, month, 1, tzinfo=timezone.utc)
+    if month == 12:
+        end_date = datetime(year + 1, 1, 1, tzinfo=timezone.utc)
+    else:
+        end_date = datetime(year, month + 1, 1, tzinfo=timezone.utc)
+    
+    trades = Trade.query.filter(
+        Trade.challenge_id.in_(challenge_ids),
+        Trade.close_time >= start_date,
+        Trade.close_time < end_date
+    ).order_by(Trade.close_time.asc()).all()
+    
+    # Group trades by day
+    days_data = {}
+    all_profits = []
+    symbol_counts = {}
+    
+    for trade in trades:
+        if not trade.close_time:
+            continue
+            
+        day_key = trade.close_time.strftime('%Y-%m-%d')
+        if day_key not in days_data:
+            days_data[day_key] = {
+                'total_profit': 0,
+                'total_trades': 0,
+                'winning_trades': 0,
+                'trades': []
+            }
+        
+        profit = trade.profit or 0
+        days_data[day_key]['total_profit'] += profit
+        days_data[day_key]['total_trades'] += 1
+        if profit > 0:
+            days_data[day_key]['winning_trades'] += 1
+        
+        all_profits.append(profit)
+        
+        # Track symbols
+        symbol = trade.symbol or 'Unknown'
+        symbol_counts[symbol] = symbol_counts.get(symbol, 0) + 1
+        
+        # Get challenge name
+        challenge = next((c for c in user_challenges if c.id == trade.challenge_id), None)
+        
+        days_data[day_key]['trades'].append({
+            'id': trade.id,
+            'symbol': trade.symbol or 'Unknown',
+            'profit': profit,
+            'lots': getattr(trade, 'lots', 0) or 0,
+            'open_time': trade.open_time.isoformat() if trade.open_time else None,
+            'close_time': trade.close_time.isoformat() if trade.close_time else None,
+            'challenge_name': challenge.challenge_template.name if challenge and challenge.challenge_template else 'Challenge'
+        })
+    
+    # Calculate summary
+    total_trades = len(trades)
+    total_profit = sum(all_profits)
+    winning_trades = sum(1 for p in all_profits if p > 0)
+    win_rate = round((winning_trades / total_trades * 100) if total_trades > 0 else 0, 1)
+    
+    # Best trade
+    best_trade = max(trades, key=lambda t: t.profit or 0) if trades else None
+    best_trade_data = None
+    if best_trade:
+        best_trade_data = {
+            'profit': best_trade.profit or 0,
+            'symbol': best_trade.symbol or 'Unknown'
+        }
+    
+    # Top symbol
+    top_symbol = max(symbol_counts, key=symbol_counts.get) if symbol_counts else None
+    
+    # Win streak
+    win_streak = 0
+    current_streak = 0
+    for profit in all_profits:
+        if profit > 0:
+            current_streak += 1
+            win_streak = max(win_streak, current_streak)
+        else:
+            current_streak = 0
+    
+    return jsonify({
+        'success': True,
+        'days': days_data,
+        'summary': {
+            'total_trades': total_trades,
+            'total_profit': round(total_profit, 2),
+            'win_rate': win_rate,
+            'win_streak': win_streak,
+            'best_trade': best_trade_data,
+            'top_symbol': top_symbol
+        }
+    })
+
+# ─── END NEW ROUTES ───────────────────────────────────────────────────
+
 
 @admin_bp.route('/api/challenges/all')
 @admin_required
@@ -1613,6 +1933,7 @@ def api_challenge_action():
         ch.review_required = False
         ch.completed_at = datetime.now(timezone.utc)
         log_rule(ch.id, "admin_fail", "critical", "Admin force failed the challenge")
+        _notify_user(ch.user_id, 'Challenge Failed', 'Your challenge has failed and has been moved to history.', session.get('user_id'))
         
     elif action == 'pass':
         ch.status = 'passed'
@@ -2220,12 +2541,12 @@ def api_palantir():
     
     # ===== CHALLENGES =====
     active_challenges = ChallengePurchase.query.filter(
-        ChallengePurchase.status.in_(['active', 'phase1_active', 'phase2_active']),
+        ChallengePurchase.status.in_(['active', 'funded']),
         ChallengePurchase.is_terminated == False
     ).count()
     
     funded_accounts = ChallengePurchase.query.filter(
-        ChallengePurchase.status == 'funded_active'
+        ChallengePurchase.status == 'funded'
     ).count()
     
     breached_accounts = ChallengePurchase.query.filter(
@@ -2360,13 +2681,13 @@ def api_palantir():
     
     # ===== RISK =====
     near_daily_loss = ChallengePurchase.query.filter(
-        ChallengePurchase.status.in_(['active', 'phase1_active', 'phase2_active']),
+        ChallengePurchase.status.in_(['active', 'funded']),
         ChallengePurchase.is_terminated == False,
         ChallengePurchase.daily_drawdown >= 4.0  # 80% of typical 5% limit
     ).count()
     
     near_overall_loss = ChallengePurchase.query.filter(
-        ChallengePurchase.status.in_(['active', 'phase1_active', 'phase2_active']),
+        ChallengePurchase.status.in_(['active', 'funded']),
         ChallengePurchase.is_terminated == False,
         ChallengePurchase.overall_drawdown >= 8.0  # 80% of typical 10% limit
     ).count()
@@ -2545,3 +2866,162 @@ def api_palantir_activity():
     events = events[:50]
     
     return jsonify({'success': True, 'events': events})
+
+
+
+
+# ========================================================================
+# VIOLATION REPORT CENTER
+# ========================================================================
+
+@admin_bp.route('/violations')
+@admin_required
+def admin_violations():
+    """Violation Report Center - List all violations"""
+    from models import ViolationEvidence
+    
+    page = request.args.get('page', 1, type=int)
+    violation_type = request.args.get('type', 'all')
+    review_status = request.args.get('reviewed', 'all')
+    
+    query = ViolationEvidence.query
+    
+    if violation_type != 'all':
+        query = query.filter_by(violation_type=violation_type)
+    
+    if review_status == 'reviewed':
+        query = query.filter_by(is_reviewed=True)
+    elif review_status == 'unreviewed':
+        query = query.filter_by(is_reviewed=False)
+    
+    violations = query.order_by(ViolationEvidence.created_at.desc()).paginate(
+        page=page, per_page=20, error_out=False
+    )
+    
+    return render_template('admin/violations_list.html', 
+                         violations=violations,
+                         violation_type=violation_type,
+                         review_status=review_status)
+
+
+@admin_bp.route('/violations/<int:evidence_id>')
+@admin_required
+def admin_violation_detail(evidence_id):
+    """View complete violation evidence package"""
+    from models import ViolationEvidence
+    
+    evidence = ViolationEvidence.query.get_or_404(evidence_id)
+    challenge = ChallengePurchase.query.get(evidence.challenge_purchase_id)
+    
+    return render_template('admin/violation_detail.html',
+                         evidence=evidence,
+                         challenge=challenge)
+
+
+@admin_bp.route('/violations/<int:evidence_id>/action', methods=['POST'])
+@admin_required
+def admin_violation_action(evidence_id):
+    """Admin action on violation: confirm fail or clear"""
+    from models import ViolationEvidence
+    
+    evidence = ViolationEvidence.query.get_or_404(evidence_id)
+    challenge = ChallengePurchase.query.get(evidence.challenge_purchase_id)
+    admin_user = User.query.get(session['user_id'])
+    action = request.form.get('action')
+    notes = request.form.get('notes', '')
+    now = datetime.now(timezone.utc)
+    
+    if action == 'confirm_fail':
+        # Fail the challenge
+        challenge.status = 'failed'
+        challenge.is_terminated = True
+        challenge.monitoring_status = 'failed'
+        challenge.review_required = False
+        challenge.violation_reviewed = True
+        challenge.completed_at = now
+        
+        # Update evidence record
+        evidence.is_reviewed = True
+        evidence.reviewed_by = admin_user.id
+        evidence.reviewed_at = now
+        evidence.review_decision = 'confirmed_fail'
+        evidence.review_notes = notes
+        
+        # Log admin action (NOT visible to user)
+        log_rule(challenge.id, "admin_confirmed_fail", "critical",
+                f"Admin confirmed violation. Account failed.")
+        
+        # Notify user (NO admin name exposed)
+        _notify_user(
+            challenge.user_id,
+            "Account Failed - Rule Violation",
+            f"Your account has been failed due to a rule violation. "
+            f"Reason: {evidence.reason[:200]}"
+        )
+        
+        flash('Violation confirmed. Account has been failed.', 'success')
+        
+    elif action == 'clear_violation':
+        # Clear the violation, restore account to active
+        challenge.status = 'active'
+        challenge.monitoring_status = 'active'
+        challenge.review_required = False
+        challenge.violation_reason = None
+        challenge.violation_reviewed = True
+        challenge.risk_score = max(0, (challenge.risk_score or 0) - 30)
+        
+        # Reset manipulation baseline
+        challenge.manipulation_check_baseline = challenge.current_balance
+        challenge.manipulation_baseline_set_at = now
+        
+        # Update evidence record
+        evidence.is_reviewed = True
+        evidence.reviewed_by = admin_user.id
+        evidence.reviewed_at = now
+        evidence.review_decision = 'cleared'
+        evidence.review_notes = notes
+        
+        # Log admin action
+        log_rule(challenge.id, "admin_cleared_violation", "info",
+                f"Admin cleared violation. Account restored to active.")
+        
+        # Notify user
+        _notify_user(
+            challenge.user_id,
+            "Account Restored",
+            "Your account has been reviewed and restored to active status. You may continue trading."
+        )
+        
+        flash('Violation cleared. Account restored to active.', 'success')
+    
+    db.session.commit()
+    return redirect(url_for('admin.admin_violation_detail', evidence_id=evidence_id))
+
+
+@admin_bp.route('/api/violations/<int:evidence_id>')
+@admin_required
+def api_violation_detail(evidence_id):
+    """API endpoint for violation evidence"""
+    from models import ViolationEvidence
+    
+    evidence = ViolationEvidence.query.get_or_404(evidence_id)
+    return jsonify({
+        'success': True,
+        'evidence': evidence.to_dict()
+    })
+
+
+@admin_bp.route('/api/challenge/<int:challenge_id>/violations')
+@admin_required
+def api_challenge_violations_list(challenge_id):
+    """Get all violations for a specific challenge"""
+    from models import ViolationEvidence
+    
+    violations = ViolationEvidence.query.filter_by(
+        challenge_purchase_id=challenge_id
+    ).order_by(ViolationEvidence.created_at.desc()).all()
+    
+    return jsonify({
+        'success': True,
+        'violations': [v.to_dict() for v in violations]
+    })

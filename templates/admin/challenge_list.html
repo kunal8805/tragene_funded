@@ -172,6 +172,10 @@
                         {% set status_colors = {
                         'pending_credentials': 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400',
                         'active': 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400',
+                        'funded': 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400',
+                        'pending_phase2': 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400',
+                        'pending_funded': 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400',
+                        'inactive': 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300',
                         'passed': 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400',
                         'failed': 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400',
                         'expired': 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300'
@@ -270,11 +274,11 @@
             if (currentFilter === 'all') {
                 matchesFilter = true;
             } else if (currentFilter === 'phase1') {
-                matchesFilter = (phase === 1 && (status === 'active' || status === 'phase1_active'));
+                matchesFilter = (phase === 1 && status === 'active');
             } else if (currentFilter === 'phase2') {
-                matchesFilter = (phase === 2 && (status === 'active' || status === 'phase2_active'));
+                matchesFilter = (phase === 2 && status === 'active');
             } else if (currentFilter === 'funded') {
-                matchesFilter = (phase === 3 || status === 'funded_active' || status === 'passed');
+                matchesFilter = (phase === 3 || status === 'funded');
             } else if (currentFilter === 'challenge_purchased') {
                 matchesFilter = (status === 'pending_credentials');
             } else if (currentFilter === 'breached') {
@@ -299,16 +303,16 @@
         if (challengeType === 'two_phase') {
             if (currentPhase === 1) {
                 // Ask: Pass Phase 1 or Pass all phases?
-                const choice = confirm("This is a Two-Phase account currently on Phase 1.\n\nClick 'OK' to pass Phase 1 only (move to Phase 2).\nClick 'Cancel' to pass ALL phases (move directly to Funded).");
+                const choice = confirm("This is a Two-Phase account currently on Phase 1.\n\nClick 'OK' to pass Phase 1 only and wait for a Phase 2 request.\nClick 'Cancel' to pass ALL phases.");
                 if (choice) {
                     action = 'force_pass_phase1';
                 } else {
-                    const confirmAll = confirm("Are you sure you want to pass ALL phases and move directly to Funded?");
+                const confirmAll = confirm("Are you sure you want to pass ALL phases?");
                     if (!confirmAll) return;
                     action = 'force_pass_all';
                 }
             } else if (currentPhase === 2) {
-                const confirmPhase2 = confirm("This is a Two-Phase account currently on Phase 2.\n\nClick 'OK' to pass Phase 2 and move to Funded.");
+                const confirmPhase2 = confirm("This is a Two-Phase account currently on Phase 2.\n\nClick 'OK' to pass Phase 2 and wait for a funded account request.");
                 if (!confirmPhase2) return;
                 action = 'force_pass_phase2';
             } else {

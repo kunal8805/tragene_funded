@@ -54,7 +54,7 @@
                 <span class="px-1.5 py-0.5 rounded-full text-[10px] font-semibold 
                     {% if challenge.status == 'phase1_active' %}bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400
                     {% elif challenge.status == 'phase2_active' %}bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400
-                    {% elif challenge.status == 'funded_active' %}bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400
+                    {% elif challenge.status in ['funded', 'funded_active'] %}bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400
                     {% else %}bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400{% endif %}">
                     {{ challenge.status|replace('_', ' ')|title|truncate(12) }}
                 </span>
@@ -88,6 +88,66 @@
         <a href="#quick-purchase" class="text-xs text-blue-600 dark:text-blue-400 hover:underline font-medium">
             Browse Challenges <i class="fas fa-arrow-right ml-1"></i>
         </a>
+    </div>
+    {% endif %}
+</div>
+
+<!-- ===== PROGRESSION REQUESTS ===== -->
+<div class="mb-4">
+    <div class="flex items-center justify-between mb-3">
+        <h2 class="text-base font-bold text-gray-900 dark:text-white flex items-center">
+            <i class="fas fa-route text-green-600 dark:text-green-400 mr-2 text-sm"></i>
+            Progression Requests
+        </h2>
+    </div>
+
+    {% set eligible_phase1 = progression_eligible_challenges|selectattr('current_phase', 'equalto', 1)|list %}
+    {% set eligible_phase2 = progression_eligible_challenges|selectattr('current_phase', 'equalto', 2)|list %}
+
+    {% if eligible_phase1 or eligible_phase2 or progression_requests %}
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-3">
+        {% for challenge in eligible_phase1 %}
+        <div class="glass-card p-3 border dark:border-dark-border">
+            <p class="text-xs font-bold text-gray-900 dark:text-white">Congratulations!</p>
+            <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-1">You have successfully passed Phase 1.</p>
+            <form method="POST" action="{{ url_for('user.request_progression', challenge_id=challenge.id, request_type='phase2') }}" class="mt-3">
+                <button class="w-full bg-green-600 hover:bg-green-700 text-white py-1.5 rounded-lg text-xs font-semibold transition" type="submit">
+                    Request Phase 2 Account
+                </button>
+            </form>
+        </div>
+        {% endfor %}
+        {% for challenge in eligible_phase2 %}
+        <div class="glass-card p-3 border dark:border-dark-border">
+            <p class="text-xs font-bold text-gray-900 dark:text-white">Congratulations!</p>
+            <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-1">You have successfully passed Phase 2.</p>
+            <form method="POST" action="{{ url_for('user.request_progression', challenge_id=challenge.id, request_type='funded') }}" class="mt-3">
+                <button class="w-full bg-green-600 hover:bg-green-700 text-white py-1.5 rounded-lg text-xs font-semibold transition" type="submit">
+                    Request Funded Account
+                </button>
+            </form>
+        </div>
+        {% endfor %}
+        {% for req in progression_requests %}
+        <div class="glass-card p-3 border dark:border-dark-border">
+            <div class="flex items-center justify-between">
+                <p class="text-xs font-bold text-gray-900 dark:text-white">{{ req.request_type|replace('_', ' ')|title }} Request</p>
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold
+                    {% if req.status == 'approved' %}bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400
+                    {% elif req.status == 'declined' %}bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400
+                    {% else %}bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400{% endif %}">
+                    {{ req.status|title }}
+                </span>
+            </div>
+            {% if req.admin_reason %}
+            <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-2">Reason: {{ req.admin_reason }}</p>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="glass-card p-4 text-center border dark:border-dark-border">
+        <p class="text-sm text-gray-600 dark:text-gray-400">No progression requests yet</p>
     </div>
     {% endif %}
 </div>
@@ -233,11 +293,11 @@
             <div class="flex items-center justify-between py-1.5 border-b border-gray-100 dark:border-gray-700 last:border-0">
                 <div class="flex items-center gap-2 min-w-0">
                     <div class="w-6 h-6 rounded-full flex items-center justify-center shrink-0
-                        {% if purchase.status in ['passed', 'funded_active'] %}bg-green-100 dark:bg-green-900/30
+                        {% if purchase.status in ['passed', 'funded', 'funded_active'] %}bg-green-100 dark:bg-green-900/30
                         {% elif purchase.status == 'failed' %}bg-red-100 dark:bg-red-900/30
                         {% else %}bg-blue-100 dark:bg-blue-900/30{% endif %}">
                         <i class="fas 
-                            {% if purchase.status in ['passed', 'funded_active'] %}fa-check text-green-600 text-[8px]
+                            {% if purchase.status in ['passed', 'funded', 'funded_active'] %}fa-check text-green-600 text-[8px]
                             {% elif purchase.status == 'failed' %}fa-times text-red-600 text-[8px]
                             {% else %}fa-clock text-blue-600 text-[8px]{% endif %}"></i>
                     </div>
@@ -251,7 +311,7 @@
                     </div>
                 </div>
                 <span class="text-[10px] font-medium px-1.5 py-0.5 rounded-full shrink-0
-                    {% if purchase.status in ['passed', 'funded_active'] %}bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400
+                    {% if purchase.status in ['passed', 'funded', 'funded_active'] %}bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400
                     {% elif purchase.status == 'failed' %}bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400
                     {% else %}bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400{% endif %}">
                     {{ purchase.status|replace('_', ' ')|title|truncate(12) }}
