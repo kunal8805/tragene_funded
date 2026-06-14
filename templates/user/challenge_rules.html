@@ -1,0 +1,63 @@
+{% extends "user/base.html" %}
+
+{% block title %}Challenge Rules - Tragene Funded{% endblock %}
+{% block header_title %}Challenge Rules{% endblock %}
+{% block header_subtitle %}Rules for {{ challenge.challenge_template.name if challenge.challenge_template else 'Challenge' }}{% endblock %}
+
+{% block content %}
+{% set template = challenge.challenge_template %}
+<div class="glass-card p-6 border dark:border-dark-border">
+    <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-6">
+        <div>
+            <h2 class="text-2xl font-bold text-gray-900 dark:text-white">{{ template.name }}</h2>
+            <p class="text-gray-600 dark:text-gray-400">Challenge #{{ challenge.serial_no or challenge.id }} - {{ rules.phase_name or 'Current Phase' }}</p>
+        </div>
+        <span class="px-3 py-1 rounded-full bg-blue-100 text-blue-700 font-semibold text-sm">{{ challenge.status|replace('_', ' ')|title }}</span>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="p-4 bg-gray-50 dark:bg-gray-900/40 rounded-xl border dark:border-gray-700">
+            <div class="text-sm text-gray-500 dark:text-gray-400">Account Size</div>
+            <div class="text-lg font-bold text-gray-900 dark:text-white">${{ "{:,}".format(template.account_size) }}</div>
+        </div>
+        <div class="p-4 bg-gray-50 dark:bg-gray-900/40 rounded-xl border dark:border-gray-700">
+            <div class="text-sm text-gray-500 dark:text-gray-400">Target</div>
+            <div class="text-lg font-bold text-green-600">{{ rules.target or rules.profit_target or 0 }}%</div>
+        </div>
+        <div class="p-4 bg-gray-50 dark:bg-gray-900/40 rounded-xl border dark:border-gray-700">
+            <div class="text-sm text-gray-500 dark:text-gray-400">Daily Drawdown</div>
+            <div class="text-lg font-bold text-red-600">{{ rules.daily_loss }}%</div>
+            <div class="text-sm text-gray-600 dark:text-gray-300">{{ template.get_drawdown_type_label(rules.daily_dd_type) }}</div>
+        </div>
+        <div class="p-4 bg-gray-50 dark:bg-gray-900/40 rounded-xl border dark:border-gray-700">
+            <div class="text-sm text-gray-500 dark:text-gray-400">Overall Drawdown</div>
+            <div class="text-lg font-bold text-red-600">{{ rules.overall_loss }}%</div>
+            <div class="text-sm text-gray-600 dark:text-gray-300">{{ template.get_drawdown_type_label(rules.overall_dd_type) }}</div>
+        </div>
+        <div class="p-4 bg-gray-50 dark:bg-gray-900/40 rounded-xl border dark:border-gray-700">
+            <div class="text-sm text-gray-500 dark:text-gray-400">Leverage</div>
+            <div class="text-lg font-bold text-gray-900 dark:text-white">{{ rules.leverage }}</div>
+        </div>
+        <div class="p-4 bg-gray-50 dark:bg-gray-900/40 rounded-xl border dark:border-gray-700">
+            <div class="text-sm text-gray-500 dark:text-gray-400">Minimum Days</div>
+            <div class="text-lg font-bold text-gray-900 dark:text-white">{{ rules.min_days }}</div>
+        </div>
+        <div class="p-4 bg-gray-50 dark:bg-gray-900/40 rounded-xl border dark:border-gray-700">
+            <div class="text-sm text-gray-500 dark:text-gray-400">Weekend Trading Allowed</div>
+            <div class="text-lg font-bold text-gray-900 dark:text-white">{{ 'Yes' if template.weekend_trading else 'No' }}</div>
+        </div>
+        <div class="p-4 bg-gray-50 dark:bg-gray-900/40 rounded-xl border dark:border-gray-700">
+            <div class="text-sm text-gray-500 dark:text-gray-400">Profit Split</div>
+            <div class="text-lg font-bold text-gray-900 dark:text-white">{{ template.user_profit_share }}%</div>
+        </div>
+        <div class="p-4 bg-gray-50 dark:bg-gray-900/40 rounded-xl border dark:border-gray-700">
+            <div class="text-sm text-gray-500 dark:text-gray-400">Payout Cycle</div>
+            <div class="text-lg font-bold text-gray-900 dark:text-white">{{ template.payout_cycle|replace('_', ' ')|title }}</div>
+        </div>
+        <div class="p-4 bg-gray-50 dark:bg-gray-900/40 rounded-xl border dark:border-gray-700">
+            <div class="text-sm text-gray-500 dark:text-gray-400">Challenge Duration</div>
+            <div class="text-lg font-bold text-gray-900 dark:text-white">{{ rules.duration }} days</div>
+        </div>
+    </div>
+</div>
+{% endblock %}

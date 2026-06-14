@@ -1,10 +1,11 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify, abort, Response
 from functools import wraps
-from models import db, User, ChallengeTemplate, ChallengePurchase, Payout, PayoutAuditLog, FAQ, SupportTicket, TicketMessage, Payment, AdminLog, Notification, UserNotification, NotificationTemplate, Coupon, CouponUsage, CouponAssignment, ProgressionRequest
+from models import db, User, ChallengeTemplate, ChallengePurchase, Payout, PayoutAuditLog, FAQ, SupportTicket, TicketMessage, Payment, AdminLog, Notification, UserNotification, NotificationTemplate, Coupon, CouponUsage, CouponAssignment, ProgressionRequest, RulebookSection
 from datetime import datetime, timedelta, timezone
 import secrets
 import csv
 import io
+from notification_service import create_notification, notify_all_users
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 
@@ -14,17 +15,37 @@ def _admin_name(user):
     return user.get_full_name() if user else 'System'
 
 def _notify_user(user_id, title, message, admin_id=None):
-    notification = Notification(
-        title=title,
-        message=message,
-        is_global=False,
-        target_user_id=user_id,
-        created_by_admin_id=admin_id,
-        expires_at=datetime.now(timezone.utc) + timedelta(days=30)
+    create_notification(
+        user_id,
+        title,
+        message,
+        'system',
+        admin_id=admin_id,
     )
-    db.session.add(notification)
-    db.session.flush()
-    db.session.add(UserNotification(notification_id=notification.id, user_id=user_id))
+
+def _notify_challenge_passed(challenge, admin_id=None):
+    create_notification(
+        challenge.user_id,
+        'Challenge Passed',
+        'Congratulations! You have successfully passed your challenge. Your funded account review process has begun.',
+        'challenge',
+        action_url='/user/challenges',
+        icon='target',
+        admin_id=admin_id,
+        dedupe_key=f'challenge-passed:{challenge.id}',
+    )
+
+def _notify_challenge_breached(challenge, admin_id=None):
+    create_notification(
+        challenge.user_id,
+        'Challenge Breached',
+        'Unfortunately your challenge has been breached. Review your performance and prepare for your next attempt.',
+        'challenge',
+        action_url='/user/challenges',
+        icon='warning',
+        admin_id=admin_id,
+        dedupe_key=f'challenge-breached:{challenge.id}',
+    )
 
 def _activate_progression_stage(challenge, request_type):
     now = datetime.now(timezone.utc)
@@ -231,6 +252,16 @@ def admin_approve_kyc(user_id):
     user = User.query.get_or_404(user_id)
     user.kyc_status = 'approved'
     user.kyc_notes = ''
+    create_notification(
+        user.id,
+        'KYC Verified',
+        'Congratulations! Your KYC has been successfully verified. You can now purchase challenges and participate fully on the platform.',
+        'kyc',
+        action_url='/challenges',
+        icon='check',
+        admin_id=session.get('user_id'),
+        dedupe_key=f'kyc-approved:{user.id}',
+    )
     db.session.commit()
     
     flash(f'KYC for {user.email} has been approved.', 'success')
@@ -243,6 +274,16 @@ def admin_reject_kyc(user_id):
     rejection_reason = request.form.get('rejection_reason', 'Document not clear')
     user.kyc_status = 'rejected'
     user.kyc_notes = rejection_reason
+    create_notification(
+        user.id,
+        'KYC Verification Failed',
+        'Unfortunately your KYC verification was not approved. Please review the rejection reason and upload updated documents.',
+        'kyc',
+        action_url='/kyc',
+        icon='warning',
+        admin_id=session.get('user_id'),
+        dedupe_key=f'kyc-rejected:{user.id}:{datetime.now(timezone.utc).date().isoformat()}',
+    )
     db.session.commit()
     
     flash(f'KYC for {user.email} has been rejected.', 'success')
@@ -274,12 +315,32 @@ def admin_bulk_kyc_action():
         for user in users:
             user.kyc_status = 'approved'
             user.kyc_notes = ''
+            create_notification(
+                user.id,
+                'KYC Verified',
+                'Congratulations! Your KYC has been successfully verified. You can now purchase challenges and participate fully on the platform.',
+                'kyc',
+                action_url='/challenges',
+                icon='check',
+                admin_id=session.get('user_id'),
+                dedupe_key=f'kyc-approved:{user.id}',
+            )
         db.session.commit()
         flash(f'Approved {len(users)} KYC applications.', 'success')
     elif action == 'reject':
         for user in users:
             user.kyc_status = 'rejected'
             user.kyc_notes = 'Bulk rejection'
+            create_notification(
+                user.id,
+                'KYC Verification Failed',
+                'Unfortunately your KYC verification was not approved. Please review the rejection reason and upload updated documents.',
+                'kyc',
+                action_url='/kyc',
+                icon='warning',
+                admin_id=session.get('user_id'),
+                dedupe_key=f'kyc-rejected:{user.id}:{datetime.now(timezone.utc).date().isoformat()}',
+            )
         db.session.commit()
         flash(f'Rejected {len(users)} KYC applications.', 'success')
     elif action == 'delete':
@@ -381,28 +442,32 @@ def admin_challenge_action():
                 purchase.phase = 1
                 purchase.phase1_completed_at = datetime.now(timezone.utc)
                 purchase.completed_at = datetime.now(timezone.utc)
+                _notify_challenge_passed(purchase, session.get('user_id'))
             else:
                 purchase.current_phase = 3
                 purchase.status = 'funded'
                 purchase.phase = 3
+                _notify_challenge_passed(purchase, session.get('user_id'))
             
         elif action == 'force_pass_phase2':
             purchase.current_phase = 2
             purchase.status = 'passed'
             purchase.phase = 2
             purchase.completed_at = datetime.now(timezone.utc)
+            _notify_challenge_passed(purchase, session.get('user_id'))
             
         elif action == 'force_pass_all':
             purchase.current_phase = 3
             purchase.status = 'funded'
             purchase.phase = 3
             purchase.funded_at = datetime.now(timezone.utc)
+            _notify_challenge_passed(purchase, session.get('user_id'))
             
         elif action == 'force_fail':
             purchase.status = 'failed'
             purchase.is_terminated = True
             purchase.credentials_revoked_at = datetime.now(timezone.utc)
-            _notify_user(purchase.user_id, 'Challenge Failed', 'Your challenge has failed and has been moved to history.', session.get('user_id'))
+            _notify_challenge_breached(purchase, session.get('user_id'))
             
         elif action.startswith('extend_'):
             days = int(action.split('_')[1])
@@ -440,28 +505,32 @@ def admin_bulk_challenge_action():
                     purchase.phase = 1
                     purchase.phase1_completed_at = datetime.now(timezone.utc)
                     purchase.completed_at = datetime.now(timezone.utc)
+                    _notify_challenge_passed(purchase, session.get('user_id'))
                 else:
                     purchase.current_phase = 3
                     purchase.status = 'funded'
                     purchase.phase = 3
+                    _notify_challenge_passed(purchase, session.get('user_id'))
                 
             elif action == 'force_pass_phase2':
                 purchase.current_phase = 2
                 purchase.status = 'passed'
                 purchase.phase = 2
                 purchase.completed_at = datetime.now(timezone.utc)
+                _notify_challenge_passed(purchase, session.get('user_id'))
                 
             elif action == 'force_pass_all':
                 purchase.current_phase = 3
                 purchase.status = 'funded'
                 purchase.phase = 3
                 purchase.funded_at = datetime.now(timezone.utc)
+                _notify_challenge_passed(purchase, session.get('user_id'))
                 
             elif action == 'force_fail':
                 purchase.status = 'failed'
                 purchase.is_terminated = True
                 purchase.credentials_revoked_at = datetime.now(timezone.utc)
-                _notify_user(purchase.user_id, 'Challenge Failed', 'Your challenge has failed and has been moved to history.', session.get('user_id'))
+                _notify_challenge_breached(purchase, session.get('user_id'))
                 
             elif action.startswith('extend_'):
                 days = int(action.split('_')[1])
@@ -520,6 +589,13 @@ def validate_challenge_form(data):
         raise ValueError("Account size must be greater than 0")
         
     ctype = data.get('challenge_type', 'one_phase')
+    for key in [
+        'phase1_daily_dd_type', 'phase1_overall_dd_type',
+        'phase2_daily_dd_type', 'phase2_overall_dd_type',
+        'instant_daily_dd_type', 'instant_overall_dd_type'
+    ]:
+        if data.get(key, 'equity') not in ['equity', 'static']:
+            raise ValueError("Drawdown type must be Equity Based or Static Balance Based")
     
     def validate_leverage(lev):
         if lev and not re.match(r'^\d+:\d+$', lev):
@@ -591,7 +667,9 @@ def admin_save_challenge():
         # Reset all rules first
         challenge.phase1_target = None
         challenge.phase1_daily_loss = None
+        challenge.phase1_daily_dd_type = 'equity'
         challenge.phase1_overall_loss = None
+        challenge.phase1_overall_dd_type = 'equity'
         challenge.phase1_min_days = None
         challenge.phase1_duration = None
         challenge.phase1_leverage = None
@@ -599,14 +677,18 @@ def admin_save_challenge():
         
         challenge.phase2_target = None
         challenge.phase2_daily_loss = None
+        challenge.phase2_daily_dd_type = 'equity'
         challenge.phase2_overall_loss = None
+        challenge.phase2_overall_dd_type = 'equity'
         challenge.phase2_min_days = None
         challenge.phase2_duration = None
         challenge.phase2_leverage = None
         challenge.phase2_rules = None
         
         challenge.instant_daily_loss = None
+        challenge.instant_daily_dd_type = 'equity'
         challenge.instant_overall_loss = None
+        challenge.instant_overall_dd_type = 'equity'
         challenge.instant_min_days = None
         challenge.instant_leverage = None
         challenge.instant_rules = None
@@ -622,7 +704,9 @@ def admin_save_challenge():
         if ctype in ['one_phase', 'two_phase']:
             challenge.phase1_target = get_float('phase1_target')
             challenge.phase1_daily_loss = get_float('phase1_daily_loss')
+            challenge.phase1_daily_dd_type = request.form.get('phase1_daily_dd_type', 'equity')
             challenge.phase1_overall_loss = get_float('phase1_overall_loss')
+            challenge.phase1_overall_dd_type = request.form.get('phase1_overall_dd_type', 'equity')
             challenge.phase1_min_days = get_int('phase1_min_days')
             challenge.phase1_duration = get_int('phase1_duration')
             challenge.phase1_leverage = request.form.get('phase1_leverage')
@@ -631,7 +715,9 @@ def admin_save_challenge():
             if ctype == 'two_phase':
                 challenge.phase2_target = get_float('phase2_target')
                 challenge.phase2_daily_loss = get_float('phase2_daily_loss')
+                challenge.phase2_daily_dd_type = request.form.get('phase2_daily_dd_type', 'equity')
                 challenge.phase2_overall_loss = get_float('phase2_overall_loss')
+                challenge.phase2_overall_dd_type = request.form.get('phase2_overall_dd_type', 'equity')
                 challenge.phase2_min_days = get_int('phase2_min_days')
                 challenge.phase2_duration = get_int('phase2_duration')
                 challenge.phase2_leverage = request.form.get('phase2_leverage')
@@ -639,7 +725,9 @@ def admin_save_challenge():
                 
         elif ctype == 'instant':
             challenge.instant_daily_loss = get_float('instant_daily_loss')
+            challenge.instant_daily_dd_type = request.form.get('instant_daily_dd_type', 'equity')
             challenge.instant_overall_loss = get_float('instant_overall_loss')
+            challenge.instant_overall_dd_type = request.form.get('instant_overall_dd_type', 'equity')
             challenge.instant_min_days = get_int('instant_min_days')
             challenge.instant_leverage = request.form.get('instant_leverage')
             challenge.instant_rules = request.form.get('instant_rules_text', '')
@@ -650,8 +738,19 @@ def admin_save_challenge():
         challenge.is_active = 'is_active' in request.form
         challenge.description = request.form.get('description', '')
         
-        if not challenge_id:
+        is_new_challenge = not challenge_id
+        if is_new_challenge:
             db.session.add(challenge)
+            db.session.flush()
+            notify_all_users(
+                'New Challenge Available',
+                'A new funded challenge has been added. Explore the latest challenge options and start your evaluation today.',
+                'challenge',
+                action_url='/user/challenges',
+                icon='fire',
+                admin_id=session.get('user_id'),
+                dedupe_key=f'new-challenge:{challenge.id}',
+            )
         
         db.session.commit()
         
@@ -723,6 +822,169 @@ def admin_toggle_challenge(challenge_id):
         flash('Error updating challenge status.', 'error')
     
     return redirect(url_for('admin.admin_manage_challenges'))
+
+
+DEFAULT_RULEBOOK_SECTIONS = [
+    ('Balance', 'Definition:\nBalance is the amount of money currently in your trading account excluding any open trade profits or losses.\n\nExample:\nAccount Balance = $10,000\nOpen Trade Loss = -$500\nBalance remains:\n$10,000\n\nWhy It Matters:\nMany challenge rules use balance as a reference point.'),
+    ('Equity', 'Definition:\nEquity is the real-time value of your account after including all open trade profits and losses.\n\nFormula:\nEquity = Balance + Floating Profit/Loss\n\nExample:\nBalance = $10,000\nOpen Loss = -$500\nEquity = $9,500\n\nWhy It Matters:\nMany prop firms calculate drawdown using equity.'),
+    ('Floating Profit', 'Definition:\nProfit from trades that are still open.\n\nThe profit has not yet been locked in because the trade has not been closed.\n\nExample:\nTrade Open\nCurrent Profit = +$250\nFloating Profit = $250'),
+    ('Floating Loss', 'Definition:\nLoss from trades that are still open.\n\nExample:\nTrade Open\nCurrent Loss = -$300\nFloating Loss = $300\n\nImportant:\nFloating losses reduce equity immediately.'),
+    ('Daily Drawdown', 'Definition:\nMaximum loss allowed during a single trading day.\n\nExample:\nDaily Drawdown Limit = 5%\nAccount Size = $10,000\nMaximum Daily Loss = $500\n\nIf daily loss exceeds the allowed amount, the account may be breached.'),
+    ('Overall Drawdown', 'Definition:\nMaximum loss allowed during the entire challenge.\n\nExample:\nOverall Drawdown = 10%\nAccount Size = $10,000\nMaximum Loss Allowed = $1,000'),
+    ('Equity-Based Drawdown', 'Definition:\nDrawdown calculated using account equity.\n\nOpen trade losses count immediately.\n\nExample:\nBalance = $10,000\nOpen Loss = -$700\nEquity = $9,300\nSystem evaluates drawdown using $9,300.\n\nImportant:\nYou can breach the challenge even while trades remain open.'),
+    ('Static Drawdown', 'Definition:\nDrawdown measured against fixed account limits.\n\nExample:\nAccount Size = $10,000\nMaximum Allowed Loss = $1,000\nAccount cannot fall below $9,000.'),
+    ('Margin', 'Definition:\nMoney reserved by the broker to keep positions open.\n\nThe larger the trade size, the more margin is required.\n\nWhy It Matters:\nWithout sufficient margin, new trades may not open.'),
+    ('Free Margin', 'Definition:\nAvailable funds that can still be used for trading.\n\nFormula:\nFree Margin = Equity - Used Margin\n\nExample:\nEquity = $10,000\nUsed Margin = $2,000\nFree Margin = $8,000'),
+    ('Leverage', 'Definition:\nLeverage allows traders to control larger positions with smaller capital.\n\nExample:\n1:100 Leverage\n$100 controls approximately $10,000 worth of market exposure.\n\nImportant:\nHigher leverage increases both profit potential and risk.'),
+    ('Margin Level', 'Definition:\nShows account health.\n\nFormula:\nMargin Level = (Equity / Used Margin) x 100\n\nHigher percentage = safer account.\nLower percentage = higher liquidation risk.'),
+    ('Stop Out', 'Definition:\nAutomatic closing of trades by the broker when margin levels become critically low.\n\nPurpose:\nProtect the account from going negative.'),
+    ('Profit Target', 'Definition:\nPercentage gain required to pass a challenge phase.\n\nExample:\nProfit Target = 8%\nAccount Size = $10,000\nRequired Profit = $800'),
+    ('Trading Days', 'Definition:\nMinimum number of trading days required before challenge completion.\n\nExample:\nMinimum Trading Days = 5\n\nEven if profit target is reached in one day, the trader may still need additional trading days to qualify.'),
+]
+
+LEGACY_RULEBOOK_CONTENT = {
+    'Balance': {'Balance is the account value excluding open trade profits or losses.\n\nExample:\nAccount Balance = $10,000\nOpen Trade = -$300\nBalance remains $10,000.'},
+    'Equity': {'Equity is the real-time value of your account.\n\nFormula:\nEquity = Balance + Floating Profit/Loss\n\nExample:\nBalance = $10,000\nFloating Loss = -$300\nEquity = $9,700.'},
+    'Floating Profit': {'Floating profit is profit from open positions that have not yet been closed.'},
+    'Floating Loss': {'Floating loss is loss from open positions that have not yet been closed. Floating losses reduce equity immediately.'},
+    'Daily Drawdown': {'Daily drawdown is the maximum loss allowed during one trading day. If breached, the account may be failed or placed under review.'},
+    'Overall Drawdown': {'Overall drawdown is the maximum loss allowed during the entire challenge.'},
+    'Equity Based Drawdown': {
+        'Equity based drawdown is calculated using current equity. Open losses count immediately.',
+        'Equity based drawdown is calculated using current equity. Open losses count immediately.\n\nExample:\nBalance = $10,000\nOpen Loss = -$600\nEquity = $9,400\nThe system evaluates drawdown using $9,400.',
+    },
+    'Static Drawdown': {'Static drawdown is calculated from predefined balance limits. Challenge rules determine how the threshold is measured.'},
+    'Margin': {'Margin is capital reserved by the broker to keep trades open.'},
+    'Free Margin': {'Formula:\nFree Margin = Equity - Used Margin\n\nLow free margin may result in stop-out.'},
+    'Leverage': {
+        'Leverage allows larger position sizes using less capital.',
+        'Leverage allows larger position sizes using less capital.\n\nExample:\n1:100 leverage means $100 controls approximately $10,000 worth of market exposure.',
+    },
+    'Margin Level': {'Formula:\nMargin Level = (Equity / Used Margin) x 100\n\nLow margin levels increase liquidation risk.'},
+    'Stop Out': {'Stop out is when the broker automatically closes positions because margin levels have become critically low.'},
+    'Profit Target': {'Profit target is the required percentage gain needed to pass a challenge phase.'},
+    'Trading Days': {
+        'Trading days are the minimum number of active trading days required before passing a challenge.',
+        'Trading days are the minimum number of active trading days required before passing a challenge. Opening and closing trades on separate days may count toward trading day requirements depending on platform rules.',
+    },
+}
+
+
+def ensure_default_rulebook(admin_id=None):
+    existing_sections = RulebookSection.query.all()
+    existing_by_title = {
+        section.title.strip().lower(): section
+        for section in existing_sections
+    }
+    changed = False
+    for idx, (title, content) in enumerate(DEFAULT_RULEBOOK_SECTIONS, start=1):
+        section = existing_by_title.get(title.strip().lower())
+        if not section and title == 'Equity-Based Drawdown':
+            section = existing_by_title.get('equity based drawdown')
+
+        if section:
+            legacy_content = LEGACY_RULEBOOK_CONTENT.get(section.title)
+            if legacy_content and section.content in legacy_content:
+                section.title = title
+                section.content = content
+                section.display_order = idx
+                section.updated_at = datetime.now(timezone.utc)
+                changed = True
+            continue
+
+        db.session.add(RulebookSection(
+            title=title,
+            content=content,
+            display_order=idx,
+            is_active=True,
+            created_by=admin_id
+        ))
+        changed = True
+    if changed:
+        db.session.commit()
+
+
+@admin_bp.route('/rulebook')
+@admin_required
+def admin_rulebook():
+    ensure_default_rulebook(session.get('user_id'))
+    search = request.args.get('search', '').strip()
+    query = RulebookSection.query
+    if search:
+        query = query.filter(
+            db.or_(
+                RulebookSection.title.ilike(f'%{search}%'),
+                RulebookSection.content.ilike(f'%{search}%')
+            )
+        )
+    sections = query.order_by(RulebookSection.display_order.asc(), RulebookSection.id.asc()).all()
+    return render_template('admin/rulebook_manager.html', sections=sections, search_query=search)
+
+
+@admin_bp.route('/rulebook/save', methods=['POST'])
+@admin_required
+def admin_rulebook_save():
+    try:
+        section_id = request.form.get('section_id')
+        section = RulebookSection.query.get(section_id) if section_id else RulebookSection(created_by=session.get('user_id'))
+        if not section:
+            flash('Rulebook section not found.', 'error')
+            return redirect(url_for('admin.admin_rulebook'))
+
+        section.title = request.form.get('title', '').strip()
+        section.content = request.form.get('content', '').strip()
+        section.display_order = int(request.form.get('display_order') or 0)
+        section.is_active = 'is_active' in request.form
+        section.updated_at = datetime.now(timezone.utc)
+
+        if not section.title or not section.content:
+            raise ValueError('Title and content are required.')
+
+        db.session.add(section)
+        db.session.commit()
+        flash('Rulebook section saved.', 'success')
+    except ValueError as e:
+        db.session.rollback()
+        flash(str(e), 'error')
+    except Exception as e:
+        db.session.rollback()
+        print(f"Rulebook save error: {e}")
+        flash('Error saving rulebook section.', 'error')
+    return redirect(url_for('admin.admin_rulebook'))
+
+
+@admin_bp.route('/rulebook/<int:section_id>/toggle')
+@admin_required
+def admin_rulebook_toggle(section_id):
+    section = RulebookSection.query.get_or_404(section_id)
+    section.is_active = not section.is_active
+    section.updated_at = datetime.now(timezone.utc)
+    db.session.commit()
+    flash('Rulebook section status updated.', 'success')
+    return redirect(url_for('admin.admin_rulebook'))
+
+
+@admin_bp.route('/rulebook/<int:section_id>/delete', methods=['POST'])
+@admin_required
+def admin_rulebook_delete(section_id):
+    section = RulebookSection.query.get_or_404(section_id)
+    db.session.delete(section)
+    db.session.commit()
+    flash('Rulebook section deleted.', 'success')
+    return redirect(url_for('admin.admin_rulebook'))
+
+
+@admin_bp.route('/rulebook/reorder', methods=['POST'])
+@admin_required
+def admin_rulebook_reorder():
+    for section in RulebookSection.query.all():
+        value = request.form.get(f'order_{section.id}')
+        if value is not None:
+            section.display_order = int(value or 0)
+            section.updated_at = datetime.now(timezone.utc)
+    db.session.commit()
+    flash('Rulebook order updated.', 'success')
+    return redirect(url_for('admin.admin_rulebook'))
 
 @admin_bp.route('/ban_user/<int:user_id>')
 @admin_required
@@ -1307,7 +1569,16 @@ def admin_payout_action(payout_id, action):
         payout.approved_at = now
         payout.expected_payment_time = expected
         _payout_audit(payout, 'approved', admin_user, f'Expected payment: {expected}')
-        _notify_user(payout.user_id, 'Payout approved', f'Your payout was approved. Expected payment: {expected}.', admin_user.id)
+        create_notification(
+            payout.user_id,
+            'Payout Approved',
+            'Your payout request has been approved and will be processed shortly.',
+            'payout',
+            action_url='/user/payouts',
+            icon='dollar',
+            admin_id=admin_user.id,
+            dedupe_key=f'payout-approved:{payout.id}',
+        )
     elif action == 'reject':
         reason = request.form.get('rejection_reason', '').strip()
         if not reason:
@@ -1317,7 +1588,16 @@ def admin_payout_action(payout_id, action):
         payout.rejection_reason = reason
         payout.reviewed_at = now
         _payout_audit(payout, 'rejected', admin_user, reason)
-        _notify_user(payout.user_id, 'Payout rejected', f'Your payout request was rejected: {reason}', admin_user.id)
+        create_notification(
+            payout.user_id,
+            'Payout Request Declined',
+            'Your payout request could not be approved. Please review the reason provided and submit a new request if necessary.',
+            'payout',
+            action_url='/user/payouts',
+            icon='warning',
+            admin_id=admin_user.id,
+            dedupe_key=f'payout-rejected:{payout.id}',
+        )
     elif action == 'paid':
         if payout.status != 'approved':
             flash('Only approved requests can be marked as paid.', 'error')
@@ -1800,7 +2080,9 @@ def api_all_challenges():
             'days_remaining': ch.days_remaining,
             'current_balance': ch.current_balance,
             'current_equity': ch.current_equity,
-            'completed_at': ch.completed_at.isoformat() if ch.completed_at else None
+            'completed_at': ch.completed_at.isoformat() if ch.completed_at else None,
+            'violation_reason': ch.violation_reason,
+            'violation_timestamp': ch.violation_timestamp.isoformat() if ch.violation_timestamp else None,
         })
     
     return jsonify({'success': True, 'challenges': result})
@@ -1808,15 +2090,14 @@ def api_all_challenges():
 @admin_bp.route('/api/challenge/<int:challenge_id>/details')
 @admin_required
 def api_challenge_details(challenge_id):
-    """Detailed challenge info with violations"""
-    from models import ChallengePurchase, RuleLog
-    
+    from models import ChallengePurchase, RuleLog, ViolationEvidence
+
     ch = ChallengePurchase.query.get_or_404(challenge_id)
-    
+
     violations = RuleLog.query.filter_by(
         challenge_id=challenge_id
     ).order_by(RuleLog.created_at.desc()).limit(20).all()
-    
+
     violations_data = [{
         'rule_name': v.rule_name,
         'severity': v.severity,
@@ -1825,7 +2106,41 @@ def api_challenge_details(challenge_id):
         'threshold_value': v.threshold_value,
         'triggered_at': v.created_at.isoformat() if v.created_at else None
     } for v in violations]
-    
+
+    # Fetch all evidence records for this challenge
+    evidences = ViolationEvidence.query.filter_by(
+        challenge_purchase_id=challenge_id
+    ).order_by(ViolationEvidence.created_at.desc()).all()
+
+    evidence_data = [{
+        'id': e.id,
+        'violation_type': e.violation_type,
+        'rule_name': e.rule_name,
+        'rule_limit': e.rule_limit,
+        'actual_value': e.actual_value,
+        'drawdown_model': e.drawdown_model,
+        'day_start_value': e.day_start_value,
+        'lowest_value': e.lowest_value,
+        'current_value': e.current_value,
+        'balance': e.balance,
+        'equity': e.equity,
+        'floating_pnl': e.floating_pnl,
+        'profit_percent': e.profit_percent,
+        'daily_drawdown': e.daily_drawdown,
+        'overall_drawdown': e.overall_drawdown,
+        'trading_days': e.trading_days,
+        'reason': e.reason,
+        'severity': e.severity,
+        'open_positions': e.open_positions_snapshot or [],
+        'recent_trades': e.recent_trades_snapshot or [],
+        'account_snapshot': e.account_snapshot_data or {},
+        'is_reviewed': e.is_reviewed,
+        'review_decision': e.review_decision,
+        'review_notes': e.review_notes,
+        'violation_timestamp': e.violation_timestamp.isoformat() if e.violation_timestamp else None,
+        'created_at': e.created_at.isoformat() if e.created_at else None
+    } for e in evidences]
+
     return jsonify({
         'success': True,
         'challenge': {
@@ -1834,6 +2149,7 @@ def api_challenge_details(challenge_id):
             'user_email': ch.user_obj.email if ch.user_obj else 'Unknown',
             'challenge_name': ch.challenge_template.name if ch.challenge_template else 'Challenge',
             'status': ch.status,
+            'monitoring_status': ch.monitoring_status,
             'current_phase': ch.current_phase,
             'profit_percent': ch.profit_percent,
             'daily_drawdown': ch.daily_drawdown,
@@ -1844,7 +2160,11 @@ def api_challenge_details(challenge_id):
             'current_balance': ch.current_balance,
             'current_equity': ch.current_equity,
             'min_trading_days': ch.challenge_template.phase1_min_days if ch.challenge_template else 5,
-            'violations': violations_data
+            'violation_reason': ch.violation_reason,
+            'violation_timestamp': ch.violation_timestamp.isoformat() if ch.violation_timestamp else None,
+            'review_required': ch.review_required,
+            'violations': violations_data,
+            'evidence': evidence_data      # ← NEW
         }
     })
 
@@ -1933,7 +2253,7 @@ def api_challenge_action():
         ch.review_required = False
         ch.completed_at = datetime.now(timezone.utc)
         log_rule(ch.id, "admin_fail", "critical", "Admin force failed the challenge")
-        _notify_user(ch.user_id, 'Challenge Failed', 'Your challenge has failed and has been moved to history.', session.get('user_id'))
+        _notify_challenge_breached(ch, session.get('user_id'))
         
     elif action == 'pass':
         ch.status = 'passed'
@@ -1942,6 +2262,7 @@ def api_challenge_action():
         ch.review_required = False
         ch.pass_reason = "Admin force passed the challenge"
         log_rule(ch.id, "admin_pass", "success", "Admin force passed the challenge")
+        _notify_challenge_passed(ch, session.get('user_id'))
     
     db.session.commit()
     
@@ -2327,10 +2648,30 @@ def admin_coupons():
                         if user:
                             assignment = CouponAssignment(coupon_id=coupon.id, user_id=user.id)
                             db.session.add(assignment)
+                            create_notification(
+                                user.id,
+                                'New Coupon Available',
+                                'A new discount coupon has been added to your account. Use it on your next challenge purchase and save.',
+                                'coupon',
+                                action_url='/user/my-coupons',
+                                icon='gift',
+                                admin_id=session.get('user_id'),
+                                dedupe_key=f'coupon-assigned:{coupon.id}:{user.id}',
+                            )
                         else:
                             invalid_emails.append(email)
                     if invalid_emails:
                         flash(f"Coupon created, but these emails were not found: {', '.join(invalid_emails)}", 'warning')
+            elif coupon_type == 'universal':
+                notify_all_users(
+                    'New Promotion Available',
+                    'A new promotional coupon is now available. Visit the coupons section and claim your discount.',
+                    'promotion',
+                    action_url='/user/my-coupons',
+                    icon='money',
+                    admin_id=session.get('user_id'),
+                    dedupe_key=f'global-coupon:{coupon.id}',
+                )
 
             log = AdminLog(
                 admin_id=session['user_id'],
@@ -2952,12 +3293,7 @@ def admin_violation_action(evidence_id):
                 f"Admin confirmed violation. Account failed.")
         
         # Notify user (NO admin name exposed)
-        _notify_user(
-            challenge.user_id,
-            "Account Failed - Rule Violation",
-            f"Your account has been failed due to a rule violation. "
-            f"Reason: {evidence.reason[:200]}"
-        )
+        _notify_challenge_breached(challenge, admin_user.id)
         
         flash('Violation confirmed. Account has been failed.', 'success')
         

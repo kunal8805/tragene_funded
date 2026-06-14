@@ -1017,9 +1017,261 @@
         <div class="section-divider"></div>
 
         <!-- =============================================
-             DASHBOARD SHOWCASE SECTION — MOVED ABOVE RULES
+             DASHBOARD SHOWCASE SECTION
              ============================================= -->
-        <!-- SEO Content Section -->
+        <section id="dashboard" class="py-20 dashboard-section relative">
+
+            <!-- Background grid -->
+            <div class="grid-bg"></div>
+
+            <!-- Ambient orbs -->
+            <div class="orb"
+                style="width:400px;height:400px;background:radial-gradient(circle,rgba(34,197,94,0.08),transparent 70%);top:-80px;left:-100px;animation-duration:10s;">
+            </div>
+            <div class="orb"
+                style="width:300px;height:300px;background:radial-gradient(circle,rgba(6,182,212,0.07),transparent 70%);bottom:-60px;right:-80px;animation-duration:7s;animation-direction:alternate-reverse;">
+            </div>
+
+            <div class="relative z-10 max-w-7xl mx-auto px-4">
+
+                <!-- Section Header -->
+                <div class="text-center mb-16">
+                    <div data-aos="fade-down">
+                        <span
+                            class="inline-flex items-center gap-2 bg-green-500/10 border border-green-500/20 text-green-400 px-4 py-2 rounded-full text-sm font-semibold mb-6">
+                            <span class="w-2 h-2 rounded-full bg-green-400 animate-pulse inline-block"></span>
+                            Live Dashboard Preview
+                        </span>
+                    </div>
+                    <h2 class="text-3xl md:text-5xl font-bold text-white mb-5 glow-text leading-tight"
+                        data-aos="fade-up">
+                        See How Your Trading<br>
+                        <span
+                            class="text-gradient bg-gradient-to-r from-green-400 to-cyan-400 bg-clip-text text-transparent">Dashboard
+                            Works</span>
+                    </h2>
+                    <p class="text-lg md:text-xl text-gray-400 max-w-2xl mx-auto" data-aos="fade-up"
+                        data-aos-delay="100">
+                        Track progress, manage risk, and complete your challenge with full control
+                    </p>
+                </div>
+
+                <!-- MAIN LAYOUT: Big screenshot left + feature list right -->
+                <div class="grid lg:grid-cols-2 gap-12 items-center mb-16">
+
+                    <!-- Left: Main Big Screenshot -->
+                    <div class="relative" data-aos="fade-right" data-aos-delay="150">
+
+                        <!-- Floating badge: top-left -->
+                        <div class="feature-badge" style="top: -18px; left: 20px; animation-delay: 0s;">
+                            <span class="dot" style="background:#22c55e;"></span>
+                            Live P&L Tracking
+                        </div>
+
+                        <!-- Floating badge: bottom-right -->
+                        <div class="feature-badge" style="bottom: -16px; right: 20px; animation-delay: 1.5s;">
+                            <span class="dot" style="background:#06b6d4;"></span>
+                            Real-Time Risk Meter
+                        </div>
+
+                        <div class="screenshot-frame" style="position:relative;">
+                            <div class="glow-ring"></div>
+
+                            <!-- Browser bar chrome -->
+                            <div class="browser-bar">
+                                <div class="browser-dot red"></div>
+                                <div class="browser-dot yellow"></div>
+                                <div class="browser-dot green"></div>
+                                <div class="browser-url">app.tragenefunded.com/dashboard</div>
+                            </div>
+
+                            <!-- Scanning line effect -->
+                            <div class="scan-line"></div>
+
+                            <!-- YOUR DASHBOARD SCREENSHOT HERE -->
+                            <img src="{{ url_for('static', filename='images/dashboard-main.jpeg') }}"
+                                class="screenshot-img" alt="Dashboard Main" style="aspect-ratio:16/9;">
+                        </div>
+                    </div>
+
+                    <!-- Right: Feature list -->
+                    <div class="space-y-3" data-aos="fade-left" data-aos-delay="200">
+
+                        <div class="dashboard-feature-item">
+                            <div class="feature-icon-wrap" style="background:rgba(34,197,94,0.12);">
+                                <i class="fas fa-chart-area text-green-400 text-lg"></i>
+                            </div>
+                            <div>
+                                <div class="text-white font-semibold mb-1">Live P&L Overview</div>
+                                <div class="text-gray-400 text-sm">Watch your profits update in real-time. Every trade
+                                    reflected instantly on your challenge progress bar.</div>
+                            </div>
+                        </div>
+
+                        <div class="dashboard-feature-item">
+                            <div class="feature-icon-wrap" style="background:rgba(6,182,212,0.12);">
+                                <i class="fas fa-tachometer-alt text-cyan-400 text-lg"></i>
+                            </div>
+                            <div>
+                                <div class="text-white font-semibold mb-1">Risk Meter & Drawdown Tracker</div>
+                                <div class="text-gray-400 text-sm">Visual risk gauge shows your remaining drawdown room
+                                    at a glance. Never breach a rule by accident.</div>
+                            </div>
+                        </div>
+
+                        <div class="dashboard-feature-item">
+                            <div class="feature-icon-wrap" style="background:rgba(168,85,247,0.12);">
+                                <i class="fas fa-bullseye text-purple-400 text-lg"></i>
+                            </div>
+                            <div>
+                                <div class="text-white font-semibold mb-1">Challenge Progress Bar</div>
+                                <div class="text-gray-400 text-sm">See exactly how far you are from the profit target.
+                                    Days remaining, trades made, and milestone markers.</div>
+                            </div>
+                        </div>
+
+                        <div class="dashboard-feature-item">
+                            <div class="feature-icon-wrap" style="background:rgba(251,191,36,0.12);">
+                                <i class="fas fa-history text-yellow-400 text-lg"></i>
+                            </div>
+                            <div>
+                                <div class="text-white font-semibold mb-1">Full Trade History</div>
+                                <div class="text-gray-400 text-sm">Every trade logged with entry, exit, lot size, and
+                                    outcome. Analyse your performance anytime.</div>
+                            </div>
+                        </div>
+
+                        <div class="dashboard-feature-item">
+                            <div class="feature-icon-wrap" style="background:rgba(239,68,68,0.12);">
+                                <i class="fas fa-bell text-red-400 text-lg"></i>
+                            </div>
+                            <div>
+                                <div class="text-white font-semibold mb-1">Instant Rule Alerts</div>
+                                <div class="text-gray-400 text-sm">Get warned before you hit a daily loss limit. Smart
+                                    alerts protect your challenge status 24/7.</div>
+                            </div>
+                        </div>
+
+                        <div class="dashboard-feature-item">
+                            <div class="feature-icon-wrap" style="background:rgba(34,197,94,0.12);">
+                                <i class="fas fa-download text-green-400 text-lg"></i>
+                            </div>
+                            <div>
+                                <div class="text-white font-semibold mb-1">One-Click Payout Request</div>
+                                <div class="text-gray-400 text-sm">Request your profit payout directly from the
+                                    dashboard. Processed bi-weekly, hassle-free.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- BOTTOM ROW: 3 smaller screenshots side by side -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-16">
+
+                    <!-- Mini screenshot 1 -->
+                    <div class="mini-screenshot-frame" data-aos="fade-up" data-aos-delay="100">
+                        <div class="browser-bar" style="padding:8px 12px;">
+                            <div class="browser-dot red"></div>
+                            <div class="browser-dot yellow"></div>
+                            <div class="browser-dot green"></div>
+                            <div class="browser-url">Challenge Progress</div>
+                        </div>
+                        <img src="{{ url_for('static', filename='images/dashboard-progress.png') }}"
+                            class="screenshot-img" alt="Challenge Progress">
+                        <div class="mini-label">📊 Challenge Progress</div>
+                    </div>
+
+                    <!-- Mini screenshot 2 -->
+                    <div class="mini-screenshot-frame" data-aos="fade-up" data-aos-delay="200">
+                        <div class="browser-bar" style="padding:8px 12px;">
+                            <div class="browser-dot red"></div>
+                            <div class="browser-dot yellow"></div>
+                            <div class="browser-dot green"></div>
+                            <div class="browser-url">Trade History</div>
+                        </div>
+                        <img src="{{ url_for('static', filename='images/dashboard-trades.jpeg') }}"
+                            class="screenshot-img" alt="Trade History">
+                        <div class="mini-label">📋 Trade History</div>
+                    </div>
+
+                    <!-- Mini screenshot 3 -->
+                    <div class="mini-screenshot-frame" data-aos="fade-up" data-aos-delay="300">
+                        <div class="browser-bar" style="padding:8px 12px;">
+                            <div class="browser-dot red"></div>
+                            <div class="browser-dot yellow"></div>
+                            <div class="browser-dot green"></div>
+                            <div class="browser-url">KYC Center</div>
+                        </div>
+                        <img src="{{ url_for('static', filename='images/dashboard-payout.jpeg') }}"
+                            class="screenshot-img" alt="KYC Center">
+                        <div class="mini-label">KYC Center</div>
+                    </div>
+                </div>
+
+                <!-- MOBILE PREVIEW ROW -->
+                <div class="flex flex-col md:flex-row items-center justify-center gap-10" data-aos="fade-up"
+                    data-aos-delay="150">
+
+                    <!-- Text side -->
+                    <div class="max-w-sm text-center md:text-left">
+                        <div
+                            class="inline-flex items-center gap-2 bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 px-3 py-1.5 rounded-full text-xs font-semibold mb-4">
+                            <i class="fas fa-mobile-alt"></i>
+                            Mobile Ready
+                        </div>
+                        <h3 class="text-2xl md:text-3xl font-bold text-white mb-4">Trade & Track<br>On the Go</h3>
+                        <p class="text-gray-400 mb-6">Your full dashboard, perfectly optimised for mobile. Check your
+                            P&L, monitor risk, and request payouts right from your phone.</p>
+
+                        <!-- Mini stats row -->
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="liquid-glass p-4 rounded-xl text-center">
+                                <div class="stat-number">100%</div>
+                                <div class="text-gray-400 text-xs mt-1">Mobile Optimised</div>
+                            </div>
+                            <div class="liquid-glass p-4 rounded-xl text-center">
+                                <div class="stat-number">24/7</div>
+                                <div class="text-gray-400 text-xs mt-1">Live Tracking</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Phone mockup 1 -->
+                    <div class="mobile-frame w-44" style="animation-delay:0s;">
+                        <div class="mobile-notch"></div>
+                        <div class="mobile-screen">
+                            <img src="{{ url_for('static', filename='images/mobile-dashboard-1.jpeg') }}"
+                                class="screenshot-img" alt="Mobile Dashboard">
+                        </div>
+                    </div>
+
+                    <!-- Phone mockup 2 (slightly offset) -->
+                    <div class="mobile-frame w-44" style="margin-top:32px;animation-delay:1s;">
+                        <div class="mobile-notch"></div>
+                        <div class="mobile-screen">
+                            <img src="{{ url_for('static', filename='images/mobile-dashboard-2.jpeg') }}"
+                                class="screenshot-img" alt="Mobile Trade">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bottom CTA inside the section -->
+                <div class="text-center mt-16" data-aos="fade-up">
+                    <a href="{{ url_for('user.challenges') if session.get('user_id') else url_for('auth.login') }}"
+                        class="group inline-flex items-center gap-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white px-10 py-4 rounded-2xl text-lg font-semibold hover:from-green-600 hover:to-emerald-700 transition-all duration-300 transform hover:scale-105 shadow-2xl">
+                        <i class="fas fa-rocket group-hover:translate-y-[-2px] transition-transform"></i>
+                        Get Access to Your Dashboard
+                        <i class="fas fa-arrow-right group-hover:translate-x-1 transition-transform"></i>
+                    </a>
+                    <p class="text-gray-500 text-sm mt-3">Start with just ₹199 · Instant access · No hidden fees</p>
+                </div>
+            </div>
+        </section>
+        <!-- END DASHBOARD SECTION -->
+
+        <div class="section-divider"></div>
+
+        <!-- SEO Content Section - MOVED BELOW DASHBOARD, ABOVE FAQ -->
         <section id="affordable-prop-firm-india" class="py-16 bg-starry-night relative">
             <div class="stars"></div>
             <div class="relative z-10 max-w-6xl mx-auto px-4">
@@ -1131,267 +1383,6 @@
                 </div>
             </div>
         </section>
-
-        <div class="section-divider"></div>
-
-        <section id="dashboard" class="py-20 dashboard-section relative">
-
-            <!-- Background grid -->
-            <div class="grid-bg"></div>
-
-            <!-- Ambient orbs -->
-            <div class="orb"
-                style="width:400px;height:400px;background:radial-gradient(circle,rgba(34,197,94,0.08),transparent 70%);top:-80px;left:-100px;animation-duration:10s;">
-            </div>
-            <div class="orb"
-                style="width:300px;height:300px;background:radial-gradient(circle,rgba(6,182,212,0.07),transparent 70%);bottom:-60px;right:-80px;animation-duration:7s;animation-direction:alternate-reverse;">
-            </div>
-
-            <div class="relative z-10 max-w-7xl mx-auto px-4">
-
-                <!-- Section Header -->
-                <div class="text-center mb-16">
-                    <div data-aos="fade-down">
-                        <span
-                            class="inline-flex items-center gap-2 bg-green-500/10 border border-green-500/20 text-green-400 px-4 py-2 rounded-full text-sm font-semibold mb-6">
-                            <span class="w-2 h-2 rounded-full bg-green-400 animate-pulse inline-block"></span>
-                            Live Dashboard Preview
-                        </span>
-                    </div>
-                    <h2 class="text-3xl md:text-5xl font-bold text-white mb-5 glow-text leading-tight"
-                        data-aos="fade-up">
-                        See How Your Trading<br>
-                        <span
-                            class="text-gradient bg-gradient-to-r from-green-400 to-cyan-400 bg-clip-text text-transparent">Dashboard
-                            Works</span>
-                    </h2>
-                    <p class="text-lg md:text-xl text-gray-400 max-w-2xl mx-auto" data-aos="fade-up"
-                        data-aos-delay="100">
-                        Track progress, manage risk, and complete your challenge with full control
-                    </p>
-                </div>
-
-                <!-- MAIN LAYOUT: Big screenshot left + feature list right -->
-                <div class="grid lg:grid-cols-2 gap-12 items-center mb-16">
-
-                    <!-- Left: Main Big Screenshot -->
-                    <div class="relative" data-aos="fade-right" data-aos-delay="150">
-
-                        <!-- Floating badge: top-left -->
-                        <div class="feature-badge" style="top: -18px; left: 20px; animation-delay: 0s;">
-                            <span class="dot" style="background:#22c55e;"></span>
-                            Live P&L Tracking
-                        </div>
-
-                        <!-- Floating badge: bottom-right -->
-                        <div class="feature-badge" style="bottom: -16px; right: 20px; animation-delay: 1.5s;">
-                            <span class="dot" style="background:#06b6d4;"></span>
-                            Real-Time Risk Meter
-                        </div>
-
-                        <div class="screenshot-frame" style="position:relative;">
-                            <div class="glow-ring"></div>
-
-                            <!-- Browser bar chrome -->
-                            <div class="browser-bar">
-                                <div class="browser-dot red"></div>
-                                <div class="browser-dot yellow"></div>
-                                <div class="browser-dot green"></div>
-                                <div class="browser-url">app.tragenefunded.com/dashboard</div>
-                            </div>
-
-                            <!-- Scanning line effect -->
-                            <div class="scan-line"></div>
-
-                            <!-- YOUR DASHBOARD SCREENSHOT HERE -->
-                            <!-- Replace the placeholder below with:
-                                 <img src="{{ url_for('static', filename='images/dashboard-main.png') }}" class="screenshot-img" alt="Dashboard Main" style="aspect-ratio:16/9;">
-                            -->
-                            <img src="{{ url_for('static', filename='images/dashboard-main.jpeg') }}"
-                                class="screenshot-img" alt="Dashboard Main" style="aspect-ratio:16/9;">
-                        </div>
-                    </div>
-
-                    <!-- Right: Feature list -->
-                    <div class="space-y-3" data-aos="fade-left" data-aos-delay="200">
-
-                        <div class="dashboard-feature-item">
-                            <div class="feature-icon-wrap" style="background:rgba(34,197,94,0.12);">
-                                <i class="fas fa-chart-area text-green-400 text-lg"></i>
-                            </div>
-                            <div>
-                                <div class="text-white font-semibold mb-1">Live P&L Overview</div>
-                                <div class="text-gray-400 text-sm">Watch your profits update in real-time. Every trade
-                                    reflected instantly on your challenge progress bar.</div>
-                            </div>
-                        </div>
-
-                        <div class="dashboard-feature-item">
-                            <div class="feature-icon-wrap" style="background:rgba(6,182,212,0.12);">
-                                <i class="fas fa-tachometer-alt text-cyan-400 text-lg"></i>
-                            </div>
-                            <div>
-                                <div class="text-white font-semibold mb-1">Risk Meter & Drawdown Tracker</div>
-                                <div class="text-gray-400 text-sm">Visual risk gauge shows your remaining drawdown room
-                                    at a glance. Never breach a rule by accident.</div>
-                            </div>
-                        </div>
-
-                        <div class="dashboard-feature-item">
-                            <div class="feature-icon-wrap" style="background:rgba(168,85,247,0.12);">
-                                <i class="fas fa-bullseye text-purple-400 text-lg"></i>
-                            </div>
-                            <div>
-                                <div class="text-white font-semibold mb-1">Challenge Progress Bar</div>
-                                <div class="text-gray-400 text-sm">See exactly how far you are from the profit target.
-                                    Days remaining, trades made, and milestone markers.</div>
-                            </div>
-                        </div>
-
-                        <div class="dashboard-feature-item">
-                            <div class="feature-icon-wrap" style="background:rgba(251,191,36,0.12);">
-                                <i class="fas fa-history text-yellow-400 text-lg"></i>
-                            </div>
-                            <div>
-                                <div class="text-white font-semibold mb-1">Full Trade History</div>
-                                <div class="text-gray-400 text-sm">Every trade logged with entry, exit, lot size, and
-                                    outcome. Analyse your performance anytime.</div>
-                            </div>
-                        </div>
-
-                        <div class="dashboard-feature-item">
-                            <div class="feature-icon-wrap" style="background:rgba(239,68,68,0.12);">
-                                <i class="fas fa-bell text-red-400 text-lg"></i>
-                            </div>
-                            <div>
-                                <div class="text-white font-semibold mb-1">Instant Rule Alerts</div>
-                                <div class="text-gray-400 text-sm">Get warned before you hit a daily loss limit. Smart
-                                    alerts protect your challenge status 24/7.</div>
-                            </div>
-                        </div>
-
-                        <div class="dashboard-feature-item">
-                            <div class="feature-icon-wrap" style="background:rgba(34,197,94,0.12);">
-                                <i class="fas fa-download text-green-400 text-lg"></i>
-                            </div>
-                            <div>
-                                <div class="text-white font-semibold mb-1">One-Click Payout Request</div>
-                                <div class="text-gray-400 text-sm">Request your profit payout directly from the
-                                    dashboard. Processed bi-weekly, hassle-free.</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- BOTTOM ROW: 3 smaller screenshots side by side -->
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-16">
-
-                    <!-- Mini screenshot 1 -->
-                    <div class="mini-screenshot-frame" data-aos="fade-up" data-aos-delay="100">
-                        <div class="browser-bar" style="padding:8px 12px;">
-                            <div class="browser-dot red"></div>
-                            <div class="browser-dot yellow"></div>
-                            <div class="browser-dot green"></div>
-                            <div class="browser-url">Challenge Progress</div>
-                        </div>
-                        <!-- YOUR SCREENSHOT: replace placeholder with img tag -->
-                        <!-- <img src="{{ url_for('static', filename='images/dashboard-progress.png') }}" class="screenshot-img" alt="Challenge Progress" style="aspect-ratio:16/9;"> -->
-                        <img src="{{ url_for('static', filename='images/dashboard-progress.jpeg') }}"
-                            class="screenshot-img" alt="Challenge Progress">
-                        <div class="mini-label">📊 Challenge Progress</div>
-                    </div>
-
-                    <!-- Mini screenshot 2 -->
-                    <div class="mini-screenshot-frame" data-aos="fade-up" data-aos-delay="200">
-                        <div class="browser-bar" style="padding:8px 12px;">
-                            <div class="browser-dot red"></div>
-                            <div class="browser-dot yellow"></div>
-                            <div class="browser-dot green"></div>
-                            <div class="browser-url">Trade History</div>
-                        </div>
-                        <!-- <img src="{{ url_for('static', filename='images/dashboard-trades.png') }}" class="screenshot-img" alt="Trade History" style="aspect-ratio:16/9;"> -->
-                        <img src="{{ url_for('static', filename='images/dashboard-trades.jpeg') }}"
-                            class="screenshot-img" alt="Trade History">
-                        <div class="mini-label">📋 Trade History</div>
-                    </div>
-
-                    <!-- Mini screenshot 3 -->
-                    <div class="mini-screenshot-frame" data-aos="fade-up" data-aos-delay="300">
-                        <div class="browser-bar" style="padding:8px 12px;">
-                            <div class="browser-dot red"></div>
-                            <div class="browser-dot yellow"></div>
-                            <div class="browser-dot green"></div>
-                            <div class="browser-url">KYC Center</div>
-                        </div>
-                        <!-- <img src="{{ url_for('static', filename='images/dashboard-payout.png') }}" class="screenshot-img" alt="Payout Center" style="aspect-ratio:16/9;"> -->
-                        <img src="{{ url_for('static', filename='images/dashboard-payout.jpeg') }}"
-                            class="screenshot-img" alt="KYC Center">
-                        <div class="mini-label">KYC Center</div>
-                    </div>
-                </div>
-
-                <!-- MOBILE PREVIEW ROW -->
-                <div class="flex flex-col md:flex-row items-center justify-center gap-10" data-aos="fade-up"
-                    data-aos-delay="150">
-
-                    <!-- Text side -->
-                    <div class="max-w-sm text-center md:text-left">
-                        <div
-                            class="inline-flex items-center gap-2 bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 px-3 py-1.5 rounded-full text-xs font-semibold mb-4">
-                            <i class="fas fa-mobile-alt"></i>
-                            Mobile Ready
-                        </div>
-                        <h3 class="text-2xl md:text-3xl font-bold text-white mb-4">Trade & Track<br>On the Go</h3>
-                        <p class="text-gray-400 mb-6">Your full dashboard, perfectly optimised for mobile. Check your
-                            P&L, monitor risk, and request payouts right from your phone.</p>
-
-                        <!-- Mini stats row -->
-                        <div class="grid grid-cols-2 gap-4">
-                            <div class="liquid-glass p-4 rounded-xl text-center">
-                                <div class="stat-number">100%</div>
-                                <div class="text-gray-400 text-xs mt-1">Mobile Optimised</div>
-                            </div>
-                            <div class="liquid-glass p-4 rounded-xl text-center">
-                                <div class="stat-number">24/7</div>
-                                <div class="text-gray-400 text-xs mt-1">Live Tracking</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Phone mockup 1 -->
-                    <div class="mobile-frame w-44" style="animation-delay:0s;">
-                        <div class="mobile-notch"></div>
-                        <div class="mobile-screen">
-                            <!-- <img src="{{ url_for('static', filename='images/mobile-dashboard-1.png') }}" class="screenshot-img" alt="Mobile Dashboard" style="aspect-ratio:9/16;"> -->
-                            <img src="{{ url_for('static', filename='images/mobile-dashboard-1.jpeg') }}"
-                                class="screenshot-img" alt="Mobile Dashboard">
-                        </div>
-                    </div>
-
-                    <!-- Phone mockup 2 (slightly offset) -->
-                    <div class="mobile-frame w-44" style="margin-top:32px;animation-delay:1s;">
-                        <div class="mobile-notch"></div>
-                        <div class="mobile-screen">
-                            <!-- <img src="{{ url_for('static', filename='images/mobile-dashboard-2.png') }}" class="screenshot-img" alt="Mobile Trade History" style="aspect-ratio:9/16;"> -->
-                            <img src="{{ url_for('static', filename='images/mobile-dashboard-2.jpeg') }}"
-                                class="screenshot-img" alt="Mobile Trade">
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Bottom CTA inside the section -->
-                <div class="text-center mt-16" data-aos="fade-up">
-                    <a href="{{ url_for('user.challenges') if session.get('user_id') else url_for('auth.login') }}"
-                        class="group inline-flex items-center gap-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white px-10 py-4 rounded-2xl text-lg font-semibold hover:from-green-600 hover:to-emerald-700 transition-all duration-300 transform hover:scale-105 shadow-2xl">
-                        <i class="fas fa-rocket group-hover:translate-y-[-2px] transition-transform"></i>
-                        Get Access to Your Dashboard
-                        <i class="fas fa-arrow-right group-hover:translate-x-1 transition-transform"></i>
-                    </a>
-                    <p class="text-gray-500 text-sm mt-3">Start with just ₹199 · Instant access · No hidden fees</p>
-                </div>
-            </div>
-        </section>
-        <!-- END DASHBOARD SECTION -->
 
         <div class="section-divider"></div>
 

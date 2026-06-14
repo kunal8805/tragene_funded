@@ -161,6 +161,7 @@
 {% endblock %}
 
 {% block content %}
+{% macro dd_label(value) -%}{{ 'Static Balance Based' if value == 'static' else 'Equity Based' }}{%- endmacro %}
 <!-- KYC Warning -->
 {% if user.kyc_status != 'approved' %}
 <div class="glass-card p-4 mb-6 border-l-4 border-orange-500" data-aos="fade-up">
@@ -248,7 +249,7 @@
                         <div>
                             <h4 class="font-medium text-gray-900 dark:text-white">Maximum Daily Loss</h4>
                             <p class="text-gray-600 dark:text-gray-400">{{ phase1_daily }}% (${{ "{:,.0f}".format(phase1_daily_amount) }})</p>
-                            <p class="text-sm text-gray-500">Daily loss limit - challenge fails if exceeded</p>
+                            <p class="text-sm text-gray-500">{{ dd_label(challenge.phase1_daily_dd_type) }}</p>
                         </div>
                     </div>
 
@@ -270,7 +271,7 @@
                         <div>
                             <h4 class="font-medium text-gray-900 dark:text-white">Maximum Overall Loss</h4>
                             <p class="text-gray-600 dark:text-gray-400">{{ phase1_overall }}% (${{ "{:,.0f}".format(phase1_overall_amount) }})</p>
-                            <p class="text-sm text-gray-500">Total overall loss limit</p>
+                            <p class="text-sm text-gray-500">{{ dd_label(challenge.phase1_overall_dd_type) }}</p>
                         </div>
                     </div>
 
@@ -309,8 +310,8 @@
                         {% set p1_overall_amount = challenge.account_size * (p1_overall / 100) %}
 
                         <div class="flex justify-between py-1 text-sm"><span class="text-gray-600 dark:text-gray-400">Profit Target</span><span class="font-semibold text-green-600">{{ p1_target }}% (${{ "{:,.0f}".format(p1_target_amount) }})</span></div>
-                        <div class="flex justify-between py-1 text-sm"><span class="text-gray-600 dark:text-gray-400">Daily Loss Limit</span><span class="font-semibold text-red-600">{{ p1_daily }}% (${{ "{:,.0f}".format(p1_daily_amount) }})</span></div>
-                        <div class="flex justify-between py-1 text-sm"><span class="text-gray-600 dark:text-gray-400">Overall Loss Limit</span><span class="font-semibold text-red-600">{{ p1_overall }}% (${{ "{:,.0f}".format(p1_overall_amount) }})</span></div>
+                        <div class="flex justify-between py-1 text-sm"><span class="text-gray-600 dark:text-gray-400">Daily Drawdown</span><span class="font-semibold text-red-600 text-right">{{ p1_daily }}% (${{ "{:,.0f}".format(p1_daily_amount) }})<br><span class="text-xs text-gray-500">{{ dd_label(challenge.phase1_daily_dd_type) }}</span></span></div>
+                        <div class="flex justify-between py-1 text-sm"><span class="text-gray-600 dark:text-gray-400">Overall Drawdown</span><span class="font-semibold text-red-600 text-right">{{ p1_overall }}% (${{ "{:,.0f}".format(p1_overall_amount) }})<br><span class="text-xs text-gray-500">{{ dd_label(challenge.phase1_overall_dd_type) }}</span></span></div>
                         <div class="flex justify-between py-1 text-sm"><span class="text-gray-600 dark:text-gray-400">Min Trading Days</span><span class="font-semibold">{{ challenge.phase1_min_days or 0 }} days</span></div>
                         <div class="flex justify-between py-1 text-sm"><span class="text-gray-600 dark:text-gray-400">Time Duration</span><span class="font-semibold">{{ challenge.phase1_duration or 30 }} days</span></div>
                         <div class="flex justify-between py-1 text-sm"><span class="text-gray-600 dark:text-gray-400">Leverage</span><span class="font-semibold">{{ challenge.phase1_leverage or "1:100" }}</span></div>
@@ -329,8 +330,8 @@
                         {% set p2_overall_amount = challenge.account_size * (p2_overall / 100) %}
 
                         <div class="flex justify-between py-1 text-sm"><span class="text-gray-600 dark:text-gray-400">Profit Target</span><span class="font-semibold text-green-600">{{ p2_target }}% (${{ "{:,.0f}".format(p2_target_amount) }})</span></div>
-                        <div class="flex justify-between py-1 text-sm"><span class="text-gray-600 dark:text-gray-400">Daily Loss Limit</span><span class="font-semibold text-red-600">{{ p2_daily }}% (${{ "{:,.0f}".format(p2_daily_amount) }})</span></div>
-                        <div class="flex justify-between py-1 text-sm"><span class="text-gray-600 dark:text-gray-400">Overall Loss Limit</span><span class="font-semibold text-red-600">{{ p2_overall }}% (${{ "{:,.0f}".format(p2_overall_amount) }})</span></div>
+                        <div class="flex justify-between py-1 text-sm"><span class="text-gray-600 dark:text-gray-400">Daily Drawdown</span><span class="font-semibold text-red-600 text-right">{{ p2_daily }}% (${{ "{:,.0f}".format(p2_daily_amount) }})<br><span class="text-xs text-gray-500">{{ dd_label(challenge.phase2_daily_dd_type) }}</span></span></div>
+                        <div class="flex justify-between py-1 text-sm"><span class="text-gray-600 dark:text-gray-400">Overall Drawdown</span><span class="font-semibold text-red-600 text-right">{{ p2_overall }}% (${{ "{:,.0f}".format(p2_overall_amount) }})<br><span class="text-xs text-gray-500">{{ dd_label(challenge.phase2_overall_dd_type) }}</span></span></div>
                         <div class="flex justify-between py-1 text-sm"><span class="text-gray-600 dark:text-gray-400">Min Trading Days</span><span class="font-semibold">{{ challenge.phase2_min_days or 0 }} days</span></div>
                         <div class="flex justify-between py-1 text-sm"><span class="text-gray-600 dark:text-gray-400">Time Duration</span><span class="font-semibold">{{ challenge.phase2_duration or 30 }} days</span></div>
                         <div class="flex justify-between py-1 text-sm"><span class="text-gray-600 dark:text-gray-400">Leverage</span><span class="font-semibold">{{ challenge.phase2_leverage or "1:100" }}</span></div>
@@ -356,7 +357,7 @@
                         <div>
                             <h4 class="font-medium text-gray-900 dark:text-white">Maximum Daily Loss</h4>
                             <p class="text-gray-600 dark:text-gray-400">{{ instant_daily }}% (${{ "{:,.0f}".format(instant_daily_amount) }})</p>
-                            <p class="text-sm text-gray-500">Daily loss limit - challenge fails if exceeded</p>
+                            <p class="text-sm text-gray-500">{{ dd_label(challenge.instant_daily_dd_type) }}</p>
                         </div>
                     </div>
 
@@ -367,6 +368,7 @@
                         <div>
                             <h4 class="font-medium text-gray-900 dark:text-white">Maximum Overall Loss</h4>
                             <p class="text-gray-600 dark:text-gray-400">{{ instant_overall }}% (${{ "{:,.0f}".format(instant_overall_amount) }})</p>
+                            <p class="text-sm text-gray-500">{{ dd_label(challenge.instant_overall_dd_type) }}</p>
                             <p class="text-sm text-gray-500">Total overall loss limit</p>
                         </div>
                     </div>
@@ -590,6 +592,14 @@
                                     class="text-blue-600 dark:text-blue-400 hover:text-blue-700">Privacy Policy</a>
                             </span>
                         </label>
+                        <label class="flex items-start mt-3 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+                            <input type="checkbox" id="ruleAcknowledgement"
+                                class="mt-1 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700 text-blue-600 focus:ring-blue-500"
+                                required>
+                            <span class="ml-2 text-sm text-amber-900 dark:text-amber-200">
+                                I have read, understood, and accepted all the rules, terms, conditions, objectives, drawdown limits, and policies of my challenge.
+                            </span>
+                        </label>
                     </div>
 
                     <!-- Submit Button -->
@@ -775,6 +785,7 @@
         const challengeId = document.getElementById('challenge_id').value;
         const paymentMethod = document.querySelector('input[name="payment_method"]:checked');
         const terms = document.getElementById('termsCheckbox').checked;
+        const ruleAcknowledgement = document.getElementById('ruleAcknowledgement').checked;
 
         if (!paymentMethod) {
             showPaymentStatus('Please select a payment method', 'warning');
@@ -783,6 +794,11 @@
 
         if (!terms) {
             showPaymentStatus('Please accept the terms and conditions', 'warning');
+            return;
+        }
+
+        if (!ruleAcknowledgement) {
+            showPaymentStatus('Please confirm that you understand the drawdown calculation rules', 'warning');
             return;
         }
 
@@ -795,7 +811,7 @@
         btnLoader.classList.remove('hidden');
         
         try {
-            const bodyParams = { 'challenge_id': challengeId };
+            const bodyParams = { 'challenge_id': challengeId, 'rule_acknowledgement': 'on' };
             if (appliedCouponCode) {
                 bodyParams['coupon_code'] = appliedCouponCode;
             }

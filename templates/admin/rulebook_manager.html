@@ -1,0 +1,139 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Rulebook Manager - Admin Panel{% endblock %}
+{% block header_title %}Rulebook Manager{% endblock %}
+{% block header_subtitle %}Create, edit, delete, and publish educational rulebook sections{% endblock %}
+
+{% block header_actions %}
+<button onclick="openRulebookModal()"
+    class="bg-green-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-700 transition flex items-center text-sm shadow-sm">
+    <i class="fas fa-plus mr-2"></i>Add Section
+</button>
+{% endblock %}
+
+{% block content %}
+<div class="glass-card border dark:border-dark-border overflow-hidden">
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead class="bg-gray-50 dark:bg-gray-800/80 border-b border-gray-200 dark:border-dark-border">
+                <tr>
+                    <th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-300">ID</th>
+                    <th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-300">Title</th>
+                    <th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-300">Display Order</th>
+                    <th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-300">Status</th>
+                    <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-300">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100 dark:divide-dark-border">
+                {% for section in sections %}
+                <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition">
+                    <td class="px-4 py-4 text-gray-700 dark:text-gray-300">{{ section.id }}</td>
+                    <td class="px-4 py-4">
+                        <div class="font-semibold text-gray-900 dark:text-white">{{ section.title }}</div>
+                        <div class="mt-1 max-w-xl text-xs text-gray-500 dark:text-gray-400 truncate">{{ section.content }}</div>
+                    </td>
+                    <td class="px-4 py-4 text-gray-700 dark:text-gray-300">{{ section.display_order }}</td>
+                    <td class="px-4 py-4">
+                        <span class="px-2.5 py-1 rounded-full text-xs font-semibold {% if section.is_active %}bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300{% else %}bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300{% endif %}">
+                            {{ 'Active' if section.is_active else 'Inactive' }}
+                        </span>
+                    </td>
+                    <td class="px-4 py-4">
+                        <div class="flex flex-wrap justify-end gap-2">
+                            <button type="button"
+                                onclick='editSection({{ section.id }}, {{ section.title|tojson }}, {{ section.content|tojson }}, {{ section.display_order }}, {{ "true" if section.is_active else "false" }})'
+                                class="px-3 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition">
+                                <i class="fas fa-edit mr-1"></i>Edit
+                            </button>
+                            <a href="{{ url_for('admin.admin_rulebook_toggle', section_id=section.id) }}"
+                                class="px-3 py-2 bg-amber-100 text-amber-700 rounded-lg hover:bg-amber-200 transition">
+                                {{ 'Disable' if section.is_active else 'Enable' }}
+                            </a>
+                            <form method="POST" action="{{ url_for('admin.admin_rulebook_delete', section_id=section.id) }}" class="inline">
+                                <button onclick="return confirm('Delete this rulebook section?')"
+                                    class="px-3 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition">
+                                    <i class="fas fa-trash mr-1"></i>Delete
+                                </button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5" class="px-4 py-10 text-center text-gray-500 dark:text-gray-400">
+                        No rulebook sections yet. Add the first section to publish the rulebook.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div id="rulebookModal" class="fixed inset-0 bg-black/60 hidden z-50 flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <form method="POST" action="{{ url_for('admin.admin_rulebook_save') }}" class="p-6 space-y-4">
+            <input type="hidden" name="section_id" id="sectionId">
+            <div class="flex justify-between items-center">
+                <h3 id="modalTitle" class="text-xl font-bold text-gray-900 dark:text-white">Add Section</h3>
+                <button type="button" onclick="closeRulebookModal()" class="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Title</label>
+                <input id="sectionTitle" name="title" required
+                    class="w-full px-3 py-2 border rounded-lg bg-gray-50 dark:bg-gray-700 dark:border-gray-600 text-gray-900 dark:text-white">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Content</label>
+                <textarea id="sectionContent" name="content" rows="10" required
+                    class="w-full px-3 py-2 border rounded-lg bg-gray-50 dark:bg-gray-700 dark:border-gray-600 text-gray-900 dark:text-white"></textarea>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Display Order</label>
+                    <input id="sectionOrder" name="display_order" type="number" value="0"
+                        class="w-full px-3 py-2 border rounded-lg bg-gray-50 dark:bg-gray-700 dark:border-gray-600 text-gray-900 dark:text-white">
+                </div>
+                <label class="flex items-center sm:mt-7">
+                    <input id="sectionActive" name="is_active" type="checkbox" checked class="w-4 h-4 text-blue-600 rounded">
+                    <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">Active</span>
+                </label>
+            </div>
+            <div class="flex justify-end gap-3 pt-3 border-t dark:border-gray-700">
+                <button type="button" onclick="closeRulebookModal()" class="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg">Cancel</button>
+                <button class="px-5 py-2 bg-blue-600 text-white rounded-lg font-semibold">Save</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function openRulebookModal() {
+    document.getElementById('modalTitle').textContent = 'Add Section';
+    document.getElementById('sectionId').value = '';
+    document.getElementById('sectionTitle').value = '';
+    document.getElementById('sectionContent').value = '';
+    document.getElementById('sectionOrder').value = 0;
+    document.getElementById('sectionActive').checked = true;
+    document.getElementById('rulebookModal').classList.remove('hidden');
+}
+
+function editSection(id, title, content, order, active) {
+    document.getElementById('modalTitle').textContent = 'Edit Section';
+    document.getElementById('sectionId').value = id;
+    document.getElementById('sectionTitle').value = title;
+    document.getElementById('sectionContent').value = content;
+    document.getElementById('sectionOrder').value = order;
+    document.getElementById('sectionActive').checked = active;
+    document.getElementById('rulebookModal').classList.remove('hidden');
+}
+
+function closeRulebookModal() {
+    document.getElementById('rulebookModal').classList.add('hidden');
+}
+</script>
+{% endblock %}

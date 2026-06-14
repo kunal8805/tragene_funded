@@ -4,6 +4,7 @@ import secrets
 import random
 from functools import wraps
 from models import db, User
+from notification_service import create_notification
 import os
 import json
 
@@ -235,6 +236,16 @@ def login():
         if user and user.check_password(password) and not user.is_banned:
             # Successful login - reset attempts
             reset_failed_attempts(email, client_ip)
+            create_notification(
+                user.id,
+                'Ready to Get Funded?',
+                'Your account is ready. Complete KYC verification and choose a challenge to start your funded trading journey.',
+                'welcome',
+                action_url='/kyc',
+                icon='rocket',
+                dedupe_key=f'first-login:{user.id}',
+            )
+            db.session.commit()
             session.clear()
             session['user_id'] = user.id
             session['user_email'] = user.email
@@ -319,6 +330,16 @@ def register():
         
         try:
             db.session.add(new_user)
+            db.session.flush()
+            create_notification(
+                new_user.id,
+                'Welcome to Tragene Funded',
+                'Welcome to Tragene Funded! Your account has been created successfully. Complete your KYC verification and explore our funded challenges to begin your trading journey.',
+                'welcome',
+                action_url='/dashboard',
+                icon='party',
+                dedupe_key=f'welcome:{new_user.id}',
+            )
             db.session.commit()
             flash('Registration successful! Please login.', 'success')
             return redirect(url_for('auth.login'))

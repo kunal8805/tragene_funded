@@ -184,7 +184,7 @@ def not_found_error(error):
     return render_template('404.html'), 404
 
 # ===== INITIALIZE DATABASE & MIGRATE =====
-from models import db, User, Notification, NotificationTemplate, ChallengeTemplate, Payment, ChallengePurchase, WebhookLog, FAQ, BlogPost, Coupon, CouponUsage, CouponAssignment, AdminLog, ViolationEvidence  # Add ViolationEvidence
+from models import db, User, Notification, NotificationTemplate, ChallengeTemplate, Payment, ChallengePurchase, WebhookLog, FAQ, BlogPost, Coupon, CouponUsage, CouponAssignment, AdminLog, ViolationEvidence, PurchaseRuleAcceptance  # Add ViolationEvidence
 
 db.init_app(app)
 migrate = Migrate(app, db)
@@ -227,18 +227,24 @@ def to_dict_filter(obj):
             'phase': obj.phase,
             'phase1_target': obj.phase1_target,
             'phase1_daily_loss': obj.phase1_daily_loss,
+            'phase1_daily_dd_type': obj.phase1_daily_dd_type,
             'phase1_overall_loss': obj.phase1_overall_loss,
+            'phase1_overall_dd_type': obj.phase1_overall_dd_type,
             'phase1_min_days': obj.phase1_min_days,
             'phase1_duration': obj.phase1_duration,
             'phase1_leverage': obj.phase1_leverage,
             'phase2_target': obj.phase2_target,
             'phase2_daily_loss': obj.phase2_daily_loss,
+            'phase2_daily_dd_type': obj.phase2_daily_dd_type,
             'phase2_overall_loss': obj.phase2_overall_loss,
+            'phase2_overall_dd_type': obj.phase2_overall_dd_type,
             'phase2_min_days': obj.phase2_min_days,
             'phase2_duration': obj.phase2_duration,
             'phase2_leverage': obj.phase2_leverage,
             'instant_daily_loss': obj.instant_daily_loss,
+            'instant_daily_dd_type': obj.instant_daily_dd_type,
             'instant_overall_loss': obj.instant_overall_loss,
+            'instant_overall_dd_type': obj.instant_overall_dd_type,
             'instant_min_days': obj.instant_min_days,
             'instant_leverage': obj.instant_leverage,
             'user_profit_share': obj.user_profit_share,
@@ -446,6 +452,8 @@ def provision_challenge(payment, user, challenge_template_id):
     purchase.peak_equity = float(challenge.account_size)
     purchase.highest_equity = float(challenge.account_size)
     purchase.day_start_equity = float(challenge.account_size)
+    purchase.day_start_balance = float(challenge.account_size)
+    purchase.daily_start_balance = float(challenge.account_size)
     purchase.lowest_equity_today = float(challenge.account_size)
     purchase.highest_equity_today = float(challenge.account_size)
     purchase.daily_start_date = datetime.now(timezone.utc).date()
@@ -466,7 +474,9 @@ def provision_challenge(payment, user, challenge_template_id):
     purchase.phase_profit_percent = 0.0
     purchase.phase_daily_drawdown = 0.0
     purchase.phase_day_start_equity = float(challenge.account_size)
+    purchase.phase_day_start_balance = float(challenge.account_size)
     purchase.phase_lowest_equity_today = float(challenge.account_size)
+    purchase.phase_lowest_balance_today = float(challenge.account_size)
     purchase.phase_daily_start_date = datetime.now(timezone.utc).date()
     purchase.distance_to_payout = None
     purchase.distance_to_breach = None
@@ -479,6 +489,9 @@ def provision_challenge(payment, user, challenge_template_id):
     db.session.add(purchase)
     db.session.flush()
     payment.challenge_purchase_id = purchase.id
+    acceptance = PurchaseRuleAcceptance.query.filter_by(payment_id=payment.id).first()
+    if acceptance:
+        acceptance.challenge_purchase_id = purchase.id
     
     from models import PartnerEarnings
     partner = User.query.filter_by(role='partner', is_banned=False).first()
@@ -822,6 +835,13 @@ with app.app_context():
             print(f"[WARNING] Failed to register blueprint {bp_name} from {module_name}: {e}")
             traceback.print_exc()
 
+
+@app.route('/rulebook')
+@login_required
+def rulebook_redirect():
+    return redirect(url_for('user.rulebook'))
+
+
 # ===== CASHFREE PAYMENT ROUTES =====
 @app.route('/create-cashfree-order', methods=['POST'])
 @login_required
@@ -847,6 +867,9 @@ def create_cashfree_order():
         
         if user.kyc_status != 'approved':
             return jsonify({'success': False, 'error': 'Please complete KYC verification first'})
+
+        if request.form.get('rule_acknowledgement') != 'on':
+            return jsonify({'success': False, 'error': 'Please confirm that you understand the challenge drawdown rules'})
         
         coupon_code = request.form.get('coupon_code')
         coupon_id = None
@@ -908,10 +931,26 @@ def create_cashfree_order():
             gateway='cashfree',
             gateway_id='',
             coupon_id=coupon_id,
+            rule_acceptance_timestamp=datetime.now(timezone.utc),
+            rule_acceptance_ip=request.headers.get('X-Forwarded-For', request.remote_addr),
+            rule_acceptance_user_agent=request.headers.get('User-Agent'),
+            challenge_version_snapshot=challenge.rule_snapshot(),
+            rule_version_snapshot='rulebook-v1',
             gateway_response=json.dumps({'payment_session_id': order_response.payment_session_id})
         )
         
         db.session.add(payment)
+        db.session.flush()
+        db.session.add(PurchaseRuleAcceptance(
+            user_id=user.id,
+            challenge_template_id=challenge.id,
+            payment_id=payment.id,
+            accepted_at=payment.rule_acceptance_timestamp,
+            ip_address=payment.rule_acceptance_ip,
+            user_agent=payment.rule_acceptance_user_agent,
+            challenge_version_snapshot=payment.challenge_version_snapshot,
+            rule_version_snapshot=payment.rule_version_snapshot or 'rulebook-v1'
+        ))
         db.session.commit()
         
         return jsonify({

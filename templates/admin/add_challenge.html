@@ -284,7 +284,9 @@
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div><label class="block text-xs text-gray-500 mb-1">Target (%)</label><input type="number" step="0.1" id="phase1_target" name="phase1_target" class="w-full px-2 py-1 border rounded"></div>
                         <div><label class="block text-xs text-gray-500 mb-1">Daily Loss (%)</label><input type="number" step="0.1" id="phase1_daily_loss" name="phase1_daily_loss" class="w-full px-2 py-1 border rounded"></div>
+                        <div><label class="block text-xs text-gray-500 mb-1">Daily Drawdown Type</label><select id="phase1_daily_dd_type" name="phase1_daily_dd_type" class="w-full px-2 py-1 border rounded"><option value="equity">Equity Based</option><option value="static">Static Balance Based</option></select></div>
                         <div><label class="block text-xs text-gray-500 mb-1">Overall Loss (%)</label><input type="number" step="0.1" id="phase1_overall_loss" name="phase1_overall_loss" class="w-full px-2 py-1 border rounded"></div>
+                        <div><label class="block text-xs text-gray-500 mb-1">Overall Drawdown Type</label><select id="phase1_overall_dd_type" name="phase1_overall_dd_type" class="w-full px-2 py-1 border rounded"><option value="equity">Equity Based</option><option value="static">Static Balance Based</option></select></div>
                         <div><label class="block text-xs text-gray-500 mb-1">Min Days</label><input type="number" id="phase1_min_days" name="phase1_min_days" class="w-full px-2 py-1 border rounded"></div>
                         <div><label class="block text-xs text-gray-500 mb-1">Duration (Days)</label><input type="number" id="phase1_duration" name="phase1_duration" class="w-full px-2 py-1 border rounded"></div>
                         <div><label class="block text-xs text-gray-500 mb-1">Leverage</label><input type="text" id="phase1_leverage" name="phase1_leverage" placeholder="1:100" class="w-full px-2 py-1 border rounded"></div>
@@ -297,7 +299,9 @@
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div><label class="block text-xs text-gray-500 mb-1">Target (%)</label><input type="number" step="0.1" id="phase2_target" name="phase2_target" class="w-full px-2 py-1 border rounded"></div>
                         <div><label class="block text-xs text-gray-500 mb-1">Daily Loss (%)</label><input type="number" step="0.1" id="phase2_daily_loss" name="phase2_daily_loss" class="w-full px-2 py-1 border rounded"></div>
+                        <div><label class="block text-xs text-gray-500 mb-1">Daily Drawdown Type</label><select id="phase2_daily_dd_type" name="phase2_daily_dd_type" class="w-full px-2 py-1 border rounded"><option value="equity">Equity Based</option><option value="static">Static Balance Based</option></select></div>
                         <div><label class="block text-xs text-gray-500 mb-1">Overall Loss (%)</label><input type="number" step="0.1" id="phase2_overall_loss" name="phase2_overall_loss" class="w-full px-2 py-1 border rounded"></div>
+                        <div><label class="block text-xs text-gray-500 mb-1">Overall Drawdown Type</label><select id="phase2_overall_dd_type" name="phase2_overall_dd_type" class="w-full px-2 py-1 border rounded"><option value="equity">Equity Based</option><option value="static">Static Balance Based</option></select></div>
                         <div><label class="block text-xs text-gray-500 mb-1">Min Days</label><input type="number" id="phase2_min_days" name="phase2_min_days" class="w-full px-2 py-1 border rounded"></div>
                         <div><label class="block text-xs text-gray-500 mb-1">Duration (Days)</label><input type="number" id="phase2_duration" name="phase2_duration" class="w-full px-2 py-1 border rounded"></div>
                         <div><label class="block text-xs text-gray-500 mb-1">Leverage</label><input type="text" id="phase2_leverage" name="phase2_leverage" placeholder="1:100" class="w-full px-2 py-1 border rounded"></div>
@@ -309,7 +313,9 @@
                     <h5 class="font-bold text-emerald-600">INSTANT FUNDED</h5>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div><label class="block text-xs text-gray-500 mb-1">Daily Loss (%)</label><input type="number" step="0.1" id="instant_daily_loss" name="instant_daily_loss" class="w-full px-2 py-1 border rounded"></div>
+                        <div><label class="block text-xs text-gray-500 mb-1">Daily Drawdown Type</label><select id="instant_daily_dd_type" name="instant_daily_dd_type" class="w-full px-2 py-1 border rounded"><option value="equity">Equity Based</option><option value="static">Static Balance Based</option></select></div>
                         <div><label class="block text-xs text-gray-500 mb-1">Overall Loss (%)</label><input type="number" step="0.1" id="instant_overall_loss" name="instant_overall_loss" class="w-full px-2 py-1 border rounded"></div>
+                        <div><label class="block text-xs text-gray-500 mb-1">Overall Drawdown Type</label><select id="instant_overall_dd_type" name="instant_overall_dd_type" class="w-full px-2 py-1 border rounded"><option value="equity">Equity Based</option><option value="static">Static Balance Based</option></select></div>
                         <div><label class="block text-xs text-gray-500 mb-1">Min Days</label><input type="number" id="instant_min_days" name="instant_min_days" class="w-full px-2 py-1 border rounded"></div>
                         <div><label class="block text-xs text-gray-500 mb-1">Leverage</label><input type="text" id="instant_leverage" name="instant_leverage" placeholder="1:100" class="w-full px-2 py-1 border rounded"></div>
                     </div>
@@ -458,7 +464,9 @@
 
             document.getElementById('phase1_target').value = 10;
             document.getElementById('phase1_daily_loss').value = 5;
+            document.getElementById('phase1_daily_dd_type').value = 'equity';
             document.getElementById('phase1_overall_loss').value = 10;
+            document.getElementById('phase1_overall_dd_type').value = 'equity';
             document.getElementById('phase1_min_days').value = 0;
             document.getElementById('phase1_duration').value = 30;
             document.getElementById('phase1_leverage').value = '1:100';
@@ -474,14 +482,18 @@
 
             document.getElementById('phase1_target').value = 8;
             document.getElementById('phase1_daily_loss').value = 5;
+            document.getElementById('phase1_daily_dd_type').value = 'equity';
             document.getElementById('phase1_overall_loss').value = 10;
+            document.getElementById('phase1_overall_dd_type').value = 'equity';
             document.getElementById('phase1_min_days').value = 0;
             document.getElementById('phase1_duration').value = 30;
             document.getElementById('phase1_leverage').value = '1:100';
 
             document.getElementById('phase2_target').value = 5;
             document.getElementById('phase2_daily_loss').value = 5;
+            document.getElementById('phase2_daily_dd_type').value = 'equity';
             document.getElementById('phase2_overall_loss').value = 10;
+            document.getElementById('phase2_overall_dd_type').value = 'equity';
             document.getElementById('phase2_min_days').value = 0;
             document.getElementById('phase2_duration').value = 60;
             document.getElementById('phase2_leverage').value = '1:100';
@@ -496,7 +508,9 @@
             if(instantInputs) instantInputs.classList.remove('hidden');
 
             document.getElementById('instant_daily_loss').value = 5;
+            document.getElementById('instant_daily_dd_type').value = 'equity';
             document.getElementById('instant_overall_loss').value = 10;
+            document.getElementById('instant_overall_dd_type').value = 'equity';
             document.getElementById('instant_min_days').value = 0;
             document.getElementById('instant_leverage').value = '1:100';
 
@@ -539,20 +553,26 @@
 
         if(c.phase1_target) document.getElementById('phase1_target').value = c.phase1_target;
         if(c.phase1_daily_loss) document.getElementById('phase1_daily_loss').value = c.phase1_daily_loss;
+        document.getElementById('phase1_daily_dd_type').value = c.phase1_daily_dd_type || 'equity';
         if(c.phase1_overall_loss) document.getElementById('phase1_overall_loss').value = c.phase1_overall_loss;
+        document.getElementById('phase1_overall_dd_type').value = c.phase1_overall_dd_type || 'equity';
         if(c.phase1_min_days !== null) document.getElementById('phase1_min_days').value = c.phase1_min_days;
         if(c.phase1_duration !== null) document.getElementById('phase1_duration').value = c.phase1_duration;
         if(c.phase1_leverage) document.getElementById('phase1_leverage').value = c.phase1_leverage;
 
         if(c.phase2_target) document.getElementById('phase2_target').value = c.phase2_target;
         if(c.phase2_daily_loss) document.getElementById('phase2_daily_loss').value = c.phase2_daily_loss;
+        document.getElementById('phase2_daily_dd_type').value = c.phase2_daily_dd_type || 'equity';
         if(c.phase2_overall_loss) document.getElementById('phase2_overall_loss').value = c.phase2_overall_loss;
+        document.getElementById('phase2_overall_dd_type').value = c.phase2_overall_dd_type || 'equity';
         if(c.phase2_min_days !== null) document.getElementById('phase2_min_days').value = c.phase2_min_days;
         if(c.phase2_duration !== null) document.getElementById('phase2_duration').value = c.phase2_duration;
         if(c.phase2_leverage) document.getElementById('phase2_leverage').value = c.phase2_leverage;
 
         if(c.instant_daily_loss) document.getElementById('instant_daily_loss').value = c.instant_daily_loss;
+        document.getElementById('instant_daily_dd_type').value = c.instant_daily_dd_type || 'equity';
         if(c.instant_overall_loss) document.getElementById('instant_overall_loss').value = c.instant_overall_loss;
+        document.getElementById('instant_overall_dd_type').value = c.instant_overall_dd_type || 'equity';
         if(c.instant_min_days !== null) document.getElementById('instant_min_days').value = c.instant_min_days;
         if(c.instant_leverage) document.getElementById('instant_leverage').value = c.instant_leverage;
 

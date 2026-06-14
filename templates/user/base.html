@@ -433,14 +433,14 @@
                 <span>Dashboard</span>
             </a>
 
-            <a href="/user/user_analytics" class="nav-item {% if request.endpoint == 'user.user_analytics' %}active{% endif %}">
-                <i class="fas fa-chart-pie"></i>
-                <span>Trading Analytics</span>
-            </a>
-
             <a href="/user/challenges" class="nav-item {% if request.endpoint == 'user.challenges' or request.endpoint == 'user.user_challenges' %}active{% endif %}">
                 <i class="fas fa-trophy"></i>
                 <span>Challenges</span>
+            </a>
+
+            <a href="/user/user_analytics" class="nav-item {% if request.endpoint == 'user.user_analytics' %}active{% endif %}">
+                <i class="fas fa-chart-pie"></i>
+                <span>Analytics</span>
             </a>
 
             <a href="/user/trading" class="nav-item {% if request.endpoint == 'user.trading' %}active{% endif %}">
@@ -451,11 +451,6 @@
             <a href="{{ url_for('user.user_history') }}" class="nav-item {% if request.endpoint == 'user.user_history' %}active{% endif %}">
                 <i class="fas fa-history"></i>
                 <span>History</span>
-            </a>
-
-            <a href="/user/my-coupons" class="nav-item {% if request.endpoint == 'user.user_coupons' %}active{% endif %}">
-                <i class="fas fa-ticket-alt"></i>
-                <span>My Coupons</span>
             </a>
 
             <div class="nav-section-label">Account</div>
@@ -470,6 +465,11 @@
                 <span>Payouts</span>
             </a>
 
+            <a href="/user/my-coupons" class="nav-item {% if request.endpoint == 'user.user_coupons' %}active{% endif %}">
+                <i class="fas fa-ticket-alt"></i>
+                <span>My Coupons</span>
+            </a>
+
             <a href="/user/settings" class="nav-item {% if request.endpoint == 'user.settings' %}active{% endif %}">
                 <i class="fas fa-cog"></i>
                 <span>Settings</span>
@@ -479,7 +479,12 @@
 
             <a href="/user/help" class="nav-item {% if request.endpoint == 'user.help' or request.endpoint == 'user.ticket_create' or request.endpoint == 'user.ticket_chat' %}active{% endif %}">
                 <i class="fas fa-question-circle"></i>
-                <span>Help Center</span>
+                <span>Support</span>
+            </a>
+
+            <a href="/user/rulebook" class="nav-item {% if request.endpoint == 'user.rulebook' or request.endpoint == 'user.challenge_rules' %}active{% endif %}">
+                <i class="fas fa-book-open"></i>
+                <span>Rulebook</span>
             </a>
 
             <a href="/user/guide" class="nav-item {% if request.endpoint == 'user.guide_hub' or request.endpoint == 'user.guide_mt5_mobile' or request.endpoint == 'user.guide_mt5_pc' %}active{% endif %}">
@@ -533,14 +538,14 @@
                 <span>Dashboard</span>
             </a>
 
-            <a href="/user/user_analytics" class="nav-item {% if request.endpoint == 'user.user_analytics' %}active{% endif %}" onclick="toggleSidebar()">
-                <i class="fas fa-chart-pie"></i>
-                <span>Trading Analytics</span>
-            </a>
-
             <a href="/user/challenges" class="nav-item {% if request.endpoint == 'user.challenges' %}active{% endif %}" onclick="toggleSidebar()">
                 <i class="fas fa-trophy"></i>
                 <span>Challenges</span>
+            </a>
+
+            <a href="/user/user_analytics" class="nav-item {% if request.endpoint == 'user.user_analytics' %}active{% endif %}" onclick="toggleSidebar()">
+                <i class="fas fa-chart-pie"></i>
+                <span>Analytics</span>
             </a>
 
             <a href="/user/trading" class="nav-item {% if request.endpoint == 'user.trading' %}active{% endif %}" onclick="toggleSidebar()">
@@ -551,11 +556,6 @@
             <a href="/user/history" class="nav-item {% if request.endpoint == 'user.trading_history' %}active{% endif %}" onclick="toggleSidebar()">
                 <i class="fas fa-history"></i>
                 <span>History</span>
-            </a>
-
-            <a href="/user/my-coupons" class="nav-item {% if request.endpoint == 'user.user_coupons' %}active{% endif %}" onclick="toggleSidebar()">
-                <i class="fas fa-ticket-alt"></i>
-                <span>My Coupons</span>
             </a>
 
             <div class="nav-section-label">Account</div>
@@ -570,6 +570,11 @@
                 <span>Payouts</span>
             </a>
 
+            <a href="/user/my-coupons" class="nav-item {% if request.endpoint == 'user.user_coupons' %}active{% endif %}" onclick="toggleSidebar()">
+                <i class="fas fa-ticket-alt"></i>
+                <span>My Coupons</span>
+            </a>
+
             <a href="/user/settings" class="nav-item {% if request.endpoint == 'user.settings' %}active{% endif %}" onclick="toggleSidebar()">
                 <i class="fas fa-cog"></i>
                 <span>Settings</span>
@@ -579,7 +584,12 @@
 
             <a href="/user/help" class="nav-item {% if request.endpoint == 'user.help' %}active{% endif %}" onclick="toggleSidebar()">
                 <i class="fas fa-question-circle"></i>
-                <span>Help Center</span>
+                <span>Support</span>
+            </a>
+
+            <a href="/user/rulebook" class="nav-item {% if request.endpoint == 'user.rulebook' or request.endpoint == 'user.challenge_rules' %}active{% endif %}" onclick="toggleSidebar()">
+                <i class="fas fa-book-open"></i>
+                <span>Rulebook</span>
             </a>
 
             <a href="/user/guide" class="nav-item {% if request.endpoint == 'user.guide_hub' or request.endpoint == 'user.guide_mt5_mobile' or request.endpoint == 'user.guide_mt5_pc' %}active{% endif %}" onclick="toggleSidebar()">

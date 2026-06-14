@@ -140,6 +140,19 @@ Your transaction could not be completed
                     <p class="font-mono text-sm text-gray-900 dark:text-white">{{ payment.gateway_id }}</p>
                 </div>
                 {% endif %}
+
+                {% if payment and payment.rule_acceptance_timestamp %}
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t dark:border-gray-700">
+                    <div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">Rule Acceptance</p>
+                        <p class="font-medium text-gray-900 dark:text-white">{{ payment.rule_acceptance_timestamp.strftime('%d %b %Y, %I:%M %p') }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">Rule Version</p>
+                        <p class="font-medium text-gray-900 dark:text-white">{{ payment.rule_version_snapshot or 'rulebook-v1' }}</p>
+                    </div>
+                </div>
+                {% endif %}
             </div>
 
             <!-- Progress Bar for Account Creation -->
@@ -246,6 +259,17 @@ Your transaction could not be completed
                     </div>
                     {% endif %}
                 </div>
+            </div>
+        </div>
+
+        {% set phase_rules = challenge.challenge_template.get_phase_rules(challenge.current_phase) %}
+        <div class="glass-card p-6 border dark:border-dark-border">
+            <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Purchased Challenge Rules</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div class="flex justify-between border-b dark:border-gray-700 pb-2"><span class="text-gray-600 dark:text-gray-400">Daily Drawdown</span><span class="font-semibold text-red-600 text-right">{{ phase_rules.daily_loss }}%<br><span class="text-xs text-gray-500">{{ challenge.challenge_template.get_drawdown_type_label(phase_rules.daily_dd_type) }}</span></span></div>
+                <div class="flex justify-between border-b dark:border-gray-700 pb-2"><span class="text-gray-600 dark:text-gray-400">Overall Drawdown</span><span class="font-semibold text-red-600 text-right">{{ phase_rules.overall_loss }}%<br><span class="text-xs text-gray-500">{{ challenge.challenge_template.get_drawdown_type_label(phase_rules.overall_dd_type) }}</span></span></div>
+                <div class="flex justify-between border-b dark:border-gray-700 pb-2"><span class="text-gray-600 dark:text-gray-400">Leverage</span><span class="font-semibold">{{ phase_rules.leverage }}</span></div>
+                <div class="flex justify-between border-b dark:border-gray-700 pb-2"><span class="text-gray-600 dark:text-gray-400">Minimum Days</span><span class="font-semibold">{{ phase_rules.min_days }}</span></div>
             </div>
         </div>
         {% endif %}

@@ -32,6 +32,9 @@ class ChallengeState:
     FAILED       = 'failed'
     PASSED       = 'passed'
     FUNDED       = 'funded'
+    PHASE1_ACTIVE = 'phase1_active'
+    PHASE2_ACTIVE = 'phase2_active'
+    FUNDED_ACTIVE = 'funded_active'
 
 class Severity:
     INFO      = 'info'
@@ -90,6 +93,26 @@ def _parse_leverage(val):
     except (ValueError, TypeError):
         return 0
 
+def _dd_label(value):
+    return 'Static Balance Based' if value == 'static' else 'Equity Based'
+
+def _daily_drawdown_values(challenge, model):
+    if model == 'static':
+        start = _safe_float(challenge.day_start_balance) or _safe_float(challenge.daily_start_balance)
+        lowest = _safe_float(challenge.phase_lowest_balance_today) or _safe_float(challenge.current_balance)
+        current = _safe_float(challenge.current_balance)
+    else:
+        start = _safe_float(challenge.day_start_equity)
+        lowest = _safe_float(challenge.lowest_equity_today)
+        current = _safe_float(challenge.current_equity)
+    pct = max(0.0, (start - lowest) / start * 100) if start > 0 and lowest > 0 else 0.0
+    return pct, start, lowest, current
+
+def _overall_drawdown_values(challenge, model, account_size):
+    current = _safe_float(challenge.current_balance if model == 'static' else challenge.current_equity)
+    pct = max(0.0, (account_size - current) / account_size * 100) if account_size > 0 else 0.0
+    return pct, account_size, current, current
+
 def ensure_utc(dt):
     if not dt:
         return None
@@ -129,7 +152,13 @@ def process_sync(challenge, data):
     try:
         print(f"\n[RULE ENGINE] ── Challenge {challenge.id} ─────────────────────")
 
-        if challenge.status not in (ChallengeState.ACTIVE, ChallengeState.FUNDED):
+        if challenge.status not in (
+            ChallengeState.ACTIVE,
+            ChallengeState.FUNDED,
+            ChallengeState.PHASE1_ACTIVE,
+            ChallengeState.PHASE2_ACTIVE,
+            ChallengeState.FUNDED_ACTIVE
+        ):
             print(f"[IGNORED] Challenge status {challenge.status}")
             return
 
@@ -145,7 +174,7 @@ def process_sync(challenge, data):
         # 4. Load rule set for current phase
         rules = get_active_rules(challenge)
 
-        # 5. CORE: Equity-based violation detection (BEFORE profit checks)
+        # 5. CORE: Configurable drawdown violation detection (BEFORE profit checks)
         check_equity_violations(challenge, data, rules)
 
         # 6. Core challenge rules (profit target, expiry)
@@ -183,96 +212,97 @@ def process_sync(challenge, data):
 
 def check_equity_violations(challenge, data, rules):
     """
-    Check for drawdown violations based on EQUITY (not closed trades).
-    Violations are detected IMMEDIATELY and recorded permanently.
-    Even if equity recovers later, violation stays.
+    Check configured drawdown violations and record immutable evidence.
+    Equity based models evaluate floating PnL immediately; static models use balance.
     """
     if challenge.status in (ChallengeState.PASSED, ChallengeState.FAILED, ChallengeState.FUNDED):
         return
-    
-    # Skip if already under review for a violation
+
     if challenge.monitoring_status == ChallengeState.UNDER_REVIEW and challenge.review_required:
         print(f"[VIOLATION SKIP] Already under review")
         return
-    
-    account = data.get('account', {})
-    cur_equity = _safe_float(account.get('equity') or data.get('equity') or challenge.current_equity)
-    
+
     daily_limit = _safe_float(rules.get('daily_loss'))
     overall_limit = _safe_float(rules.get('overall_loss'))
-    
-    # Get account size for overall drawdown calculation
+    daily_model = rules.get('daily_dd_type', 'equity')
+    overall_model = rules.get('overall_dd_type', 'equity')
+
     account_size = _safe_float(
         challenge.challenge_template.account_size
     ) if challenge.challenge_template else _safe_float(challenge.starting_balance)
-    
-    # ── DAILY DRAWDOWN CHECK (EQUITY BASED) ──────────────────────────
+
     if daily_limit > 0:
-        dse = _safe_float(challenge.day_start_equity)
-        let = _safe_float(challenge.lowest_equity_today)
-        
-        if dse > 0 and let > 0:
-            daily_dd_pct = ((dse - let) / dse) * 100
-            
-            if daily_dd_pct >= daily_limit:
-                reason = (
-                    f"Daily Drawdown Breached!\n"
-                    f"Daily Limit = {daily_limit}%\n"
-                    f"Actual Drawdown = {daily_dd_pct:.2f}%\n"
-                    f"Day Start Equity: ${dse:.2f}\n"
-                    f"Lowest Equity Today: ${let:.2f}\n"
-                    f"Current Equity: ${cur_equity:.2f}"
-                )
-                
-                print(f"[VIOLATION DETECTED] Daily DD: {daily_dd_pct:.2f}% >= {daily_limit}%")
-                
-                # Create IMMUTABLE evidence record
-                create_violation_evidence(
-                    challenge=challenge,
-                    data=data,
-                    violation_type='daily_drawdown',
-                    rule_name='Daily Drawdown',
-                    rule_limit=daily_limit,
-                    actual_value=round(daily_dd_pct, 4),
-                    reason=reason,
-                    severity='hard_breach'
-                )
-                
-                # Set challenge to under review
-                challenge.violation_reason = f"Daily drawdown breached: {daily_dd_pct:.2f}% >= {daily_limit}%"
-                challenge.monitoring_status = ChallengeState.UNDER_REVIEW
-                challenge.review_required = True
-                challenge.violation_reviewed = False
-                
-                log_rule(challenge.id, "daily_drawdown", Severity.VIOLATION,
-                        f"Daily DD: {daily_dd_pct:.2f}% >= {daily_limit}% (EQUITY BASED - IMMEDIATE)",
-                        daily_dd_pct, daily_limit)
-                
-                notify_user(
-                    challenge.user_id,
-                    "⚠️ Drawdown Violation Detected",
-                    f"Your account has been flagged for daily drawdown violation ({daily_dd_pct:.2f}%). "
-                    f"Account is under review. Do not continue trading."
-                )
-                
-                db.session.commit()
-                return
-    
-    # ── OVERALL DRAWDOWN CHECK (STATIC - BASED ON ACCOUNT SIZE) ──────
+        daily_dd_pct, start_value, lowest_value, current_value = _daily_drawdown_values(challenge, daily_model)
+
+        if start_value > 0 and lowest_value > 0 and daily_dd_pct >= daily_limit:
+            value_name = 'Balance' if daily_model == 'static' else 'Equity'
+            reason = (
+                f"Daily Drawdown Breached!\n"
+                f"Drawdown Model = {_dd_label(daily_model)}\n"
+                f"Daily Limit = {daily_limit}%\n"
+                f"Actual Drawdown = {daily_dd_pct:.2f}%\n"
+                f"Day Start {value_name}: ${start_value:.2f}\n"
+                f"Lowest {value_name} Today: ${lowest_value:.2f}\n"
+                f"Current {value_name}: ${current_value:.2f}"
+            )
+
+            print(f"[VIOLATION DETECTED] Daily DD: {daily_dd_pct:.2f}% >= {daily_limit}%")
+
+            create_violation_evidence(
+                challenge=challenge,
+                data=data,
+                violation_type='daily_drawdown',
+                rule_name='Daily Drawdown',
+                rule_limit=daily_limit,
+                actual_value=round(daily_dd_pct, 4),
+                reason=reason,
+                severity='hard_breach',
+                drawdown_model=_dd_label(daily_model),
+                day_start_value=start_value,
+                lowest_value=lowest_value,
+                current_value=current_value
+            )
+
+            challenge.violation_reason = f"Daily drawdown breached ({_dd_label(daily_model)}): {daily_dd_pct:.2f}% >= {daily_limit}%"
+            challenge.monitoring_status = ChallengeState.UNDER_REVIEW
+            challenge.review_required = True
+            challenge.violation_reviewed = False
+
+            log_rule(
+                challenge.id,
+                "daily_drawdown",
+                Severity.VIOLATION,
+                f"Daily DD: {daily_dd_pct:.2f}% >= {daily_limit}% ({_dd_label(daily_model)})",
+                daily_dd_pct,
+                daily_limit
+            )
+
+            notify_user(
+                challenge.user_id,
+                "Drawdown Violation Detected",
+                f"Your account has been flagged for daily drawdown violation ({daily_dd_pct:.2f}%). "
+                f"Drawdown model: {_dd_label(daily_model)}. Account is under review."
+            )
+
+            db.session.commit()
+            return
+
     if overall_limit > 0 and account_size > 0:
-        overall_dd_pct = ((account_size - cur_equity) / account_size) * 100 if cur_equity < account_size else 0.0
-        
+        overall_dd_pct, start_value, lowest_value, current_value = _overall_drawdown_values(challenge, overall_model, account_size)
+
         if overall_dd_pct >= overall_limit:
+            value_name = 'Balance' if overall_model == 'static' else 'Equity'
             reason = (
                 f"Overall Drawdown Breached!\n"
+                f"Drawdown Model = {_dd_label(overall_model)}\n"
                 f"Overall Limit = {overall_limit}%\n"
                 f"Actual Drawdown = {overall_dd_pct:.2f}%\n"
                 f"Account Size: ${account_size:.2f}\n"
-                f"Current Equity: ${cur_equity:.2f}"
+                f"Current {value_name}: ${current_value:.2f}"
             )
-            
+
             print(f"[VIOLATION DETECTED] Overall DD: {overall_dd_pct:.2f}% >= {overall_limit}%")
-            
+
             create_violation_evidence(
                 challenge=challenge,
                 data=data,
@@ -281,32 +311,54 @@ def check_equity_violations(challenge, data, rules):
                 rule_limit=overall_limit,
                 actual_value=round(overall_dd_pct, 4),
                 reason=reason,
-                severity='hard_breach'
+                severity='hard_breach',
+                drawdown_model=_dd_label(overall_model),
+                day_start_value=start_value,
+                lowest_value=lowest_value,
+                current_value=current_value
             )
-            
-            challenge.violation_reason = f"Overall drawdown breached: {overall_dd_pct:.2f}% >= {overall_limit}%"
+
+            challenge.violation_reason = f"Overall drawdown breached ({_dd_label(overall_model)}): {overall_dd_pct:.2f}% >= {overall_limit}%"
             challenge.monitoring_status = ChallengeState.UNDER_REVIEW
             challenge.review_required = True
             challenge.violation_reviewed = False
-            
-            log_rule(challenge.id, "overall_drawdown", Severity.VIOLATION,
-                    f"Overall DD: {overall_dd_pct:.2f}% >= {overall_limit}%",
-                    overall_dd_pct, overall_limit)
-            
+
+            log_rule(
+                challenge.id,
+                "overall_drawdown",
+                Severity.VIOLATION,
+                f"Overall DD: {overall_dd_pct:.2f}% >= {overall_limit}% ({_dd_label(overall_model)})",
+                overall_dd_pct,
+                overall_limit
+            )
+
             notify_user(
                 challenge.user_id,
-                "⚠️ Drawdown Violation Detected",
+                "Drawdown Violation Detected",
                 f"Your account has been flagged for overall drawdown violation ({overall_dd_pct:.2f}%). "
-                f"Account is under review."
+                f"Drawdown model: {_dd_label(overall_model)}. Account is under review."
             )
-            
+
             db.session.commit()
 
 # ========================================================================
 # NEW: CREATE IMMUTABLE VIOLATION EVIDENCE PACKAGE
 # ========================================================================
 
-def create_violation_evidence(challenge, data, violation_type, rule_name, rule_limit, actual_value, reason, severity='hard_breach'):
+def create_violation_evidence(
+    challenge,
+    data,
+    violation_type,
+    rule_name,
+    rule_limit,
+    actual_value,
+    reason,
+    severity='hard_breach',
+    drawdown_model=None,
+    day_start_value=None,
+    lowest_value=None,
+    current_value=None
+):
     """
     Create an IMMUTABLE evidence package when a violation is detected.
     Stores full account state, open positions, and recent trades.
@@ -400,6 +452,10 @@ def create_violation_evidence(challenge, data, violation_type, rule_name, rule_l
             rule_name=rule_name,
             rule_limit=rule_limit,
             actual_value=actual_value,
+            drawdown_model=drawdown_model,
+            day_start_value=day_start_value,
+            lowest_value=lowest_value,
+            current_value=current_value,
             balance=cur_balance,
             equity=cur_equity,
             floating_pnl=floating_pnl,
@@ -463,6 +519,8 @@ def _ensure_starting_balance(challenge, data):
         challenge.highest_equity      = balance
         challenge.peak_equity         = balance
         challenge.day_start_equity    = _safe_float(account.get('equity') or balance)
+        challenge.day_start_balance   = balance
+        challenge.daily_start_balance = balance
         challenge.lowest_equity_today = challenge.day_start_equity
         challenge.lowest_equity_lifetime = balance
         challenge.lowest_equity_phase = balance
@@ -476,6 +534,8 @@ def _ensure_starting_balance(challenge, data):
 
     if not challenge.phase_start_balance or challenge.phase_start_balance == 0:
         challenge.phase_start_balance = balance
+        challenge.phase_day_start_balance = balance
+        challenge.phase_lowest_balance_today = balance
 
     if not challenge.last_verified_balance or challenge.last_verified_balance == 0:
         challenge.last_verified_balance = balance
@@ -511,7 +571,9 @@ def get_active_rules(challenge):
             'phase_name':    'Phase 1',
             'profit_target': 8.0,
             'daily_loss':    5.0,
+            'daily_dd_type': 'equity',
             'overall_loss':  10.0,
+            'overall_dd_type': 'equity',
             'min_days':      5,
             'duration':      30,
             'leverage':      None,
@@ -526,7 +588,9 @@ def get_active_rules(challenge):
             'phase_name':    'Phase 2',
             'profit_target': _safe_float(t.phase2_target),
             'daily_loss':    _safe_float(t.phase2_daily_loss),
+            'daily_dd_type': getattr(t, 'phase2_daily_dd_type', 'equity') or 'equity',
             'overall_loss':  _safe_float(t.phase2_overall_loss),
+            'overall_dd_type': getattr(t, 'phase2_overall_dd_type', 'equity') or 'equity',
             'min_days':      _safe_int(t.phase2_min_days),
             'duration':      _safe_int(t.phase2_duration),
             'leverage':      t.phase2_leverage,
@@ -537,7 +601,9 @@ def get_active_rules(challenge):
             'phase_name':    'Instant',
             'profit_target': 0,
             'daily_loss':    _safe_float(t.instant_daily_loss),
+            'daily_dd_type': getattr(t, 'instant_daily_dd_type', 'equity') or 'equity',
             'overall_loss':  _safe_float(t.instant_overall_loss),
+            'overall_dd_type': getattr(t, 'instant_overall_dd_type', 'equity') or 'equity',
             'min_days':      0,
             'duration':      365,
             'leverage':      t.instant_leverage,
@@ -548,7 +614,9 @@ def get_active_rules(challenge):
             'phase_name':    'Phase 1',
             'profit_target': _safe_float(t.phase1_target),
             'daily_loss':    _safe_float(t.phase1_daily_loss),
+            'daily_dd_type': getattr(t, 'phase1_daily_dd_type', 'equity') or 'equity',
             'overall_loss':  _safe_float(t.phase1_overall_loss),
+            'overall_dd_type': getattr(t, 'phase1_overall_dd_type', 'equity') or 'equity',
             'min_days':      _safe_int(t.phase1_min_days),
             'duration':      _safe_int(t.phase1_duration),
             'leverage':      t.phase1_leverage,
@@ -653,11 +721,15 @@ def update_metrics(challenge, data):
     if current_daily_date != today:
         challenge.daily_start_date          = today
         challenge.day_start_equity          = cur_equity
+        challenge.day_start_balance         = cur_balance
+        challenge.daily_start_balance       = cur_balance
         challenge.lowest_equity_today       = cur_equity
         challenge.highest_equity_today      = cur_equity
         challenge.phase_daily_start_date    = today
         challenge.phase_day_start_equity    = cur_equity
+        challenge.phase_day_start_balance   = cur_balance
         challenge.phase_lowest_equity_today = cur_equity
+        challenge.phase_lowest_balance_today = cur_balance
     else:
         lowest_today = _safe_float(challenge.lowest_equity_today) if challenge.lowest_equity_today else cur_equity
         if cur_equity < lowest_today:
@@ -670,6 +742,10 @@ def update_metrics(challenge, data):
         phase_lowest = _safe_float(challenge.phase_lowest_equity_today) if challenge.phase_lowest_equity_today else cur_equity
         if cur_equity < phase_lowest:
             challenge.phase_lowest_equity_today = cur_equity
+
+        phase_lowest_balance = _safe_float(challenge.phase_lowest_balance_today) if challenge.phase_lowest_balance_today else cur_balance
+        if cur_balance < phase_lowest_balance:
+            challenge.phase_lowest_balance_today = cur_balance
 
     # ── Profit % (from challenge start) ─────────────────────────────────
     sb = _safe_float(challenge.starting_balance)
@@ -684,20 +760,32 @@ def update_metrics(challenge, data):
         challenge.challenge_template.account_size
     ) if challenge.challenge_template else sb
 
-    if cur_equity >= account_size:
+    rules = get_active_rules(challenge)
+    overall_model = rules.get('overall_dd_type', 'equity')
+    overall_value = cur_balance if overall_model == 'static' else cur_equity
+    if overall_value >= account_size:
         challenge.overall_drawdown = 0.0
     else:
-        cash_lost = account_size - cur_equity
+        cash_lost = account_size - overall_value
         challenge.overall_drawdown = (cash_lost / account_size) * 100 if account_size > 0 else 0.0
 
     # ── Daily drawdown ──────────────────────────────────────────────────
-    dse = _safe_float(challenge.day_start_equity) or cur_equity
-    let = _safe_float(challenge.lowest_equity_today) or cur_equity
+    daily_model = rules.get('daily_dd_type', 'equity')
+    if daily_model == 'static':
+        dse = _safe_float(challenge.day_start_balance) or cur_balance
+        let = _safe_float(challenge.phase_lowest_balance_today) or cur_balance
+    else:
+        dse = _safe_float(challenge.day_start_equity) or cur_equity
+        let = _safe_float(challenge.lowest_equity_today) or cur_equity
     challenge.daily_drawdown = max(0.0, (dse - let) / dse * 100) if dse > 0 else 0.0
 
     # ── Phase daily drawdown ────────────────────────────────────────────
-    pdse = _safe_float(challenge.phase_day_start_equity) or dse
-    plet = _safe_float(challenge.phase_lowest_equity_today) or cur_equity
+    if daily_model == 'static':
+        pdse = _safe_float(challenge.phase_day_start_balance) or dse
+        plet = _safe_float(challenge.phase_lowest_balance_today) or cur_balance
+    else:
+        pdse = _safe_float(challenge.phase_day_start_equity) or dse
+        plet = _safe_float(challenge.phase_lowest_equity_today) or cur_equity
     challenge.phase_daily_drawdown = max(0.0, (pdse - plet) / pdse * 100) if pdse > 0 else 0.0
 
     # ── Trading days counter ────────────────────────────────────────────
@@ -732,7 +820,6 @@ def update_metrics(challenge, data):
         challenge.days_remaining = 30
 
     # ── Distance metrics ────────────────────────────────────────────────
-    rules = get_active_rules(challenge)
     _calc_distances(challenge, rules)
 
     challenge.last_updated   = datetime.now(timezone.utc)

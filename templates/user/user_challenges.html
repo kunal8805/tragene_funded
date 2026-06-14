@@ -64,6 +64,7 @@
 {% endblock %}
 
 {% block content %}
+{% macro dd_label(value) -%}{{ 'Static Balance Based' if value == 'static' else 'Equity Based' }}{%- endmacro %}
 <!-- KYC Warning -->
 {% if user and user.kyc_status != 'approved' %}
 <div class="glass-card p-4 mb-6 border-l-4 border-orange-500" data-aos="fade-up">
@@ -159,8 +160,8 @@
                 {% if challenge.challenge_type == 'one_phase' %}
                 <div class="space-y-3 mb-6 text-sm">
                     <div class="flex justify-between items-center py-2 border-b dark:border-gray-700"><span class="text-gray-600 dark:text-gray-400">Target</span><span class="font-semibold text-green-600 dark:text-green-400">{{ challenge.phase1_target }}%</span></div>
-                    <div class="flex justify-between items-center py-2 border-b dark:border-gray-700"><span class="text-gray-600 dark:text-gray-400">Daily Loss</span><span class="font-semibold text-red-600 dark:text-red-400">{{ challenge.phase1_daily_loss }}%</span></div>
-                    <div class="flex justify-between items-center py-2 border-b dark:border-gray-700"><span class="text-gray-600 dark:text-gray-400">Overall Loss</span><span class="font-semibold text-red-600 dark:text-red-400">{{ challenge.phase1_overall_loss }}%</span></div>
+                    <div class="flex justify-between items-center py-2 border-b dark:border-gray-700"><span class="text-gray-600 dark:text-gray-400">Daily Drawdown</span><span class="font-semibold text-red-600 dark:text-red-400 text-right">{{ challenge.phase1_daily_loss }}%<br><span class="text-xs text-gray-500">{{ dd_label(challenge.phase1_daily_dd_type) }}</span></span></div>
+                    <div class="flex justify-between items-center py-2 border-b dark:border-gray-700"><span class="text-gray-600 dark:text-gray-400">Overall Drawdown</span><span class="font-semibold text-red-600 dark:text-red-400 text-right">{{ challenge.phase1_overall_loss }}%<br><span class="text-xs text-gray-500">{{ dd_label(challenge.phase1_overall_dd_type) }}</span></span></div>
                     <div class="flex justify-between items-center py-2 border-b dark:border-gray-700"><span class="text-gray-600 dark:text-gray-400">Min Days</span><span class="font-semibold text-blue-600 dark:text-blue-400">{{ challenge.phase1_min_days }}</span></div>
                     <div class="flex justify-between items-center py-2 border-b dark:border-gray-700"><span class="text-gray-600 dark:text-gray-400">Duration</span><span class="font-semibold text-blue-600 dark:text-blue-400">{{ challenge.phase1_duration }} days</span></div>
                     <div class="flex justify-between items-center py-2 border-b dark:border-gray-700"><span class="text-gray-600 dark:text-gray-400">Leverage</span><span class="font-semibold text-blue-600 dark:text-blue-400">{{ challenge.phase1_leverage }}</span></div>
@@ -172,8 +173,8 @@
                         <div class="space-y-2 border-r border-gray-200 dark:border-gray-700 pr-3">
                             <div class="font-bold text-center text-purple-600 dark:text-purple-400 border-b dark:border-gray-700 pb-1">PHASE 1</div>
                             <div class="flex justify-between"><span>Target</span><span class="font-semibold">{{ challenge.phase1_target }}%</span></div>
-                            <div class="flex justify-between"><span>Daily Loss</span><span class="font-semibold">{{ challenge.phase1_daily_loss }}%</span></div>
-                            <div class="flex justify-between"><span>Overall Loss</span><span class="font-semibold">{{ challenge.phase1_overall_loss }}%</span></div>
+                            <div class="flex justify-between"><span>Daily DD</span><span class="font-semibold text-right">{{ challenge.phase1_daily_loss }}%<br><span class="text-[10px] text-gray-500">{{ dd_label(challenge.phase1_daily_dd_type) }}</span></span></div>
+                            <div class="flex justify-between"><span>Overall DD</span><span class="font-semibold text-right">{{ challenge.phase1_overall_loss }}%<br><span class="text-[10px] text-gray-500">{{ dd_label(challenge.phase1_overall_dd_type) }}</span></span></div>
                             <div class="flex justify-between"><span>Min Days</span><span class="font-semibold">{{ challenge.phase1_min_days }}</span></div>
                             <div class="flex justify-between"><span>Duration</span><span class="font-semibold">{{ challenge.phase1_duration }}d</span></div>
                             <div class="flex justify-between"><span>Lev</span><span class="font-semibold">{{ challenge.phase1_leverage }}</span></div>
@@ -181,8 +182,8 @@
                         <div class="space-y-2 pl-3">
                             <div class="font-bold text-center text-purple-600 dark:text-purple-400 border-b dark:border-gray-700 pb-1">PHASE 2</div>
                             <div class="flex justify-between"><span>Target</span><span class="font-semibold">{{ challenge.phase2_target }}%</span></div>
-                            <div class="flex justify-between"><span>Daily Loss</span><span class="font-semibold">{{ challenge.phase2_daily_loss }}%</span></div>
-                            <div class="flex justify-between"><span>Overall Loss</span><span class="font-semibold">{{ challenge.phase2_overall_loss }}%</span></div>
+                            <div class="flex justify-between"><span>Daily DD</span><span class="font-semibold text-right">{{ challenge.phase2_daily_loss }}%<br><span class="text-[10px] text-gray-500">{{ dd_label(challenge.phase2_daily_dd_type) }}</span></span></div>
+                            <div class="flex justify-between"><span>Overall DD</span><span class="font-semibold text-right">{{ challenge.phase2_overall_loss }}%<br><span class="text-[10px] text-gray-500">{{ dd_label(challenge.phase2_overall_dd_type) }}</span></span></div>
                             <div class="flex justify-between"><span>Min Days</span><span class="font-semibold">{{ challenge.phase2_min_days }}</span></div>
                             <div class="flex justify-between"><span>Duration</span><span class="font-semibold">{{ challenge.phase2_duration }}d</span></div>
                             <div class="flex justify-between"><span>Lev</span><span class="font-semibold">{{ challenge.phase2_leverage }}</span></div>
@@ -192,8 +193,8 @@
                 </div>
                 {% else %}
                 <div class="space-y-3 mb-6 text-sm">
-                    <div class="flex justify-between items-center py-2 border-b dark:border-gray-700"><span class="text-gray-600 dark:text-gray-400">Daily Loss</span><span class="font-semibold text-red-600 dark:text-red-400">{{ challenge.instant_daily_loss }}%</span></div>
-                    <div class="flex justify-between items-center py-2 border-b dark:border-gray-700"><span class="text-gray-600 dark:text-gray-400">Overall Loss</span><span class="font-semibold text-red-600 dark:text-red-400">{{ challenge.instant_overall_loss }}%</span></div>
+                    <div class="flex justify-between items-center py-2 border-b dark:border-gray-700"><span class="text-gray-600 dark:text-gray-400">Daily Drawdown</span><span class="font-semibold text-red-600 dark:text-red-400 text-right">{{ challenge.instant_daily_loss }}%<br><span class="text-xs text-gray-500">{{ dd_label(challenge.instant_daily_dd_type) }}</span></span></div>
+                    <div class="flex justify-between items-center py-2 border-b dark:border-gray-700"><span class="text-gray-600 dark:text-gray-400">Overall Drawdown</span><span class="font-semibold text-red-600 dark:text-red-400 text-right">{{ challenge.instant_overall_loss }}%<br><span class="text-xs text-gray-500">{{ dd_label(challenge.instant_overall_dd_type) }}</span></span></div>
                     <div class="flex justify-between items-center py-2 border-b dark:border-gray-700"><span class="text-gray-600 dark:text-gray-400">Min Days</span><span class="font-semibold text-emerald-600 dark:text-emerald-400">{{ challenge.instant_min_days }}</span></div>
                     <div class="flex justify-between items-center py-2 border-b dark:border-gray-700"><span class="text-gray-600 dark:text-gray-400">Leverage</span><span class="font-semibold text-emerald-600 dark:text-emerald-400">{{ challenge.instant_leverage }}</span></div>
                     <div class="flex justify-between items-center py-2"><span class="text-gray-600 dark:text-gray-400">Profit Share</span><span class="font-semibold text-green-600 dark:text-green-400">{{ challenge.user_profit_share }}%</span></div>

@@ -104,6 +104,10 @@
 
         <!-- Action Buttons -->
         <div class="space-y-3">
+            <a href="{{ url_for('user.challenge_rules', challenge_id=challenge.id) }}"
+                class="block w-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-100 font-medium py-3 px-4 rounded-lg text-center transition">
+                <i class="fas fa-book-open mr-2"></i> View Rules
+            </a>
             {% if challenge.status == 'active' and challenge.mt5_login %}
             <!-- Has Credentials -->
             <button onclick="window.open('/user/credentials/{{ challenge.id }}', '_blank')"

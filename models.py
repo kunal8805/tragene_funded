@@ -179,7 +179,9 @@ class ChallengeTemplate(db.Model):
     # Phase 1 Rules
     phase1_target = db.Column(db.Float, nullable=True)
     phase1_daily_loss = db.Column(db.Float, nullable=True)
+    phase1_daily_dd_type = db.Column(db.String(20), nullable=False, default='equity')
     phase1_overall_loss = db.Column(db.Float, nullable=True)
+    phase1_overall_dd_type = db.Column(db.String(20), nullable=False, default='equity')
     phase1_min_days = db.Column(db.Integer, nullable=True)
     phase1_duration = db.Column(db.Integer, nullable=True)
     phase1_leverage = db.Column(db.String(20), nullable=True)
@@ -188,7 +190,9 @@ class ChallengeTemplate(db.Model):
     # Phase 2 Rules
     phase2_target = db.Column(db.Float, nullable=True)
     phase2_daily_loss = db.Column(db.Float, nullable=True)
+    phase2_daily_dd_type = db.Column(db.String(20), nullable=False, default='equity')
     phase2_overall_loss = db.Column(db.Float, nullable=True)
+    phase2_overall_dd_type = db.Column(db.String(20), nullable=False, default='equity')
     phase2_min_days = db.Column(db.Integer, nullable=True)
     phase2_duration = db.Column(db.Integer, nullable=True)
     phase2_leverage = db.Column(db.String(20), nullable=True)
@@ -196,7 +200,9 @@ class ChallengeTemplate(db.Model):
 
     # Instant Rules
     instant_daily_loss = db.Column(db.Float, nullable=True)
+    instant_daily_dd_type = db.Column(db.String(20), nullable=False, default='equity')
     instant_overall_loss = db.Column(db.Float, nullable=True)
+    instant_overall_dd_type = db.Column(db.String(20), nullable=False, default='equity')
     instant_min_days = db.Column(db.Integer, nullable=True)
     instant_leverage = db.Column(db.String(20), nullable=True)
     instant_rules = db.Column(db.Text, nullable=True)
@@ -248,6 +254,67 @@ class ChallengeTemplate(db.Model):
             return self.instant_leverage or "1:100"
         return self.phase1_leverage or "1:100"
 
+    def get_phase_rules(self, phase=None):
+        ctype = self.challenge_type or 'one_phase'
+        phase = phase if phase is not None else (0 if ctype == 'instant' else 1)
+        if ctype == 'instant' or phase == 0:
+            return {
+                'phase_name': 'Instant',
+                'target': 0.0,
+                'daily_loss': self.instant_daily_loss or 0.0,
+                'daily_dd_type': self.instant_daily_dd_type or 'equity',
+                'overall_loss': self.instant_overall_loss or 0.0,
+                'overall_dd_type': self.instant_overall_dd_type or 'equity',
+                'min_days': self.instant_min_days or 0,
+                'duration': 365,
+                'leverage': self.instant_leverage or '1:100',
+            }
+        if ctype == 'two_phase' and phase == 2:
+            return {
+                'phase_name': 'Phase 2',
+                'target': self.phase2_target or 0.0,
+                'daily_loss': self.phase2_daily_loss or 0.0,
+                'daily_dd_type': self.phase2_daily_dd_type or 'equity',
+                'overall_loss': self.phase2_overall_loss or 0.0,
+                'overall_dd_type': self.phase2_overall_dd_type or 'equity',
+                'min_days': self.phase2_min_days or 0,
+                'duration': self.phase2_duration or 30,
+                'leverage': self.phase2_leverage or '1:100',
+            }
+        return {
+            'phase_name': 'Phase 1',
+            'target': self.phase1_target or 0.0,
+            'daily_loss': self.phase1_daily_loss or 0.0,
+            'daily_dd_type': self.phase1_daily_dd_type or 'equity',
+            'overall_loss': self.phase1_overall_loss or 0.0,
+            'overall_dd_type': self.phase1_overall_dd_type or 'equity',
+            'min_days': self.phase1_min_days or 0,
+            'duration': self.phase1_duration or 30,
+            'leverage': self.phase1_leverage or '1:100',
+        }
+
+    @staticmethod
+    def drawdown_type_label(value):
+        return 'Static Balance Based' if value == 'static' else 'Equity Based'
+
+    def get_drawdown_type_label(self, value):
+        return self.drawdown_type_label(value)
+
+    def rule_snapshot(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'account_size': self.account_size,
+            'challenge_type': self.challenge_type,
+            'phase1': self.get_phase_rules(1),
+            'phase2': self.get_phase_rules(2),
+            'instant': self.get_phase_rules(0),
+            'weekend_trading': self.weekend_trading,
+            'profit_split': self.user_profit_share,
+            'payout_cycle': self.payout_cycle,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+        }
+
     def __repr__(self):
         return f'<ChallengeTemplate {self.name}>'
 
@@ -293,6 +360,7 @@ class TradingJourney(db.Model):
     current_equity = db.Column(db.Float, default=0.0)
     peak_equity = db.Column(db.Float, default=0.0)
     daily_start_equity = db.Column(db.Float, default=0.0)
+    daily_start_balance = db.Column(db.Float, default=0.0)
     daily_start_date = db.Column(db.Date, nullable=True, index=True)
     
     # Additional metrics for rule engine
@@ -304,6 +372,7 @@ class TradingJourney(db.Model):
     lowest_equity_today = db.Column(db.Float, nullable=True)
     highest_equity_today = db.Column(db.Float, nullable=True)
     day_start_equity = db.Column(db.Float, nullable=True)
+    day_start_balance = db.Column(db.Float, nullable=True)
     
     # NEW: Lifetime lowest equity tracking (never resets)
     lowest_equity_lifetime = db.Column(db.Float, nullable=True)
@@ -333,7 +402,9 @@ class TradingJourney(db.Model):
     # Phase daily tracking
     phase_daily_drawdown = db.Column(db.Float, default=0.0)
     phase_day_start_equity = db.Column(db.Float, default=0.0)
+    phase_day_start_balance = db.Column(db.Float, default=0.0)
     phase_lowest_equity_today = db.Column(db.Float, default=0.0)
+    phase_lowest_balance_today = db.Column(db.Float, default=0.0)
     phase_daily_start_date = db.Column(db.Date, nullable=True)
 
     # Distance metrics
@@ -508,6 +579,10 @@ class ViolationEvidence(db.Model):
     rule_name = db.Column(db.String(100), nullable=False)
     rule_limit = db.Column(db.Float, nullable=True)
     actual_value = db.Column(db.Float, nullable=True)
+    drawdown_model = db.Column(db.String(30), nullable=True)
+    day_start_value = db.Column(db.Float, nullable=True)
+    lowest_value = db.Column(db.Float, nullable=True)
+    current_value = db.Column(db.Float, nullable=True)
     
     # Account State AT VIOLATION MOMENT (immutable)
     balance = db.Column(db.Float, nullable=True)
@@ -556,6 +631,10 @@ class ViolationEvidence(db.Model):
             'rule_name': self.rule_name,
             'rule_limit': self.rule_limit,
             'actual_value': self.actual_value,
+            'drawdown_model': self.drawdown_model,
+            'day_start_value': self.day_start_value,
+            'lowest_value': self.lowest_value,
+            'current_value': self.current_value,
             'balance': self.balance,
             'equity': self.equity,
             'floating_pnl': self.floating_pnl,
@@ -876,6 +955,11 @@ class Payment(db.Model):
     ip_address = db.Column(db.String(50))
     user_agent = db.Column(db.Text)
     coupon_id = db.Column(db.Integer, db.ForeignKey('coupon.id'), nullable=True)
+    rule_acceptance_timestamp = db.Column(db.DateTime(timezone=True), nullable=True)
+    rule_acceptance_ip = db.Column(db.String(50), nullable=True)
+    rule_acceptance_user_agent = db.Column(db.Text, nullable=True)
+    challenge_version_snapshot = db.Column(db.JSON, nullable=True)
+    rule_version_snapshot = db.Column(db.String(50), nullable=True)
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
     updated_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     
@@ -901,6 +985,47 @@ class WebhookLog(db.Model):
     
     def __repr__(self):
         return f'<WebhookLog {self.event_type} - {self.order_id} - {self.status}>'
+
+
+class RulebookSection(db.Model):
+    __tablename__ = 'rulebook_section'
+
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(200), nullable=False, index=True)
+    content = db.Column(db.Text, nullable=False)
+    display_order = db.Column(db.Integer, nullable=False, default=0, index=True)
+    is_active = db.Column(db.Boolean, nullable=False, default=True, index=True)
+    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
+    created_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+
+    creator = db.relationship('User', foreign_keys=[created_by])
+
+    def __repr__(self):
+        return f'<RulebookSection {self.display_order} - {self.title}>'
+
+
+class PurchaseRuleAcceptance(db.Model):
+    __tablename__ = 'purchase_rule_acceptance'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    challenge_template_id = db.Column(db.Integer, db.ForeignKey('challenge_template.id'), nullable=False, index=True)
+    challenge_purchase_id = db.Column(db.Integer, db.ForeignKey('challenge_purchase.id'), nullable=True, index=True)
+    payment_id = db.Column(db.Integer, db.ForeignKey('payment.id'), nullable=True, index=True)
+    accepted_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
+    ip_address = db.Column(db.String(50), nullable=True)
+    user_agent = db.Column(db.Text, nullable=True)
+    challenge_version_snapshot = db.Column(db.JSON, nullable=False)
+    rule_version_snapshot = db.Column(db.String(50), nullable=False, default='rulebook-v1')
+
+    user = db.relationship('User', foreign_keys=[user_id])
+    challenge_template = db.relationship('ChallengeTemplate', foreign_keys=[challenge_template_id])
+    challenge_purchase = db.relationship('TradingJourney', foreign_keys=[challenge_purchase_id], backref=db.backref('rule_acceptances', lazy=True))
+    payment = db.relationship('Payment', foreign_keys=[payment_id], backref=db.backref('rule_acceptance', uselist=False))
+
+    def __repr__(self):
+        return f'<PurchaseRuleAcceptance user={self.user_id} challenge={self.challenge_template_id}>'
 
 
 class AdminLog(db.Model):
@@ -1021,6 +1146,10 @@ class Notification(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200), nullable=False)
     message = db.Column(db.Text, nullable=False)
+    notification_type = db.Column(db.String(50), default='system', index=True)
+    action_url = db.Column(db.String(500), nullable=True)
+    icon = db.Column(db.String(50), nullable=True)
+    dedupe_key = db.Column(db.String(120), nullable=True, index=True)
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
     expires_at = db.Column(db.DateTime(timezone=True), nullable=True, index=True)
     is_global = db.Column(db.Boolean, default=True, index=True)

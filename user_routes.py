@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify
 from functools import wraps
-from models import db, User, ChallengeTemplate, ChallengePurchase, Payment, Payout, PayoutAuditLog, SupportTicket, TicketMessage, FAQ, RuleLog, TradeHistory, Notification, UserNotification, Coupon, CouponUsage, CouponAssignment, ProgressionRequest
+from models import db, User, ChallengeTemplate, ChallengePurchase, Payment, Payout, PayoutAuditLog, SupportTicket, TicketMessage, FAQ, RuleLog, TradeHistory, Notification, UserNotification, Coupon, CouponUsage, CouponAssignment, ProgressionRequest, RulebookSection
 from datetime import datetime, timezone, timedelta
 import os
 import secrets
@@ -9,6 +9,7 @@ import json
 from werkzeug.utils import secure_filename
 from PIL import Image
 import time
+from notification_service import create_notification
 
 def compress_and_save_ticket_attachment(attachment, ticket_number, prefix=""):
     ext = attachment.filename.rsplit('.', 1)[1].lower() if '.' in attachment.filename else ''
@@ -44,7 +45,7 @@ def compress_and_save_ticket_attachment(attachment, ticket_number, prefix=""):
 user_bp = Blueprint('user', __name__, url_prefix='/user')
 
 ACTIVE_PAYOUT_STATUSES = ['pending', 'under_review', 'approved']
-ACTIVE_CHALLENGE_STATUSES = ['active', 'funded']
+ACTIVE_CHALLENGE_STATUSES = ['active', 'funded', 'phase1_active', 'phase2_active', 'funded_active']
 HISTORY_CHALLENGE_STATUSES = ['passed', 'failed', 'inactive']
 
 def _cycle_days(cycle):
@@ -61,19 +62,10 @@ def _aware(dt):
     return dt.replace(tzinfo=timezone.utc) if dt.tzinfo is None else dt
 
 def _payout_notification(user_id, title, message):
-    _user_notification(user_id, title, message)
+    create_notification(user_id, title, message, 'payout', action_url='/payouts')
 
 def _user_notification(user_id, title, message):
-    notification = Notification(
-        title=title,
-        message=message,
-        is_global=False,
-        target_user_id=user_id,
-        expires_at=datetime.now(timezone.utc) + timedelta(days=30)
-    )
-    db.session.add(notification)
-    db.session.flush()
-    db.session.add(UserNotification(notification_id=notification.id, user_id=user_id))
+    create_notification(user_id, title, message, 'system')
 
 def payout_account_type(challenge):
     if challenge.challenge_type == 'instant':
@@ -389,6 +381,15 @@ def kyc_verification():
             user.document_number = document_number
             user.kyc_status = 'submitted'
             user.kyc_submitted_at = datetime.now(timezone.utc)
+            create_notification(
+                user.id,
+                'KYC Submitted',
+                'Your KYC documents have been submitted successfully and are currently under review. We will notify you once verification is completed.',
+                'kyc',
+                action_url='/kyc',
+                icon='file',
+                dedupe_key=f'kyc-submitted:{user.id}:{user.kyc_submitted_at.isoformat()}',
+            )
             db.session.commit()
             
             flash('KYC documents submitted successfully! We will review them within 24-48 hours.', 'success')
@@ -429,6 +430,16 @@ def user_challenges():
                          purchases=user_purchases,
                          challenges=available_challenges)
 
+@user_bp.route('/rulebook')
+@login_required
+def rulebook():
+    user = User.query.get(session['user_id'])
+    sections = RulebookSection.query.filter_by(is_active=True).order_by(
+        RulebookSection.display_order.asc(),
+        RulebookSection.id.asc()
+    ).all()
+    return render_template('user/rulebook.html', user=user, sections=sections)
+
 @user_bp.route('/challenge/<int:challenge_id>/buy')
 @login_required
 def buy_challenge(challenge_id):
@@ -467,6 +478,14 @@ def trading():
     return render_template('user/trading.html',
                          user=user,
                          active_challenges=active_challenges)
+
+@user_bp.route('/challenge/<int:challenge_id>/rules')
+@login_required
+def challenge_rules(challenge_id):
+    user = User.query.get(session['user_id'])
+    challenge = ChallengePurchase.query.filter_by(id=challenge_id, user_id=user.id).first_or_404()
+    phase_rules = challenge.challenge_template.get_phase_rules(challenge.current_phase) if challenge.challenge_template else {}
+    return render_template('user/challenge_rules.html', user=user, challenge=challenge, rules=phase_rules)
 
 @user_bp.route('/history')
 @login_required
@@ -639,7 +658,15 @@ def request_payout():
             action='request_created',
             notes='User submitted payout request.'
         ))
-        _payout_notification(user.id, 'Payout request submitted', f'Your ${amount:.2f} payout request is pending review.')
+        create_notification(
+            user.id,
+            'Payout Request Submitted',
+            'Your payout request has been received successfully and is currently under review.',
+            'payout',
+            action_url='/payouts',
+            icon='dollar',
+            dedupe_key=f'payout-requested:{payout.id}',
+        )
         db.session.commit()
         
         flash('Payout request submitted successfully!', 'success')
@@ -1151,9 +1178,12 @@ def api_get_notifications():
                 'id': n.id,
                 'title': n.title,
                 'message': n.message,
+                'type': getattr(n, 'notification_type', 'system') or 'system',
                 'created_at': n.created_at.strftime('%Y-%m-%d %H:%M:%S') if n.created_at else '',
                 'is_read': is_read,
-                'is_global': n.is_global
+                'is_global': n.is_global,
+                'action_url': n.action_url,
+                'icon': n.icon
             })
 
         unread_count = sum(1 for item in results if not item['is_read'])
