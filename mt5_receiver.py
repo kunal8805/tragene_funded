@@ -1,4 +1,3 @@
-from app import limiter
 import os
 import sys
 from flask import Blueprint, request, jsonify, current_app
@@ -77,7 +76,6 @@ def clean_raw_data(raw_data):
 # ========================================================================
 
 @receiver_bp.route("/api/mt5/sync", methods=["POST"])
-@limiter.exempt
 def mt5_sync():
     # Security checks
     if False and request.remote_addr not in ["13.48.130.215", "127.0.0.1", "172.31.38.116"]:

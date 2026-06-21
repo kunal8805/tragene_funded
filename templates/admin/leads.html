@@ -1,0 +1,339 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Lead CRM | Tragene Admin{% endblock %}
+{% block header_title %}Lead CRM{% endblock %}
+{% block header_subtitle %}Manage registrations & follow-ups{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    
+    <div id="toastContainer" class="fixed top-4 right-4 z-[9999] flex flex-col gap-2"></div>
+
+    <!-- Stats Cards - Only custom/user-created statuses -->
+    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3" id="statsGrid">
+        <div class="col-span-full text-center py-4 text-gray-500">Loading...</div>
+    </div>
+
+    <!-- Search & Filters -->
+    <div class="bg-white dark:bg-dark-card rounded-xl p-4 border border-gray-200 dark:border-dark-border">
+        <div class="relative mb-3">
+            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <i class="fas fa-search text-gray-400"></i>
+            </div>
+            <input type="text" id="searchInput" placeholder="Search by name, email, or phone..."
+                   class="w-full pl-10 pr-10 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-dark-border rounded-xl text-sm focus:ring-2 focus:ring-indigo-500"
+                   oninput="handleSearch()">
+            <button id="clearSearchBtn" onclick="clearSearch()" class="absolute inset-y-0 right-0 pr-3 hidden text-gray-400 hover:text-gray-600">
+                <i class="fas fa-times-circle text-lg"></i>
+            </button>
+        </div>
+        <div class="flex items-center gap-2 flex-wrap">
+            <span class="text-xs font-semibold text-gray-500 uppercase">Filter:</span>
+            <select id="statusFilter" onchange="filterLeads()" class="px-3 py-1.5 rounded-lg text-xs font-medium border border-gray-200 dark:border-dark-border bg-white dark:bg-gray-800">
+                <option value="all">All Leads</option>
+                <option value="none">Unassigned Only</option>
+            </select>
+            <button onclick="openStatusModal()" class="ml-auto px-4 py-2 bg-indigo-600 text-white rounded-lg text-xs font-medium hover:bg-indigo-700 transition">
+                <i class="fas fa-plus mr-1"></i> Create Status
+            </button>
+            <span id="resultsCount" class="text-xs text-gray-500 ml-2">0 leads</span>
+        </div>
+    </div>
+
+    <!-- Bulk Actions -->
+    <div id="bulkActionsBar" class="bg-indigo-600 rounded-xl p-4 hidden flex items-center gap-3 flex-wrap">
+        <span id="selectedCount" class="text-white font-semibold text-sm">0 selected</span>
+        <select id="bulkStatusSelect" onchange="bulkChangeStatus()" class="px-3 py-2 bg-white/15 text-white border border-white/30 rounded-lg text-sm">
+            <option value="" class="text-gray-900">Move To...</option>
+        </select>
+        <button onclick="bulkAddNote()" class="px-4 py-2 bg-white text-indigo-700 rounded-lg text-sm font-medium">+ Note</button>
+        <button onclick="clearSelection()" class="text-white/80 hover:text-white text-sm ml-auto">Clear</button>
+    </div>
+
+    <!-- Desktop Table -->
+    <div class="bg-white dark:bg-dark-card rounded-xl border border-gray-200 dark:border-dark-border overflow-hidden hidden md:block">
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-gray-50 dark:bg-gray-800">
+                    <tr>
+                        <th class="px-4 py-3 w-10"><input type="checkbox" id="masterCheckbox" onchange="toggleAll()" class="w-4 h-4 rounded"></th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Name</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Email</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Phone</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">KYC</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="leadTableBody" class="divide-y divide-gray-200 dark:divide-dark-border">
+                    <tr><td colspan="7" class="px-4 py-12 text-center text-gray-500">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <div id="paginationBar" class="px-4 py-3 border-t border-gray-200 dark:border-dark-border flex items-center justify-between"></div>
+    </div>
+
+    <!-- Mobile Cards -->
+    <div id="mobileCards" class="md:hidden space-y-3"></div>
+</div>
+
+<!-- Note Modal -->
+<div id="noteModal" class="fixed inset-0 z-50 hidden items-center justify-center" style="background:rgba(0,0,0,0.5)">
+    <div class="bg-white dark:bg-dark-card rounded-2xl p-6 max-w-lg w-[90%] shadow-2xl">
+        <h3 class="text-lg font-bold mb-4">Add Note</h3>
+        <textarea id="noteContent" rows="4" placeholder="Enter note..." class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border rounded-xl text-sm resize-none"></textarea>
+        <div class="flex justify-end gap-3 mt-4">
+            <button onclick="closeNoteModal()" class="px-4 py-2 bg-gray-200 rounded-lg text-sm">Cancel</button>
+            <button onclick="saveNote()" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm">Save</button>
+        </div>
+    </div>
+</div>
+
+<!-- Status Modal (Create/Edit) -->
+<div id="statusModal" class="fixed inset-0 z-50 hidden items-center justify-center" style="background:rgba(0,0,0,0.5)">
+    <div class="bg-white dark:bg-dark-card rounded-2xl p-6 max-w-md w-[90%] shadow-2xl">
+        <h3 class="text-lg font-bold mb-4" id="statusModalTitle">Create Status</h3>
+        <input type="hidden" id="editStatusId">
+        <div class="mb-3">
+            <label class="block text-xs font-medium text-gray-600 mb-1">Status Name</label>
+            <input type="text" id="newStatusName" placeholder="e.g. VIP, Hot Lead, Follow Up" class="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-800 border rounded-xl text-sm">
+        </div>
+        <div class="mb-4">
+            <label class="block text-xs font-medium text-gray-600 mb-1">Color</label>
+            <input type="color" id="newStatusColor" value="#4F46E5" class="w-16 h-10 rounded-lg border cursor-pointer">
+        </div>
+        <div class="flex justify-end gap-3">
+            <button onclick="closeStatusModal()" class="px-4 py-2 bg-gray-200 rounded-lg text-sm">Cancel</button>
+            <button onclick="saveStatus()" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm">Save</button>
+        </div>
+    </div>
+</div>
+
+<!-- Bulk Note Modal -->
+<div id="bulkNoteModal" class="fixed inset-0 z-50 hidden items-center justify-center" style="background:rgba(0,0,0,0.5)">
+    <div class="bg-white dark:bg-dark-card rounded-2xl p-6 max-w-lg w-[90%] shadow-2xl">
+        <h3 class="text-lg font-bold mb-4">Add Note to Selected</h3>
+        <textarea id="bulkNoteContent" rows="4" placeholder="Enter note..." class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border rounded-xl text-sm resize-none"></textarea>
+        <div class="flex justify-end gap-3 mt-4">
+            <button onclick="closeBulkNoteModal()" class="px-4 py-2 bg-gray-200 rounded-lg text-sm">Cancel</button>
+            <button onclick="saveBulkNote()" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm">Save</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentPage = 1, selectedStatus = 'all', searchQuery = '', selectedLeads = new Set(), allStatuses = [], currentNoteUserId = null, searchTimer = null;
+
+function showToast(msg, type='info') {
+    const c = document.getElementById('toastContainer');
+    const t = document.createElement('div');
+    t.className = (type==='success'?'bg-green-500':type==='error'?'bg-red-500':'bg-indigo-500')+' text-white px-5 py-3 rounded-xl shadow-lg text-sm font-medium';
+    t.style.animation = 'slideInRight 0.3s ease forwards';
+    t.textContent = msg;
+    c.appendChild(t);
+    setTimeout(() => { t.style.opacity='0'; t.style.transition='opacity 0.3s'; setTimeout(() => t.remove(), 300); }, 3000);
+}
+
+async function loadStats() {
+    const r = await fetch('/admin/leads/api/stats');
+    const d = await r.json();
+    if (!d.success) return;
+    
+    let h = '';
+    // Only show custom statuses (not defaults) that have leads OR all custom statuses
+    const defaultNames = ['New Lead', 'Call Follow-up', 'WhatsApp Follow-up', 'Email Follow-up', 'Interested', 'Purchased', 'KYC Applied', 'KYC Verified', 'Dead Lead'];
+    const customStatuses = allStatuses.filter(s => !defaultNames.includes(s.name));
+    
+    if (customStatuses.length === 0) {
+        h = '<div class="col-span-full text-center py-8 text-gray-400 dark:text-gray-500"><i class="fas fa-tags text-3xl mb-3 block"></i>No custom statuses yet.<br><span class="text-sm">Click "Create Status" to add your first pipeline stage.</span></div>';
+    } else {
+        for (const s of customStatuses) {
+            const count = (d.status_counts && d.status_counts[s.name]) ? d.status_counts[s.name] : 0;
+            h += `<div onclick="selectStatus('${s.name.replace(/'/g,"\\'")}')" class="bg-white dark:bg-dark-card rounded-xl p-4 border-2 cursor-pointer hover:shadow-md transition relative group ${selectedStatus===s.name?'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20':''}">
+                <button onclick="event.stopPropagation(); deleteStatus(${s.id}, '${s.name.replace(/'/g,"\\'")}')" class="absolute top-2 right-2 w-6 h-6 rounded-full bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 hidden group-hover:flex items-center justify-center text-xs hover:bg-red-200 transition" title="Delete this status">
+                    <i class="fas fa-times"></i>
+                </button>
+                <div class="flex items-center gap-2 mb-1"><span class="w-3 h-3 rounded-full" style="background:${s.color}"></span><span class="text-xs font-medium truncate pr-4">${s.name}</span></div>
+                <p class="text-2xl font-bold text-gray-900 dark:text-white">${count}</p>
+            </div>`;
+        }
+    }
+    document.getElementById('statsGrid').innerHTML = h;
+}
+
+async function loadStatuses() {
+    const r = await fetch('/admin/leads/api/statuses');
+    const d = await r.json();
+    if (d.success) {
+        allStatuses = d.statuses || [];
+        const sel = document.getElementById('bulkStatusSelect');
+        const sf = document.getElementById('statusFilter');
+        // Keep "All Leads" and "Unassigned Only"
+        sf.innerHTML = '<option value="all">All Leads</option><option value="none">Unassigned Only</option>';
+        sel.innerHTML = '<option value="">Move To...</option>';
+        allStatuses.forEach(s => {
+            sel.innerHTML += `<option value="${s.id}">${s.name}</option>`;
+            sf.innerHTML += `<option value="${s.name}">${s.name}</option>`;
+        });
+    }
+}
+
+async function deleteStatus(statusId, statusName) {
+    if (!confirm(`Delete status "${statusName}"? Leads with this status will become unassigned (not deleted).`)) return;
+    const r = await fetch('/admin/leads/api/statuses/' + statusId, { method: 'DELETE' });
+    const d = await r.json();
+    if (d.success) {
+        showToast('Status deleted. Leads are now unassigned.', 'success');
+        loadStatuses(); loadStats(); loadLeads();
+    } else {
+        showToast(d.error || 'Cannot delete', 'error');
+    }
+}
+
+function openStatusModal(statusId = null) {
+    document.getElementById('editStatusId').value = statusId || '';
+    document.getElementById('statusModalTitle').textContent = statusId ? 'Edit Status' : 'Create Status';
+    document.getElementById('newStatusName').value = statusId ? (allStatuses.find(s => s.id === statusId)?.name || '') : '';
+    document.getElementById('newStatusColor').value = statusId ? (allStatuses.find(s => s.id === statusId)?.color || '#4F46E5') : '#4F46E5';
+    document.getElementById('statusModal').style.display = 'flex';
+    document.getElementById('newStatusName').focus();
+}
+
+function closeStatusModal() {
+    document.getElementById('statusModal').style.display = 'none';
+    document.getElementById('editStatusId').value = '';
+    document.getElementById('newStatusName').value = '';
+}
+
+async function saveStatus() {
+    const id = document.getElementById('editStatusId').value;
+    const name = document.getElementById('newStatusName').value.trim();
+    const color = document.getElementById('newStatusColor').value;
+    if (!name) { showToast('Name required', 'error'); return; }
+    
+    const url = id ? '/admin/leads/api/statuses/' + id : '/admin/leads/api/statuses/custom';
+    const method = id ? 'PUT' : 'POST';
+    
+    const r = await fetch(url, {
+        method: method,
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({name, color})
+    });
+    const d = await r.json();
+    if (d.success) {
+        closeStatusModal();
+        loadStatuses(); loadStats();
+        showToast(id ? 'Status updated' : 'Status created', 'success');
+    } else {
+        showToast(d.error || 'Error', 'error');
+    }
+}
+
+async function loadLeads() {
+    const tb = document.getElementById('leadTableBody');
+    const mc = document.getElementById('mobileCards');
+    tb.innerHTML = '<tr><td colspan="7" class="px-4 py-12 text-center text-gray-500">Loading...</td></tr>';
+    mc.innerHTML = '';
+    
+    const params = new URLSearchParams({ page: currentPage, search: searchQuery, status: selectedStatus });
+    const r = await fetch('/admin/leads/api/list?' + params);
+    const d = await r.json();
+    if (!d.success) return;
+    
+    document.getElementById('resultsCount').textContent = (d.total||0) + ' leads';
+    
+    if (!d.leads || d.leads.length === 0) {
+        tb.innerHTML = '<tr><td colspan="7" class="px-4 py-12 text-center text-gray-500">No leads found</td></tr>';
+        mc.innerHTML = '<div class="text-center py-12 text-gray-500">No leads found</div>';
+        updatePagination(0, 1);
+        return;
+    }
+    
+    let th = '', mh = '';
+    d.leads.forEach(l => {
+        const sb = l.status_name ? `<span class="px-2.5 py-1 rounded-full text-xs font-semibold" style="background:${l.status_color||'#6B7280'}20;color:${l.status_color||'#6B7280'}">${l.status_name}</span>` : '<span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-600">Unassigned</span>';
+        const kb = l.kyc_status === 'approved' ? '<span class="px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">Verified</span>' :
+                   l.kyc_status === 'submitted' ? '<span class="px-2 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300">Applied</span>' :
+                   l.kyc_status === 'rejected' ? '<span class="px-2 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300">Rejected</span>' :
+                   '<span class="px-2 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">Not Applied</span>';
+        
+        th += `<tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition">
+            <td class="px-4 py-3"><input type="checkbox" class="lead-checkbox w-4 h-4 rounded" value="${l.id}" onchange="toggleSelect(${l.id},this)"></td>
+            <td class="px-4 py-3"><a href="/admin/leads/${l.id}" class="font-medium text-gray-900 dark:text-white hover:text-indigo-600 dark:hover:text-indigo-400">${esc(l.name)}</a></td>
+            <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400"><a href="/admin/leads/${l.id}" class="hover:text-indigo-600">${esc(l.email)}</a></td>
+            <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">${esc(l.phone||'N/A')}</td>
+            <td class="px-4 py-3">${sb}</td>
+            <td class="px-4 py-3">${kb}</td>
+            <td class="px-4 py-3">
+                <div class="flex gap-1 flex-wrap items-center">
+                    <a href="/admin/leads/${l.id}" class="p-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 hover:bg-indigo-100 transition" title="View Details"><i class="fas fa-eye text-xs"></i></a>
+                    ${l.phone?`<a href="tel:${l.phone}" class="p-1.5 rounded-lg bg-green-50 dark:bg-green-900/20 text-green-600 hover:bg-green-100 transition" title="Call"><i class="fas fa-phone text-xs"></i></a>`:''}
+                    ${l.phone?`<a href="https://wa.me/${l.phone.replace(/\+/g,'')}" target="_blank" class="p-1.5 rounded-lg bg-green-50 dark:bg-green-900/20 text-green-600 hover:bg-green-100 transition" title="WhatsApp"><i class="fab fa-whatsapp text-xs"></i></a>`:''}
+                    <button onclick="openNoteModal(${l.id})" class="p-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-600 hover:bg-gray-200 transition" title="Add Note"><i class="fas fa-sticky-note text-xs"></i></button>
+                    <select onchange="changeStatus(${l.id},this.value)" class="p-1 text-xs rounded-lg border bg-white dark:bg-gray-800" title="Move">
+                        <option value="">Move...</option>
+                        ${allStatuses.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
+                    </select>
+                </div>
+            </td>
+        </tr>`;
+        
+        mh += `<div class="bg-white dark:bg-dark-card rounded-xl p-4 border">
+            <a href="/admin/leads/${l.id}" class="font-semibold text-base block mb-1 hover:text-indigo-600">${esc(l.name)}</a>
+            <p class="text-sm text-gray-500">${esc(l.email)} | ${esc(l.phone||'N/A')}</p>
+            <div class="flex gap-2 mt-2 flex-wrap">${sb} ${kb}</div>
+            <div class="flex gap-2 mt-3 flex-wrap">
+                <a href="/admin/leads/${l.id}" class="px-3 py-1.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 rounded-lg text-xs font-medium"><i class="fas fa-eye mr-1"></i>View</a>
+                ${l.phone?`<a href="tel:${l.phone}" class="px-3 py-1.5 bg-green-100 dark:bg-green-900/30 text-green-700 rounded-lg text-xs font-medium"><i class="fas fa-phone mr-1"></i>Call</a>`:''}
+                ${l.phone?`<a href="https://wa.me/${l.phone.replace(/\+/g,'')}" target="_blank" class="px-3 py-1.5 bg-green-100 dark:bg-green-900/30 text-green-700 rounded-lg text-xs font-medium"><i class="fab fa-whatsapp mr-1"></i>WA</a>`:''}
+                <button onclick="openNoteModal(${l.id})" class="px-3 py-1.5 bg-gray-100 dark:bg-gray-700 text-gray-700 rounded-lg text-xs font-medium"><i class="fas fa-sticky-note mr-1"></i>Note</button>
+            </div>
+        </div>`;
+    });
+    tb.innerHTML = th;
+    mc.innerHTML = mh;
+    updatePagination(d.total, d.pages);
+}
+
+function updatePagination(total, pages) {
+    const bar = document.getElementById('paginationBar');
+    if (pages <= 1) { bar.innerHTML = ''; return; }
+    bar.innerHTML = `<span class="text-sm text-gray-500">Page ${currentPage} of ${pages}</span>
+        <div class="flex gap-1">
+            <button onclick="goToPage(${currentPage-1})" ${currentPage===1?'disabled':''} class="px-3 py-1.5 rounded-lg text-sm border disabled:opacity-40">Prev</button>
+            <button onclick="goToPage(${currentPage+1})" ${currentPage===pages?'disabled':''} class="px-3 py-1.5 rounded-lg text-sm border disabled:opacity-40">Next</button>
+        </div>`;
+}
+
+function handleSearch() {
+    const inp = document.getElementById('searchInput');
+    document.getElementById('clearSearchBtn').classList.toggle('hidden', !inp.value.trim());
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => { searchQuery = inp.value.trim(); currentPage = 1; loadLeads(); }, 300);
+}
+
+function clearSearch() { document.getElementById('searchInput').value = ''; document.getElementById('clearSearchBtn').classList.add('hidden'); searchQuery = ''; currentPage = 1; loadLeads(); }
+function selectStatus(name) { selectedStatus = name; document.getElementById('statusFilter').value = name; currentPage = 1; loadLeads(); loadStats(); }
+function filterLeads() { selectedStatus = document.getElementById('statusFilter').value; currentPage = 1; loadLeads(); loadStats(); }
+function toggleSelect(id, cb) { cb.checked ? selectedLeads.add(id) : selectedLeads.delete(id); updateBulkBar(); }
+function toggleAll() { const m = document.getElementById('masterCheckbox'); document.querySelectorAll('.lead-checkbox').forEach(cb => { cb.checked = m.checked; m.checked ? selectedLeads.add(parseInt(cb.value)) : selectedLeads.delete(parseInt(cb.value)); }); updateBulkBar(); }
+function updateBulkBar() { const b = document.getElementById('bulkActionsBar'); if (selectedLeads.size > 0) { b.classList.remove('hidden'); b.classList.add('flex'); document.getElementById('selectedCount').textContent = selectedLeads.size + ' selected'; } else { b.classList.add('hidden'); b.classList.remove('flex'); } }
+function clearSelection() { selectedLeads.clear(); document.querySelectorAll('.lead-checkbox').forEach(cb => cb.checked = false); document.getElementById('masterCheckbox').checked = false; updateBulkBar(); }
+async function changeStatus(uid, sid) { if (!sid) return; await fetch('/admin/leads/api/'+uid+'/status', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({status_id:parseInt(sid)})}); loadLeads(); loadStats(); showToast('Status updated','success'); }
+async function bulkChangeStatus() { const sid = document.getElementById('bulkStatusSelect').value; if (!sid || selectedLeads.size===0) return; await fetch('/admin/leads/api/bulk-action', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'move_status',lead_ids:Array.from(selectedLeads),status_id:parseInt(sid)})}); clearSelection(); loadLeads(); loadStats(); showToast('Done','success'); }
+function openNoteModal(uid) { currentNoteUserId = uid; document.getElementById('noteContent').value = ''; document.getElementById('noteModal').style.display = 'flex'; document.getElementById('noteContent').focus(); }
+function closeNoteModal() { document.getElementById('noteModal').style.display = 'none'; }
+async function saveNote() { const c = document.getElementById('noteContent').value.trim(); if (!c || !currentNoteUserId) return; await fetch('/admin/leads/api/'+currentNoteUserId+'/notes', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content:c})}); closeNoteModal(); showToast('Note saved','success'); }
+function bulkAddNote() { if (selectedLeads.size===0) return; document.getElementById('bulkNoteContent').value = ''; document.getElementById('bulkNoteModal').style.display = 'flex'; }
+function closeBulkNoteModal() { document.getElementById('bulkNoteModal').style.display = 'none'; }
+async function saveBulkNote() { const c = document.getElementById('bulkNoteContent').value.trim(); if (!c || selectedLeads.size===0) return; await fetch('/admin/leads/api/bulk-action', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'add_note',lead_ids:Array.from(selectedLeads),note:c})}); closeBulkNoteModal(); showToast('Done','success'); }
+function goToPage(p) { currentPage = p; loadLeads(); window.scrollTo({top:0,behavior:'smooth'}); }
+function esc(t) { if (!t) return ''; const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
+document.addEventListener('DOMContentLoaded', () => { loadStatuses(); loadStats(); loadLeads(); });
+document.addEventListener('keydown', e => { if (e.key==='Escape') { closeNoteModal(); closeStatusModal(); closeBulkNoteModal(); } });
+document.addEventListener('click', e => { if (e.target.id==='noteModal') closeNoteModal(); if (e.target.id==='statusModal') closeStatusModal(); if (e.target.id==='bulkNoteModal') closeBulkNoteModal(); });
+</script>
+<style>@keyframes slideInRight{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}</style>
+{% endblock %}

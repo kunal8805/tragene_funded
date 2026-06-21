@@ -83,10 +83,18 @@ class User(db.Model):
     kyc_status = db.Column(db.String(20), default=KYCStatus.PENDING, index=True)
     id_front_url = db.Column(db.String(500), default='')
     id_back_url = db.Column(db.String(500), default='')
+    selfie_url = db.Column(db.String(500), default='')
     document_type = db.Column(db.String(20), default='')
     document_number = db.Column(db.String(50), default='')
     kyc_submitted_at = db.Column(db.DateTime(timezone=True), default=None)
     kyc_notes = db.Column(db.Text, default='')
+
+    # Affiliate moderation fields
+    affiliate_code = db.Column(db.String(30), unique=True, nullable=True, index=True)
+    affiliate_enabled = db.Column(db.Boolean, default=False, index=True)
+    affiliate_banned = db.Column(db.Boolean, default=False, index=True)
+    affiliate_disabled_reason = db.Column(db.Text, default='')
+    affiliate_code_reset_at = db.Column(db.DateTime(timezone=True), nullable=True)
     
     # Email Verification Token
     email_verification_token = db.Column(db.String(100), index=True)
@@ -109,11 +117,19 @@ class User(db.Model):
     trader_level = db.Column(db.String(50), default='Starter')
     is_compact_view = db.Column(db.Boolean, default=False)
 
+    # ========================================================================
+    # LEAD CRM FIELDS (NEW)
+    # ========================================================================
+    lead_status_id = db.Column(db.Integer, db.ForeignKey('lead_statuses.id'), nullable=True, index=True)
+    last_contacted_at = db.Column(db.DateTime(timezone=True), nullable=True)
+
     # Relationships
     challenge_purchases = db.relationship('TradingJourney', backref='user_obj', lazy=True, cascade='all, delete-orphan')
     payouts = db.relationship('Payout', backref='user_obj', lazy=True, cascade='all, delete-orphan')
     payments = db.relationship('Payment', backref='user_obj', lazy=True, cascade='all, delete-orphan', foreign_keys='Payment.user_id')
     reviewed_violations = db.relationship('ViolationEvidence', backref='reviewer', lazy=True, foreign_keys='ViolationEvidence.reviewed_by')
+    lead_notes = db.relationship('LeadNote', backref='user', lazy=True, cascade='all, delete-orphan', foreign_keys='LeadNote.user_id')
+    follow_ups = db.relationship('FollowUp', backref='user', lazy=True, cascade='all, delete-orphan', foreign_keys='FollowUp.user_id')
     
     def set_password(self, password):
         self.password = generate_password_hash(password)
@@ -955,6 +971,9 @@ class Payment(db.Model):
     ip_address = db.Column(db.String(50))
     user_agent = db.Column(db.Text)
     coupon_id = db.Column(db.Integer, db.ForeignKey('coupon.id'), nullable=True)
+    affiliate_code = db.Column(db.String(30), nullable=True, index=True)
+    affiliate_discount_amount = db.Column(db.Float, default=0.0)
+    visible_to_partner = db.Column(db.Boolean, default=False, nullable=False, index=True)
     rule_acceptance_timestamp = db.Column(db.DateTime(timezone=True), nullable=True)
     rule_acceptance_ip = db.Column(db.String(50), nullable=True)
     rule_acceptance_user_agent = db.Column(db.Text, nullable=True)
@@ -1345,3 +1364,316 @@ class CouponAssignment(db.Model):
 
     coupon = db.relationship('Coupon', backref=db.backref('assignments', lazy=True))
     user = db.relationship('User', backref=db.backref('coupon_assignments', lazy=True))
+
+
+class AffiliateSettings(db.Model):
+    __tablename__ = 'affiliate_settings'
+    id = db.Column(db.Integer, primary_key=True)
+    buyer_discount_amount = db.Column(db.Float, default=0.0, nullable=False)
+    referrer_reward_amount = db.Column(db.Float, default=0.0, nullable=False)
+    minimum_withdrawal_amount = db.Column(db.Float, default=150.0, nullable=False)
+    affiliate_enabled = db.Column(db.Boolean, default=True, nullable=False)
+    cash_withdrawal_enabled = db.Column(db.Boolean, default=False, nullable=False)
+    coupon_conversion_enabled = db.Column(db.Boolean, default=False, nullable=False)
+    updated_by_admin_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    updated_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+    @classmethod
+    def get_settings(cls):
+        settings = cls.query.order_by(cls.id.asc()).first()
+        if not settings:
+            settings = cls()
+            db.session.add(settings)
+            db.session.flush()
+        return settings
+
+
+class Wallet(db.Model):
+    __tablename__ = 'wallet'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, unique=True, index=True)
+    current_balance = db.Column(db.Float, default=0.0, nullable=False)
+    lifetime_earned = db.Column(db.Float, default=0.0, nullable=False)
+    lifetime_withdrawn = db.Column(db.Float, default=0.0, nullable=False)
+    pending_balance = db.Column(db.Float, default=0.0, nullable=False)
+    is_frozen = db.Column(db.Boolean, default=False, nullable=False, index=True)
+    frozen_reason = db.Column(db.Text, default='')
+    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+    user = db.relationship('User', backref=db.backref('wallet', uselist=False, cascade='all, delete-orphan'))
+
+    @classmethod
+    def get_or_create(cls, user_id):
+        wallet = cls.query.filter_by(user_id=user_id).first()
+        if not wallet:
+            wallet = cls(user_id=user_id)
+            db.session.add(wallet)
+            db.session.flush()
+        return wallet
+
+    @property
+    def withdrawable_amount(self):
+        return max(0.0, float(self.current_balance or 0) - float(self.pending_balance or 0))
+
+
+class WalletTransaction(db.Model):
+    __tablename__ = 'wallet_transaction'
+    id = db.Column(db.Integer, primary_key=True)
+    wallet_id = db.Column(db.Integer, db.ForeignKey('wallet.id'), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    amount = db.Column(db.Float, nullable=False)
+    transaction_type = db.Column(db.String(30), nullable=False, index=True)
+    source = db.Column(db.String(30), nullable=False, index=True)
+    status = db.Column(db.String(20), default='completed', nullable=False, index=True)
+    reference_type = db.Column(db.String(50), default='')
+    reference_id = db.Column(db.Integer, nullable=True, index=True)
+    notes = db.Column(db.Text, default='')
+    admin_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True, index=True)
+    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
+
+    wallet = db.relationship('Wallet', backref=db.backref('transactions', lazy=True, cascade='all, delete-orphan'))
+    user = db.relationship('User', foreign_keys=[user_id], backref=db.backref('wallet_transactions', lazy=True))
+    admin = db.relationship('User', foreign_keys=[admin_id])
+
+
+class ReferralReward(db.Model):
+    __tablename__ = 'referral_reward'
+    id = db.Column(db.Integer, primary_key=True)
+    referrer_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    buyer_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    payment_id = db.Column(db.Integer, db.ForeignKey('payment.id'), nullable=True, index=True)
+    challenge_purchase_id = db.Column(db.Integer, db.ForeignKey('challenge_purchase.id'), nullable=True, index=True)
+    affiliate_code = db.Column(db.String(30), nullable=False, index=True)
+    purchase_amount = db.Column(db.Float, default=0.0, nullable=False)
+    discount_given = db.Column(db.Float, default=0.0, nullable=False)
+    reward_given = db.Column(db.Float, default=0.0, nullable=False)
+    status = db.Column(db.String(20), default='pending', nullable=False, index=True)
+    violation_id = db.Column(db.Integer, db.ForeignKey('affiliate_violation.id'), nullable=True, index=True)
+    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
+    approved_at = db.Column(db.DateTime(timezone=True), nullable=True)
+
+    referrer = db.relationship('User', foreign_keys=[referrer_id], backref=db.backref('referral_rewards', lazy=True))
+    buyer = db.relationship('User', foreign_keys=[buyer_id], backref=db.backref('referral_purchases', lazy=True))
+    payment = db.relationship('Payment', backref=db.backref('referral_reward', uselist=False))
+    challenge_purchase = db.relationship('TradingJourney')
+
+
+class WithdrawalRequest(db.Model):
+    __tablename__ = 'withdrawal_request'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    wallet_id = db.Column(db.Integer, db.ForeignKey('wallet.id'), nullable=False, index=True)
+    amount = db.Column(db.Float, nullable=False)
+    upi_id = db.Column(db.String(120), nullable=False)
+    status = db.Column(db.String(20), default='pending', nullable=False, index=True)
+    admin_notes = db.Column(db.Text, default='')
+    transaction_id = db.Column(db.String(120), default='')
+    requested_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
+    reviewed_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    paid_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    reviewed_by_admin_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True, index=True)
+
+    user = db.relationship('User', foreign_keys=[user_id], backref=db.backref('withdrawal_requests', lazy=True))
+    wallet = db.relationship('Wallet', backref=db.backref('withdrawal_requests', lazy=True))
+    admin = db.relationship('User', foreign_keys=[reviewed_by_admin_id])
+
+
+class Survey(db.Model):
+    __tablename__ = 'survey'
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text, default='')
+    survey_type = db.Column(db.String(20), nullable=False, default='text', index=True)
+    reward_amount = db.Column(db.Float, default=0.0, nullable=False)
+    is_active = db.Column(db.Boolean, default=True, nullable=False, index=True)
+    created_by_admin_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
+    updated_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+    questions = db.relationship('SurveyQuestion', backref='survey', lazy=True, cascade='all, delete-orphan')
+    assignments = db.relationship('SurveyAssignment', backref='survey', lazy=True, cascade='all, delete-orphan')
+
+
+class SurveyQuestion(db.Model):
+    __tablename__ = 'survey_question'
+    id = db.Column(db.Integer, primary_key=True)
+    survey_id = db.Column(db.Integer, db.ForeignKey('survey.id'), nullable=False, index=True)
+    question_text = db.Column(db.Text, nullable=False)
+    display_order = db.Column(db.Integer, default=0, nullable=False)
+
+
+class SurveyAssignment(db.Model):
+    __tablename__ = 'survey_assignment'
+    id = db.Column(db.Integer, primary_key=True)
+    survey_id = db.Column(db.Integer, db.ForeignKey('survey.id'), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    status = db.Column(db.String(30), default='assigned', nullable=False, index=True)
+    assigned_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
+    responded_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    rewarded_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    reward_transaction_id = db.Column(db.Integer, db.ForeignKey('wallet_transaction.id'), nullable=True)
+
+    user = db.relationship('User', backref=db.backref('survey_assignments', lazy=True))
+    reward_transaction = db.relationship('WalletTransaction')
+
+
+class SurveyResponse(db.Model):
+    __tablename__ = 'survey_response'
+    id = db.Column(db.Integer, primary_key=True)
+    assignment_id = db.Column(db.Integer, db.ForeignKey('survey_assignment.id'), nullable=False, index=True)
+    question_id = db.Column(db.Integer, db.ForeignKey('survey_question.id'), nullable=True, index=True)
+    response_text = db.Column(db.Text, default='')
+    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    assignment = db.relationship('SurveyAssignment', backref=db.backref('responses', lazy=True, cascade='all, delete-orphan'))
+    question = db.relationship('SurveyQuestion')
+
+
+class AffiliateViolation(db.Model):
+    __tablename__ = 'affiliate_violation'
+    id = db.Column(db.Integer, primary_key=True)
+    referrer_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True, index=True)
+    buyer_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True, index=True)
+    affiliate_code = db.Column(db.String(30), nullable=True, index=True)
+    violation_type = db.Column(db.String(50), nullable=False, index=True)
+    severity = db.Column(db.String(20), default='medium', nullable=False, index=True)
+    details = db.Column(db.Text, default='')
+    ip_address = db.Column(db.String(50), default='', index=True)
+    is_resolved = db.Column(db.Boolean, default=False, nullable=False, index=True)
+    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
+    resolved_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    resolved_by_admin_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+
+    referrer = db.relationship('User', foreign_keys=[referrer_id], backref=db.backref('affiliate_violations_as_referrer', lazy=True))
+    buyer = db.relationship('User', foreign_keys=[buyer_id], backref=db.backref('affiliate_violations_as_buyer', lazy=True))
+    resolver = db.relationship('User', foreign_keys=[resolved_by_admin_id])
+
+
+# ========================================================================
+# LEAD CRM MODELS (NEW)
+# ========================================================================
+
+class LeadStatus(db.Model):
+    """Lead statuses for CRM - both default and custom"""
+    __tablename__ = 'lead_statuses'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50), nullable=False, index=True)
+    color = db.Column(db.String(7), default='#6B7280')
+    is_default = db.Column(db.Boolean, default=False)
+    display_order = db.Column(db.Integer, default=0)
+    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    
+    # Relationship with User model
+    users = db.relationship('User', backref='lead_status', lazy='dynamic', foreign_keys='User.lead_status_id')
+    
+    DEFAULT_STATUSES = [
+        {'name': 'New Lead', 'color': '#3B82F6', 'order': 1},
+        {'name': 'Call Follow-up', 'color': '#F59E0B', 'order': 2},
+        {'name': 'WhatsApp Follow-up', 'color': '#10B981', 'order': 3},
+        {'name': 'Email Follow-up', 'color': '#8B5CF6', 'order': 4},
+        {'name': 'Interested', 'color': '#EC4899', 'order': 5},
+        {'name': 'Purchased', 'color': '#059669', 'order': 6},
+        {'name': 'KYC Applied', 'color': '#6366F1', 'order': 7},
+        {'name': 'KYC Verified', 'color': '#0891B2', 'order': 8},
+        {'name': 'Dead Lead', 'color': '#6B7280', 'order': 9},
+    ]
+    
+    @classmethod
+    def create_defaults(cls):
+        """Create default lead statuses if they don't exist"""
+        for status_data in cls.DEFAULT_STATUSES:
+            existing = cls.query.filter_by(name=status_data['name']).first()
+            if not existing:
+                status = cls(
+                    name=status_data['name'],
+                    color=status_data['color'],
+                    is_default=True,
+                    display_order=status_data['order']
+                )
+                db.session.add(status)
+        db.session.commit()
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'color': self.color,
+            'is_default': self.is_default,
+            'display_order': self.display_order,
+            'lead_count': self.users.count()
+        }
+    
+    def __repr__(self):
+        return f'<LeadStatus {self.name}>'
+
+
+class LeadNote(db.Model):
+    """Notes attached to leads (users)"""
+    __tablename__ = 'lead_notes'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    admin_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    is_edited = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
+    updated_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    
+    admin = db.relationship('User', foreign_keys=[admin_id], backref='admin_lead_notes')
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'admin_id': self.admin_id,
+            'content': self.content,
+            'is_edited': self.is_edited,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+            'admin_name': self.admin.get_full_name() if self.admin else 'Unknown'
+        }
+    
+    def __repr__(self):
+        return f'<LeadNote {self.id} - User {self.user_id}>'
+
+
+class FollowUp(db.Model):
+    """Scheduled follow-ups for leads"""
+    __tablename__ = 'follow_ups'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    admin_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    followup_date = db.Column(db.DateTime(timezone=True), nullable=False, index=True)
+    followup_type = db.Column(db.String(20), nullable=False, default='Call')  # Call, WhatsApp, Email
+    notes = db.Column(db.Text, default='')
+    is_completed = db.Column(db.Boolean, default=False, index=True)
+    completed_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    
+    admin = db.relationship('User', foreign_keys=[admin_id], backref='admin_follow_ups')
+    
+    __table_args__ = (
+        Index('idx_followup_user_date', 'user_id', 'followup_date'),
+        Index('idx_followup_completed', 'is_completed', 'followup_date'),
+    )
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'admin_id': self.admin_id,
+            'followup_date': self.followup_date.isoformat() if self.followup_date else None,
+            'followup_type': self.followup_type,
+            'notes': self.notes,
+            'is_completed': self.is_completed,
+            'completed_at': self.completed_at.isoformat() if self.completed_at else None,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'admin_name': self.admin.get_full_name() if self.admin else 'Unknown'
+        }
+    
+    def __repr__(self):
+        return f'<FollowUp {self.id} - User {self.user_id} - {self.followup_type}>'

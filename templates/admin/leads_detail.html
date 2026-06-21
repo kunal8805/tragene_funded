@@ -1,0 +1,248 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Lead Detail | Tragene Admin{% endblock %}
+{% block header_title %}Lead Detail{% endblock %}
+{% block header_subtitle %}{{ lead.get_full_name() }}{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div id="toastContainer" class="fixed top-4 right-4 z-[9999] flex flex-col gap-2"></div>
+
+    <a href="/admin/leads" class="inline-flex items-center gap-2 text-gray-600 hover:text-indigo-600">
+        <i class="fas fa-arrow-left"></i> <span class="text-sm">Back to Leads</span>
+    </a>
+
+    <!-- Lead Info Card -->
+    <div class="bg-white dark:bg-dark-card rounded-2xl p-6 border border-gray-200 dark:border-dark-border">
+        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <div class="flex items-center gap-4">
+                <div class="w-16 h-16 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-2xl font-bold text-indigo-600 shrink-0">
+                    {{ lead.first_name[0] }}{{ lead.last_name[0] }}
+                </div>
+                <div>
+                    <h2 class="text-xl font-bold text-gray-900 dark:text-white">{{ lead.get_full_name() }}</h2>
+                    <p class="text-sm text-gray-500">{{ lead.email }}</p>
+                    <p class="text-sm text-gray-500">{{ lead.phone or 'No phone' }}</p>
+                </div>
+            </div>
+            <div class="flex gap-2 flex-wrap">
+                {% if lead.phone %}
+                <a href="tel:{{ lead.phone }}" class="px-4 py-2.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-xl text-sm font-medium"><i class="fas fa-phone mr-1"></i>Call</a>
+                <a href="https://wa.me/{{ lead.phone.replace('+', '') }}" target="_blank" class="px-4 py-2.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-xl text-sm font-medium"><i class="fab fa-whatsapp mr-1"></i>WhatsApp</a>
+                <button onclick="copyText('{{ lead.phone }}')" class="px-4 py-2.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 rounded-xl text-sm font-medium"><i class="fas fa-copy mr-1"></i>Copy Phone</button>
+                {% endif %}
+                <a href="mailto:{{ lead.email }}" class="px-4 py-2.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded-xl text-sm font-medium"><i class="fas fa-envelope mr-1"></i>Email</a>
+                <button onclick="copyText('{{ lead.email }}')" class="px-4 py-2.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 rounded-xl text-sm font-medium"><i class="fas fa-copy mr-1"></i>Copy Email</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Left Column -->
+        <div class="lg:col-span-1 space-y-6">
+            <!-- Status Card -->
+            <div class="bg-white dark:bg-dark-card rounded-2xl p-6 border border-gray-200 dark:border-dark-border">
+                <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">Lead Status</h3>
+                <div class="mb-4">
+                    <span class="px-3 py-1.5 rounded-full text-sm font-semibold" style="background: {{ lead_status.color if lead_status else '#3B82F6' }}20; color: {{ lead_status.color if lead_status else '#3B82F6' }}">
+                        {{ lead_status.name if lead_status else 'New Lead' }}
+                    </span>
+                </div>
+                <select id="statusSelect" onchange="changeStatus()" class="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-dark-border rounded-xl text-sm">
+                    <option value="">Change Status...</option>
+                    {% for s in all_statuses %}
+                    <option value="{{ s.id }}" {% if lead.lead_status_id == s.id %}selected{% endif %}>{{ s.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- KYC Card -->
+            <div class="bg-white dark:bg-dark-card rounded-2xl p-6 border border-gray-200 dark:border-dark-border">
+                <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">KYC Status</h3>
+                {% if lead.kyc_status == 'approved' %}
+                    <span class="px-3 py-1.5 rounded-full text-sm font-semibold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">Verified</span>
+                {% elif lead.kyc_status == 'submitted' %}
+                    <span class="px-3 py-1.5 rounded-full text-sm font-semibold bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300">Applied</span>
+                {% elif lead.kyc_status == 'rejected' %}
+                    <span class="px-3 py-1.5 rounded-full text-sm font-semibold bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300">Rejected</span>
+                {% else %}
+                    <span class="px-3 py-1.5 rounded-full text-sm font-semibold bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">Not Applied</span>
+                {% endif %}
+            </div>
+
+            <!-- User Info -->
+            <div class="bg-white dark:bg-dark-card rounded-2xl p-6 border border-gray-200 dark:border-dark-border">
+                <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">Info</h3>
+                <div class="space-y-2 text-sm">
+                    <div class="flex justify-between"><span class="text-gray-500">Registered</span><span class="font-medium">{{ lead.created_at.strftime('%d %b %Y') if lead.created_at else 'N/A' }}</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500">Country</span><span class="font-medium">{{ lead.country or 'N/A' }}</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500">Last Contacted</span><span class="font-medium">{{ lead.last_contacted_at.strftime('%d %b %Y') if lead.last_contacted_at else 'Never' }}</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column -->
+        <div class="lg:col-span-2 space-y-6">
+            <!-- Add Note -->
+            <div class="bg-white dark:bg-dark-card rounded-2xl p-6 border border-gray-200 dark:border-dark-border">
+                <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">Add Note</h3>
+                <textarea id="newNoteContent" rows="3" placeholder="Enter your note here..." class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border rounded-xl text-sm resize-none"></textarea>
+                <div class="flex justify-end mt-3">
+                    <button onclick="addNote()" class="px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-medium">Save Note</button>
+                </div>
+            </div>
+
+            <!-- Notes History -->
+            <div class="bg-white dark:bg-dark-card rounded-2xl p-6 border border-gray-200 dark:border-dark-border">
+                <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-6">Note History</h3>
+                <div id="notesTimeline" class="space-y-0">
+                    <div class="text-center py-8 text-gray-500">Loading notes...</div>
+                </div>
+            </div>
+
+            <!-- Follow-ups -->
+            <div class="bg-white dark:bg-dark-card rounded-2xl p-6 border border-gray-200 dark:border-dark-border">
+                <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">Schedule Follow-up</h3>
+                <div class="space-y-3">
+                    <input type="datetime-local" id="followupDate" class="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-800 border rounded-xl text-sm">
+                    <select id="followupType" class="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-800 border rounded-xl text-sm">
+                        <option value="Call">Call</option>
+                        <option value="WhatsApp">WhatsApp</option>
+                        <option value="Email">Email</option>
+                    </select>
+                    <input type="text" id="followupNotes" placeholder="Reminder notes..." class="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-800 border rounded-xl text-sm">
+                    <button onclick="scheduleFollowup()" class="w-full px-4 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-medium">Schedule</button>
+                </div>
+                <div id="followupsList" class="mt-4 space-y-2"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const leadId = {{ lead.id }};
+
+function showToast(msg, type='info') {
+    const c = document.getElementById('toastContainer');
+    const t = document.createElement('div');
+    const colors = {success:'bg-green-500', error:'bg-red-500', info:'bg-indigo-500'};
+    t.className = colors[type]+' text-white px-5 py-3 rounded-xl shadow-lg text-sm font-medium';
+    t.style.animation = 'slideInRight 0.3s ease forwards';
+    t.textContent = msg;
+    c.appendChild(t);
+    setTimeout(() => { t.style.opacity='0'; t.style.transition='opacity 0.3s'; setTimeout(() => t.remove(), 300); }, 3000);
+}
+
+function copyText(text) {
+    navigator.clipboard.writeText(text).then(() => showToast('Copied!', 'success')).catch(() => showToast('Failed to copy', 'error'));
+}
+
+async function changeStatus() {
+    const sid = document.getElementById('statusSelect').value;
+    if (!sid) return;
+    await fetch('/admin/leads/api/' + leadId + '/status', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({status_id: parseInt(sid)})
+    });
+    showToast('Status updated', 'success');
+    setTimeout(() => location.reload(), 500);
+}
+
+async function addNote() {
+    const content = document.getElementById('newNoteContent').value.trim();
+    if (!content) { showToast('Note cannot be empty', 'error'); return; }
+    const r = await fetch('/admin/leads/api/' + leadId + '/notes', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({content})
+    });
+    const d = await r.json();
+    if (d.success) {
+        document.getElementById('newNoteContent').value = '';
+        loadNotes();
+        showToast('Note added', 'success');
+    }
+}
+
+async function loadNotes() {
+    const c = document.getElementById('notesTimeline');
+    const r = await fetch('/admin/leads/api/' + leadId + '/notes');
+    const d = await r.json();
+    if (!d.notes || d.notes.length === 0) {
+        c.innerHTML = '<div class="text-center py-8 text-gray-400">No notes yet</div>';
+        return;
+    }
+    let h = '';
+    d.notes.forEach(n => {
+        const dt = new Date(n.created_at);
+        h += `<div class="border-l-2 border-indigo-500 pl-4 pb-4 ml-2">
+            <div class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4">
+                <div class="flex justify-between mb-2">
+                    <span class="text-xs text-gray-500">${dt.toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}</span>
+                    <button onclick="deleteNote(${n.id})" class="text-gray-400 hover:text-red-600 text-xs"><i class="fas fa-trash"></i></button>
+                </div>
+                <p class="text-sm whitespace-pre-wrap">${esc(n.content)}</p>
+            </div>
+        </div>`;
+    });
+    c.innerHTML = h;
+}
+
+async function deleteNote(noteId) {
+    if (!confirm('Delete this note?')) return;
+    await fetch('/admin/leads/api/notes/' + noteId, { method: 'DELETE' });
+    loadNotes();
+    showToast('Note deleted', 'success');
+}
+
+async function scheduleFollowup() {
+    const date = document.getElementById('followupDate').value;
+    const type = document.getElementById('followupType').value;
+    const notes = document.getElementById('followupNotes').value.trim();
+    if (!date) { showToast('Select a date', 'error'); return; }
+    await fetch('/admin/leads/api/' + leadId + '/followups', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({followup_date: date, followup_type: type, notes})
+    });
+    document.getElementById('followupDate').value = '';
+    document.getElementById('followupNotes').value = '';
+    loadFollowups();
+    showToast('Follow-up scheduled', 'success');
+}
+
+async function loadFollowups() {
+    const c = document.getElementById('followupsList');
+    const r = await fetch('/admin/leads/api/' + leadId + '/followups');
+    const d = await r.json();
+    if (!d.followups || d.followups.length === 0) {
+        c.innerHTML = '<p class="text-sm text-gray-400">No follow-ups scheduled</p>';
+        return;
+    }
+    let h = '';
+    d.followups.forEach(f => {
+        const dt = new Date(f.followup_date);
+        h += `<div class="flex items-center justify-between p-3 rounded-xl ${f.is_completed?'bg-green-50':'bg-gray-50 dark:bg-gray-800/50'} border">
+            <div>
+                <p class="text-sm font-medium">${f.followup_type} - ${dt.toLocaleDateString('en-IN',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</p>
+                ${f.notes?`<p class="text-xs text-gray-500">${esc(f.notes)}</p>`:''}
+            </div>
+            ${!f.is_completed?`<button onclick="completeFollowup(${f.id})" class="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs">Done</button>`:'<span class="text-xs text-green-600">Completed</span>'}
+        </div>`;
+    });
+    c.innerHTML = h;
+}
+
+async function completeFollowup(fid) {
+    await fetch('/admin/leads/api/followups/' + fid + '/complete', { method: 'POST' });
+    loadFollowups();
+    showToast('Marked complete', 'success');
+}
+
+function esc(t) { if (!t) return ''; const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
+
+document.addEventListener('DOMContentLoaded', () => { loadNotes(); loadFollowups(); });
+</script>
+<style>@keyframes slideInRight{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}</style>
+{% endblock %}

@@ -1,0 +1,64 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Surveys - Admin{% endblock %}
+{% block header_title %}Surveys{% endblock %}
+{% block header_subtitle %}Create, assign and reward text or call surveys{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="glass-card p-6">
+        <h3 class="text-lg font-semibold mb-4">Create Survey</h3>
+        <form method="post" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <input name="title" placeholder="Title" class="p-3 rounded-lg border dark:bg-gray-800" required>
+            <select name="survey_type" class="p-3 rounded-lg border dark:bg-gray-800"><option value="text">Text Survey</option><option value="call">Call Survey</option></select>
+            <input name="reward_amount" type="number" step="0.01" placeholder="Reward Amount" class="p-3 rounded-lg border dark:bg-gray-800" required>
+            <textarea name="description" placeholder="Description" class="p-3 rounded-lg border dark:bg-gray-800"></textarea>
+            <textarea name="questions" placeholder="One text survey question per line" class="md:col-span-2 p-3 rounded-lg border dark:bg-gray-800"></textarea>
+            <button class="bg-green-600 text-white px-4 py-3 rounded-lg font-semibold">Create Survey</button>
+        </form>
+    </div>
+
+    <div class="glass-card p-6 overflow-x-auto">
+        <h3 class="text-lg font-semibold mb-4">Surveys</h3>
+        <table class="w-full text-sm">
+            <thead><tr class="text-left border-b"><th class="py-2">Survey</th><th>Type</th><th>Reward</th><th>Assign</th></tr></thead>
+            <tbody>
+            {% for survey in surveys %}
+            <tr class="border-b">
+                <td class="py-3">{{ survey.title }}</td>
+                <td>{{ survey.survey_type }}</td>
+                <td>Rs. {{ "%.2f"|format(survey.reward_amount) }}</td>
+                <td>
+                    <form method="post" action="{{ url_for('admin.assign_survey', survey_id=survey.id) }}" class="flex flex-wrap gap-2">
+                        <select name="target" class="p-2 border rounded dark:bg-gray-800">
+                            <option value="all">All Users</option>
+                            <option value="kyc_approved">KYC Approved</option>
+                            <option value="active_traders">Active Traders</option>
+                            <option value="affiliate_users">Affiliate Users</option>
+                            <option value="selected">Selected Users</option>
+                        </select>
+                        <select name="user_ids" multiple class="p-2 border rounded dark:bg-gray-800">
+                            {% for user in users %}<option value="{{ user.id }}">{{ user.email }}</option>{% endfor %}
+                        </select>
+                        <button class="bg-blue-600 text-white px-3 py-2 rounded-lg">Assign</button>
+                    </form>
+                </td>
+            </tr>
+            {% else %}<tr><td colspan="4" class="py-6 text-center text-gray-500">No surveys created.</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="glass-card p-6">
+        <h3 class="text-lg font-semibold mb-4">Assignments</h3>
+        {% for assignment in assignments %}
+        <div class="py-3 border-b flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+            <div><p class="font-medium">{{ assignment.survey.title }} - {{ assignment.user.email }}</p><p class="text-sm text-gray-500">{{ assignment.status.replace('_', ' ').title() }}</p></div>
+            {% if assignment.survey.survey_type == 'call' and assignment.status == 'waiting_for_call' %}
+            <form method="post" action="{{ url_for('admin.grant_call_survey_reward', assignment_id=assignment.id) }}"><button class="bg-green-600 text-white px-3 py-2 rounded-lg">Grant Reward</button></form>
+            {% endif %}
+        </div>
+        {% else %}<p class="text-gray-500">No assignments.</p>{% endfor %}
+    </div>
+</div>
+{% endblock %}

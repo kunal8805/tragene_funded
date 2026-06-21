@@ -1,0 +1,27 @@
+{% extends "user/base.html" %}
+
+{% block title %}Survey - Tragene Funded{% endblock %}
+{% block header_title %}{{ survey.title }}{% endblock %}
+{% block header_subtitle %}Reward: Rs. {{ "%.2f"|format(survey.reward_amount) }}{% endblock %}
+
+{% block content %}
+<div class="glass-card p-6 max-w-3xl">
+    <p class="text-gray-600 dark:text-gray-400 mb-6">{{ survey.description }}</p>
+    <form method="post" class="space-y-5">
+        {% if survey.survey_type == 'call' %}
+        <div class="flex gap-3">
+            <button name="decision" value="accept" class="bg-green-600 hover:bg-green-700 text-white px-5 py-3 rounded-lg font-semibold">Accept</button>
+            <button name="decision" value="decline" class="bg-gray-600 hover:bg-gray-700 text-white px-5 py-3 rounded-lg font-semibold">Decline</button>
+        </div>
+        {% else %}
+        {% for question in survey.questions|sort(attribute='display_order') %}
+        <label class="block">
+            <span class="block font-medium mb-2">{{ question.question_text }}</span>
+            <textarea name="question_{{ question.id }}" rows="4" class="w-full p-3 rounded-lg border dark:bg-gray-800" required></textarea>
+        </label>
+        {% endfor %}
+        <button class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-lg font-semibold">Submit Survey</button>
+        {% endif %}
+    </form>
+</div>
+{% endblock %}

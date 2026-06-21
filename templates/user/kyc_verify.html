@@ -351,6 +351,65 @@
             </div>
         </div>
 
+            <!-- Selfie -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Selfie *</label>
+                <div id="selfie_upload_area"
+                    class="file-upload-area border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center transition">
+                    <input type="file" name="selfie_file" id="selfie_file" accept=".png,.jpg,.jpeg,.pdf" class="hidden" required>
+                    <label for="selfie_file" class="cursor-pointer block">
+                        <div id="selfie_placeholder" class="upload-placeholder-content">
+                            <i class="fas fa-camera text-gray-400 text-3xl mb-3"></i>
+                            <p class="text-gray-600 dark:text-gray-400 font-medium">Click to upload selfie</p>
+                            <p class="text-gray-400 dark:text-gray-500 text-sm mt-1">PNG, JPG, JPEG, PDF <strong class="text-amber-600 dark:text-amber-400">(Max 16MB)</strong></p>
+                        </div>
+                        <div id="selfie_preview" class="hidden">
+                            <div class="preview-container">
+                                <img id="selfie_preview_img" src="" alt="Selfie preview" class="preview-image hidden">
+                                <button type="button" id="selfie_remove_btn" class="remove-file-btn hidden" title="Remove file">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                            <div id="selfie_pdf_preview" class="pdf-preview hidden">
+                                <i class="fas fa-file-pdf text-red-500 text-2xl"></i>
+                                <div>
+                                    <p class="font-medium text-gray-800 dark:text-gray-200 text-sm">PDF File Selected</p>
+                                    <p id="selfie_file_name_display" class="file-name-display text-xs"></p>
+                                </div>
+                            </div>
+                        </div>
+                    </label>
+                </div>
+                <div id="selfie_size_warning" class="size-warning items-center gap-2 bg-red-50 dark:bg-red-900/20 border border-red-300 dark:border-red-700 rounded-lg p-3 mt-2">
+                    <i class="fas fa-exclamation-circle text-red-500 text-lg shrink-0"></i>
+                    <div>
+                        <p class="text-red-700 dark:text-red-400 text-sm font-semibold">File too large!</p>
+                        <p class="text-red-600 dark:text-red-400 text-xs">Maximum <strong>16MB</strong> allowed. Please lower the resolution and try again.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="uploadProgressPanel" class="hidden bg-white dark:bg-gray-800 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6">
+            <h4 class="font-semibold text-blue-800 dark:text-blue-300 mb-3">Uploading Documents...</h4>
+            <div class="space-y-2 text-sm">
+                <div class="flex justify-between"><span>Aadhaar Front</span><span id="frontStatus">0%</span></div>
+                <div class="flex justify-between"><span>Aadhaar Back</span><span id="backStatus">0%</span></div>
+                <div class="flex justify-between"><span>Selfie</span><span id="selfieStatus">0%</span></div>
+            </div>
+            <div class="mt-4">
+                <div class="flex justify-between text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                    <span>Overall Progress</span><span id="overallStatus">0%</span>
+                </div>
+                <div class="h-3 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                    <div id="overallBar" class="h-full bg-green-500 transition-all" style="width: 0%"></div>
+                </div>
+            </div>
+            <p id="uploadSuccessMessage" class="hidden mt-3 text-green-600 dark:text-green-400 font-semibold">
+                KYC Submitted Successfully. Status: Pending Review.
+            </p>
+        </div>
+
         <!-- Requirements -->
         <div class="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6">
             <h4 class="font-medium text-blue-800 dark:text-blue-300 mb-2 flex items-center">
@@ -418,6 +477,8 @@
     const MAX_SIZE = 16 * 1024 * 1024; // 16MB
     let frontFileValid = false;
     let backFileValid = false;
+    let selfieFileValid = false;
+    let uploadInProgress = false;
 
     // ============================================
     // FRONT FILE UPLOAD HANDLER
@@ -580,6 +641,67 @@
         updateSubmitButton();
     });
 
+    const selfieFileInput = document.getElementById('selfie_file');
+    const selfieUploadArea = document.getElementById('selfie_upload_area');
+    const selfiePlaceholder = document.getElementById('selfie_placeholder');
+    const selfiePreview = document.getElementById('selfie_preview');
+    const selfiePreviewImg = document.getElementById('selfie_preview_img');
+    const selfieRemoveBtn = document.getElementById('selfie_remove_btn');
+    const selfiePdfPreview = document.getElementById('selfie_pdf_preview');
+    const selfieFileNameDisplay = document.getElementById('selfie_file_name_display');
+    const selfieSizeWarning = document.getElementById('selfie_size_warning');
+
+    selfieFileInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        if (file.size > MAX_SIZE) {
+            selfieSizeWarning.classList.add('show');
+            selfieUploadArea.classList.add('too-large');
+            selfieFileInput.value = '';
+            selfieFileValid = false;
+            updateSubmitButton();
+            return;
+        }
+        selfieSizeWarning.classList.remove('show');
+        selfieUploadArea.classList.remove('too-large');
+        selfieUploadArea.classList.add('has-file');
+        selfieFileValid = true;
+        updateSubmitButton();
+        const fileName = file.name;
+        const fileExtension = fileName.split('.').pop().toLowerCase();
+        selfiePlaceholder.classList.add('hidden');
+        selfiePreview.classList.remove('hidden');
+        if (fileExtension === 'pdf') {
+            selfiePreviewImg.classList.add('hidden');
+            selfieRemoveBtn.classList.add('hidden');
+            selfiePdfPreview.classList.remove('hidden');
+            selfieFileNameDisplay.textContent = fileName;
+        } else {
+            selfiePdfPreview.classList.add('hidden');
+            selfiePreviewImg.classList.remove('hidden');
+            selfieRemoveBtn.classList.remove('hidden');
+            const reader = new FileReader();
+            reader.onload = function(event) { selfiePreviewImg.src = event.target.result; };
+            reader.readAsDataURL(file);
+        }
+    });
+
+    selfieRemoveBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        selfieFileInput.value = '';
+        selfiePlaceholder.classList.remove('hidden');
+        selfiePreview.classList.add('hidden');
+        selfiePreviewImg.src = '';
+        selfiePreviewImg.classList.add('hidden');
+        selfieRemoveBtn.classList.add('hidden');
+        selfiePdfPreview.classList.add('hidden');
+        selfieUploadArea.classList.remove('has-file', 'too-large');
+        selfieSizeWarning.classList.remove('show');
+        selfieFileValid = false;
+        updateSubmitButton();
+    });
+
     // ============================================
     // SUBMIT BUTTON CONTROL
     // ============================================
@@ -587,11 +709,11 @@
         const submitBtn = document.getElementById('submitBtn');
         const submitError = document.getElementById('submit_error');
         
-        if (frontFileInput.files.length > 0 && backFileInput.files.length > 0 && frontFileValid && backFileValid) {
+        if (frontFileInput.files.length > 0 && backFileInput.files.length > 0 && selfieFileInput.files.length > 0 && frontFileValid && backFileValid && selfieFileValid) {
             submitBtn.disabled = false;
             submitBtn.classList.remove('opacity-50', 'cursor-not-allowed');
             submitError.classList.add('hidden');
-        } else if ((frontFileInput.files.length > 0 && !frontFileValid) || (backFileInput.files.length > 0 && !backFileValid)) {
+        } else if ((frontFileInput.files.length > 0 && !frontFileValid) || (backFileInput.files.length > 0 && !backFileValid) || (selfieFileInput.files.length > 0 && !selfieFileValid)) {
             submitBtn.disabled = true;
             submitBtn.classList.add('opacity-50', 'cursor-not-allowed');
             submitError.classList.remove('hidden');
@@ -605,9 +727,17 @@
     // ============================================
     // FORM SUBMISSION - Final check
     // ============================================
+    window.addEventListener('beforeunload', function(e) {
+        if (uploadInProgress) {
+            e.preventDefault();
+            e.returnValue = 'Upload is still in progress.';
+        }
+    });
+
     document.getElementById('kycForm')?.addEventListener('submit', function (e) {
         const frontFile = frontFileInput.files[0];
         const backFile = backFileInput.files[0];
+        const selfieFile = selfieFileInput.files[0];
 
         if (frontFile && frontFile.size > MAX_SIZE) {
             e.preventDefault();
@@ -621,6 +751,69 @@
             backUploadArea.classList.add('too-large');
             return;
         }
+        if (selfieFile && selfieFile.size > MAX_SIZE) {
+            e.preventDefault();
+            selfieSizeWarning.classList.add('show');
+            selfieUploadArea.classList.add('too-large');
+            return;
+        }
+
+        e.preventDefault();
+        const form = this;
+        const submitBtn = document.getElementById('submitBtn');
+        const progressPanel = document.getElementById('uploadProgressPanel');
+        const overallBar = document.getElementById('overallBar');
+        const overallStatus = document.getElementById('overallStatus');
+        const fileSizes = [
+            { id: 'frontStatus', size: frontFile?.size || 1, loaded: 0 },
+            { id: 'backStatus', size: backFile?.size || 1, loaded: 0 },
+            { id: 'selfieStatus', size: selfieFile?.size || 1, loaded: 0 }
+        ];
+        const totalSize = fileSizes.reduce((sum, item) => sum + item.size, 0);
+        const xhr = new XMLHttpRequest();
+        uploadInProgress = true;
+        progressPanel.classList.remove('hidden');
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Uploading...';
+
+        xhr.upload.addEventListener('progress', function(event) {
+            if (!event.lengthComputable) return;
+            let remaining = event.loaded;
+            fileSizes.forEach(item => {
+                item.loaded = Math.min(item.size, Math.max(0, remaining));
+                remaining -= item.loaded;
+                document.getElementById(item.id).textContent = `${Math.round((item.loaded / item.size) * 100)}%`;
+            });
+            const percent = Math.round((event.loaded / totalSize) * 100);
+            overallStatus.textContent = `${percent}%`;
+            overallBar.style.width = `${percent}%`;
+        });
+        xhr.onload = function() {
+            uploadInProgress = false;
+            if (xhr.status >= 200 && xhr.status < 300) {
+                document.getElementById('frontStatus').textContent = '100%';
+                document.getElementById('backStatus').textContent = '100%';
+                document.getElementById('selfieStatus').textContent = '100%';
+                overallStatus.textContent = '100%';
+                overallBar.style.width = '100%';
+                document.getElementById('uploadSuccessMessage').classList.remove('hidden');
+                setTimeout(() => { window.location.href = '/user/dashboard'; }, 1000);
+            } else {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-paper-plane mr-2"></i>Submit for Verification';
+                alert('Upload failed. Please try again.');
+            }
+        };
+        xhr.onerror = function() {
+            uploadInProgress = false;
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-paper-plane mr-2"></i>Submit for Verification';
+            alert('Upload failed. Please check your connection and try again.');
+        };
+        xhr.open('POST', form.action);
+        xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+        xhr.setRequestHeader('Accept', 'application/json');
+        xhr.send(new FormData(form));
     });
 
     // ============================================

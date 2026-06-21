@@ -1,0 +1,89 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Affiliate & Rewards - Admin{% endblock %}
+{% block header_title %}Affiliate & Rewards{% endblock %}
+{% block header_subtitle %}Master controls for affiliates, wallets, withdrawals and fraud review{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <div class="glass-card p-4"><p class="text-sm text-gray-500">Affiliate Users</p><p class="text-2xl font-bold">{{ stats.affiliate_users }}</p></div>
+        <div class="glass-card p-4"><p class="text-sm text-gray-500">Referral Sales</p><p class="text-2xl font-bold">{{ stats.referral_sales }}</p></div>
+        <div class="glass-card p-4"><p class="text-sm text-gray-500">Discounts Given</p><p class="text-2xl font-bold">Rs. {{ "%.2f"|format(stats.discounts) }}</p></div>
+        <div class="glass-card p-4"><p class="text-sm text-gray-500">Wallet Rewards</p><p class="text-2xl font-bold">Rs. {{ "%.2f"|format(stats.wallet_rewards) }}</p></div>
+        <div class="glass-card p-4"><p class="text-sm text-gray-500">Pending Withdrawals</p><p class="text-2xl font-bold">{{ stats.pending_withdrawals }}</p></div>
+    </div>
+
+    <div class="glass-card p-6">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-semibold">Settings</h3>
+            <a href="{{ url_for('admin.admin_surveys') }}" class="bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold">Surveys</a>
+        </div>
+        <form method="post" action="{{ url_for('admin.update_affiliate_settings') }}" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <label>Buyer Discount Amount<input name="buyer_discount_amount" type="number" step="0.01" value="{{ settings.buyer_discount_amount }}" class="w-full mt-1 p-2 rounded border dark:bg-gray-800"></label>
+            <label>Referrer Reward Amount<input name="referrer_reward_amount" type="number" step="0.01" value="{{ settings.referrer_reward_amount }}" class="w-full mt-1 p-2 rounded border dark:bg-gray-800"></label>
+            <label>Minimum Withdrawal Amount<input name="minimum_withdrawal_amount" type="number" step="0.01" value="{{ settings.minimum_withdrawal_amount }}" class="w-full mt-1 p-2 rounded border dark:bg-gray-800"></label>
+            <label class="flex items-center gap-2"><input name="affiliate_enabled" type="checkbox" {% if settings.affiliate_enabled %}checked{% endif %}> Affiliate Enabled</label>
+            <label class="flex items-center gap-2"><input name="cash_withdrawal_enabled" type="checkbox" {% if settings.cash_withdrawal_enabled %}checked{% endif %}> Cash Withdrawal Enabled</label>
+            <label class="flex items-center gap-2"><input name="coupon_conversion_enabled" type="checkbox" {% if settings.coupon_conversion_enabled %}checked{% endif %}> Coupon Conversion Enabled</label>
+            <div class="md:col-span-3"><button class="bg-green-600 text-white px-4 py-2 rounded-lg font-semibold">Save Settings</button></div>
+        </form>
+    </div>
+
+    <div class="glass-card p-6 overflow-x-auto">
+        <h3 class="text-lg font-semibold mb-4">Affiliate Users</h3>
+        <table class="w-full text-sm">
+            <thead><tr class="text-left border-b"><th class="py-2">User</th><th>Code</th><th>Status</th><th>Wallet</th><th>Actions</th></tr></thead>
+            <tbody>
+            {% for affiliate in affiliate_users %}
+            {% set w = affiliate.wallet %}
+            <tr class="border-b">
+                <td class="py-3">{{ affiliate.get_full_name() }}<br><span class="text-gray-500">{{ affiliate.email }}</span></td>
+                <td>{{ affiliate.affiliate_code }}</td>
+                <td>{% if affiliate.affiliate_banned %}Banned{% elif affiliate.affiliate_enabled %}Active{% else %}Disabled{% endif %}</td>
+                <td>Rs. {{ "%.2f"|format(w.current_balance if w else 0) }}</td>
+                <td class="space-y-2">
+                    <form method="post" action="{{ url_for('admin.moderate_affiliate', user_id=affiliate.id, action='enable') }}" class="inline"><button class="text-green-600 font-semibold">Enable</button></form>
+                    <form method="post" action="{{ url_for('admin.moderate_affiliate', user_id=affiliate.id, action='disable') }}" class="inline"><input name="reason" placeholder="Reason" class="p-1 border rounded"><button class="text-amber-600 font-semibold">Disable</button></form>
+                    <form method="post" action="{{ url_for('admin.moderate_affiliate', user_id=affiliate.id, action='ban') }}" class="inline"><button class="text-red-600 font-semibold">Ban</button></form>
+                    <form method="post" action="{{ url_for('admin.moderate_affiliate', user_id=affiliate.id, action='unban') }}" class="inline"><button class="text-blue-600 font-semibold">Unban</button></form>
+                    <form method="post" action="{{ url_for('admin.moderate_affiliate', user_id=affiliate.id, action='reset-code') }}" class="inline"><button class="text-purple-600 font-semibold">Reset Code</button></form>
+                    <form method="post" action="{{ url_for('admin.adjust_wallet', user_id=affiliate.id) }}" class="flex gap-2 mt-2">
+                        <select name="action" class="p-1 border rounded dark:bg-gray-800"><option value="add">Add</option><option value="remove">Remove</option></select>
+                        <input name="amount" type="number" step="0.01" placeholder="Amount" class="p-1 border rounded w-24">
+                        <button class="text-green-600 font-semibold">Adjust</button>
+                    </form>
+                </td>
+            </tr>
+            {% else %}<tr><td colspan="5" class="py-6 text-center text-gray-500">No affiliate users yet.</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        <section class="glass-card p-6 overflow-x-auto">
+            <h3 class="text-lg font-semibold mb-4">Referral History</h3>
+            {% for referral in referrals %}
+            <div class="py-3 border-b"><p class="font-medium">{{ referral.affiliate_code }} - {{ referral.status }}</p><p class="text-sm text-gray-500">Buyer {{ referral.buyer.email if referral.buyer else '' }} | Reward Rs. {{ "%.2f"|format(referral.reward_given) }}</p></div>
+            {% else %}<p class="text-gray-500">No referrals.</p>{% endfor %}
+        </section>
+        <section class="glass-card p-6">
+            <h3 class="text-lg font-semibold mb-4">Withdrawals</h3>
+            {% for withdrawal in withdrawals %}
+            <div class="py-3 border-b">
+                <p class="font-medium">{{ withdrawal.user.email }} - Rs. {{ "%.2f"|format(withdrawal.amount) }} - {{ withdrawal.status }}</p>
+                <form method="post" action="{{ url_for('admin.update_wallet_withdrawal', withdrawal_id=withdrawal.id, action='approve') }}" class="inline"><button class="text-blue-600 font-semibold">Approve</button></form>
+                <form method="post" action="{{ url_for('admin.update_wallet_withdrawal', withdrawal_id=withdrawal.id, action='reject') }}" class="inline"><button class="text-red-600 font-semibold">Reject</button></form>
+                <form method="post" action="{{ url_for('admin.update_wallet_withdrawal', withdrawal_id=withdrawal.id, action='paid') }}" class="inline"><input name="transaction_id" placeholder="Tx ID" class="p-1 border rounded"><button class="text-green-600 font-semibold">Mark Paid</button></form>
+            </div>
+            {% else %}<p class="text-gray-500">No withdrawals.</p>{% endfor %}
+        </section>
+        <section class="glass-card p-6">
+            <h3 class="text-lg font-semibold mb-4">Violations</h3>
+            {% for violation in violations %}
+            <div class="py-3 border-b"><p class="font-medium">{{ violation.violation_type }} - {{ violation.severity }}</p><p class="text-sm text-gray-500">{{ violation.details }}</p></div>
+            {% else %}<p class="text-gray-500">No violations.</p>{% endfor %}
+        </section>
+    </div>
+</div>
+{% endblock %}

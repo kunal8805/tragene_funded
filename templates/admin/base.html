@@ -262,7 +262,7 @@
         <nav class="p-4 space-y-2 flex-1 overflow-y-auto pb-6">
             <div class="px-3 py-2 text-xs font-bold text-gray-400 uppercase tracking-wider">Platform</div>
             
-            <!-- ===== PALANTIR LINK ADDED HERE ===== -->
+            <!-- ===== PALANTIR LINK ===== -->
             <a href="/admin/palantir"
                 class="flex items-center space-x-3 p-3 {% if request.endpoint == 'admin.admin_palantir' %}bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 border border-purple-100 dark:border-purple-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
                 <i class="fas fa-eye w-5"></i>
@@ -287,10 +287,23 @@
                 <span>Users</span>
             </a>
 
+            <!-- ===== LEAD CRM LINK (DESKTOP) ===== -->
+            <a href="/admin/leads"
+                class="flex items-center space-x-3 p-3 {% if 'admin.leads' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
+                <i class="fas fa-users-cog w-5"></i>
+                <span>Lead CRM</span>
+            </a>
+
             <a href="/admin/partners"
                 class="flex items-center space-x-3 p-3 {% if 'admin.partners' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
                 <i class="fas fa-handshake w-5"></i>
                 <span>Partners</span>
+            </a>
+
+            <a href="/admin/affiliate-rewards"
+                class="flex items-center space-x-3 p-3 {% if request.endpoint in ['admin.affiliate_rewards', 'admin.admin_surveys'] %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
+                <i class="fas fa-coins w-5"></i>
+                <span>Affiliate & Rewards</span>
             </a>
 
             <div class="px-3 py-2 mt-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Operations</div>
@@ -420,7 +433,7 @@
         <nav class="p-4 space-y-2 flex-1 overflow-y-auto pb-6">
             <div class="px-3 py-2 text-xs font-bold text-gray-400 uppercase tracking-wider">Platform</div>
             
-            <!-- ===== PALANTIR LINK ADDED HERE (MOBILE) ===== -->
+            <!-- ===== PALANTIR LINK (MOBILE) ===== -->
             <a href="/admin/palantir"
                 class="flex items-center space-x-3 p-3 {% if request.endpoint == 'admin.admin_palantir' %}bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 border border-purple-100 dark:border-purple-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition"
                 onclick="toggleSidebar()">
@@ -449,11 +462,26 @@
                 <span>Users</span>
             </a>
 
+            <!-- ===== LEAD CRM LINK (MOBILE) ===== -->
+            <a href="/admin/leads"
+                class="flex items-center space-x-3 p-3 {% if 'admin.leads' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition"
+                onclick="toggleSidebar()">
+                <i class="fas fa-users-cog w-5"></i>
+                <span>Lead CRM</span>
+            </a>
+
             <a href="/admin/partners"
                 class="flex items-center space-x-3 p-3 {% if 'admin.partners' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition"
                 onclick="toggleSidebar()">
                 <i class="fas fa-handshake w-5"></i>
                 <span>Partners</span>
+            </a>
+
+            <a href="/admin/affiliate-rewards"
+                class="flex items-center space-x-3 p-3 {% if request.endpoint in ['admin.affiliate_rewards', 'admin.admin_surveys'] %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition"
+                onclick="toggleSidebar()">
+                <i class="fas fa-coins w-5"></i>
+                <span>Affiliate & Rewards</span>
             </a>
 
             <div class="px-3 py-2 mt-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Operations</div>

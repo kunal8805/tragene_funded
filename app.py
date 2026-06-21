@@ -789,9 +789,9 @@ with app.app_context():
             all_purchases = ChallengePurchase.query.all()
             backfilled = 0
             for purchase in all_purchases:
-                key = (purchase.user_id, purchase.challenge_id)
+                key = (purchase.user_id, purchase.challenge_template_id)
                 if key not in existing_set:
-                    challenge = ChallengeTemplate.query.get(purchase.challenge_id)
+                    challenge = ChallengeTemplate.query.get(purchase.challenge_template_id)
                     if challenge:
                         earning = PartnerEarnings(
                             partner_id=partner.id,
@@ -828,6 +828,13 @@ with app.app_context():
             module = __import__(module_name, fromlist=[bp_name])
             bp = getattr(module, bp_name)
             app.register_blueprint(bp)
+            if bp_name == 'receiver_bp':
+                try:
+                    limiter.exempt(bp)
+                    if DEV_MODE:
+                        print("[OK] Exempted receiver_bp from rate limiting")
+                except Exception as ex:
+                    print(f"[WARNING] Failed to exempt receiver_bp: {ex}")
             if DEV_MODE:
                 print(f"[OK] Registered blueprint: {bp_name}")
         except Exception as e:

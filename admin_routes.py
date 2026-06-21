@@ -3361,3 +3361,625 @@ def api_challenge_violations_list(challenge_id):
         'success': True,
         'violations': [v.to_dict() for v in violations]
     })
+# ========================================================================
+# LEAD CRM ROUTES (NEW)
+# ========================================================================
+from models import LeadStatus, LeadNote, FollowUp
+from datetime import datetime, timezone
+from sqlalchemy import or_
+
+
+@admin_bp.route('/leads')
+@admin_required
+def leads():
+    return render_template('admin/leads.html')
+
+
+@admin_bp.route('/leads/<int:lead_id>')
+@admin_required
+def lead_detail(lead_id):
+    lead = User.query.get_or_404(lead_id)
+    lead_status = LeadStatus.query.get(lead.lead_status_id) if lead.lead_status_id else None
+    all_statuses = LeadStatus.query.order_by(LeadStatus.display_order).all()
+    return render_template('admin/leads_detail.html', lead=lead, lead_status=lead_status, all_statuses=all_statuses)
+
+
+@admin_bp.route('/leads/api/stats')
+@admin_required
+def leads_api_stats():
+    try:
+        statuses = LeadStatus.query.all()
+        status_counts = {s.name: s.users.count() for s in statuses}
+        return jsonify({'success': True, 'status_counts': status_counts})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@admin_bp.route('/leads/api/statuses')
+@admin_required
+def leads_api_statuses():
+    try:
+        statuses = LeadStatus.query.order_by(LeadStatus.display_order).all()
+        return jsonify({'success': True, 'statuses': [s.to_dict() for s in statuses]})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@admin_bp.route('/leads/api/statuses/custom', methods=['POST'])
+@admin_required
+def leads_api_create_status():
+    try:
+        data = request.get_json()
+        name = (data.get('name') or '').strip()
+        color = data.get('color') or '#6B7280'
+        if not name:
+            return jsonify({'success': False, 'error': 'Name is required'})
+        if LeadStatus.query.filter_by(name=name).first():
+            return jsonify({'success': False, 'error': 'A status with this name already exists'})
+        max_order = db.session.query(db.func.max(LeadStatus.display_order)).scalar() or 0
+        status = LeadStatus(name=name, color=color, is_default=False, display_order=max_order + 1)
+        db.session.add(status)
+        db.session.commit()
+        return jsonify({'success': True, 'status': status.to_dict()})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@admin_bp.route('/leads/api/statuses/<int:status_id>', methods=['PUT'])
+@admin_required
+def leads_api_edit_status(status_id):
+    try:
+        status = LeadStatus.query.get_or_404(status_id)
+        data = request.get_json()
+        name = (data.get('name') or '').strip()
+        if not name:
+            return jsonify({'success': False, 'error': 'Name is required'})
+        status.name = name
+        status.color = data.get('color') or status.color
+        db.session.commit()
+        return jsonify({'success': True, 'status': status.to_dict()})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@admin_bp.route('/leads/api/statuses/<int:status_id>', methods=['DELETE'])
+@admin_required
+def leads_api_delete_status(status_id):
+    try:
+        status = LeadStatus.query.get_or_404(status_id)
+        if status.is_default:
+            return jsonify({'success': False, 'error': 'Cannot delete a default status'})
+        User.query.filter_by(lead_status_id=status_id).update({'lead_status_id': None})
+        db.session.delete(status)
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@admin_bp.route('/leads/api/list')
+@admin_required
+def leads_api_list():
+    try:
+        page = request.args.get('page', 1, type=int)
+        search = (request.args.get('search') or '').strip()
+        status = request.args.get('status', 'all')
+        per_page = 20
+
+        query = User.query.filter(User.is_admin == False)
+
+        if status == 'none':
+            query = query.filter(User.lead_status_id.is_(None))
+        elif status != 'all':
+            query = query.join(LeadStatus, User.lead_status_id == LeadStatus.id).filter(LeadStatus.name == status)
+
+        if search:
+            like = f'%{search}%'
+            query = query.filter(or_(
+                User.first_name.ilike(like),
+                User.last_name.ilike(like),
+                User.email.ilike(like),
+                User.phone.ilike(like)
+            ))
+
+        query = query.order_by(User.created_at.desc())
+        pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+
+        leads_out = [{
+            'id': u.id,
+            'name': u.get_full_name(),
+            'email': u.email,
+            'phone': u.phone,
+            'status_name': u.lead_status.name if u.lead_status else None,
+            'status_color': u.lead_status.color if u.lead_status else None,
+            'kyc_status': u.kyc_status
+        } for u in pagination.items]
+
+        return jsonify({
+            'success': True,
+            'leads': leads_out,
+            'total': pagination.total,
+            'pages': pagination.pages or 1,
+            'page': page
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@admin_bp.route('/leads/api/<int:lead_id>/status', methods=['POST'])
+@admin_required
+def leads_api_change_status(lead_id):
+    try:
+        user = User.query.get_or_404(lead_id)
+        data = request.get_json()
+        user.lead_status_id = data.get('status_id')
+        user.last_contacted_at = datetime.now(timezone.utc)
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@admin_bp.route('/leads/api/<int:lead_id>/notes', methods=['GET', 'POST'])
+@admin_required
+def leads_api_notes(lead_id):
+    try:
+        if request.method == 'POST':
+            data = request.get_json()
+            content = (data.get('content') or '').strip()
+            if not content:
+                return jsonify({'success': False, 'error': 'Note content is required'})
+            note = LeadNote(user_id=lead_id, admin_id=session.get('user_id'), content=content)
+            db.session.add(note)
+            db.session.commit()
+            return jsonify({'success': True, 'note': note.to_dict()})
+        notes = LeadNote.query.filter_by(user_id=lead_id).order_by(LeadNote.created_at.desc()).all()
+        return jsonify({'success': True, 'notes': [n.to_dict() for n in notes]})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@admin_bp.route('/leads/api/notes/<int:note_id>', methods=['DELETE'])
+@admin_required
+def leads_api_delete_note(note_id):
+    try:
+        note = LeadNote.query.get_or_404(note_id)
+        db.session.delete(note)
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@admin_bp.route('/leads/api/<int:lead_id>/followups', methods=['GET', 'POST'])
+@admin_required
+def leads_api_followups(lead_id):
+    try:
+        if request.method == 'POST':
+            data = request.get_json()
+            followup_date_str = data.get('followup_date')
+            if not followup_date_str:
+                return jsonify({'success': False, 'error': 'Follow-up date is required'})
+            followup = FollowUp(
+                user_id=lead_id,
+                admin_id=session.get('user_id'),
+                followup_date=datetime.fromisoformat(followup_date_str),
+                followup_type=data.get('followup_type', 'Call'),
+                notes=data.get('notes', '')
+            )
+            db.session.add(followup)
+            db.session.commit()
+            return jsonify({'success': True, 'followup': followup.to_dict()})
+        followups = FollowUp.query.filter_by(user_id=lead_id).order_by(FollowUp.followup_date.desc()).all()
+        return jsonify({'success': True, 'followups': [f.to_dict() for f in followups]})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@admin_bp.route('/leads/api/followups/<int:followup_id>/complete', methods=['POST'])
+@admin_required
+def leads_api_complete_followup(followup_id):
+    try:
+        followup = FollowUp.query.get_or_404(followup_id)
+        followup.is_completed = True
+        followup.completed_at = datetime.now(timezone.utc)
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@admin_bp.route('/leads/api/bulk-action', methods=['POST'])
+@admin_required
+def leads_api_bulk_action():
+    try:
+        data = request.get_json()
+        action = data.get('action')
+        lead_ids = data.get('lead_ids', [])
+        if not lead_ids:
+            return jsonify({'success': False, 'error': 'No leads selected'})
+
+        if action == 'move_status':
+            User.query.filter(User.id.in_(lead_ids)).update(
+                {'lead_status_id': data.get('status_id')}, synchronize_session=False)
+            db.session.commit()
+            return jsonify({'success': True})
+        elif action == 'add_note':
+            note_content = (data.get('note') or '').strip()
+            if not note_content:
+                return jsonify({'success': False, 'error': 'Note content is required'})
+            admin_id = session.get('user_id')
+            for uid in lead_ids:
+                db.session.add(LeadNote(user_id=uid, admin_id=admin_id, content=note_content))
+            db.session.commit()
+            return jsonify({'success': True})
+        return jsonify({'success': False, 'error': 'Unknown action'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)})
+# ========================================================================
+# AFFILIATE REWARDS ROUTES
+# ========================================================================
+
+@admin_bp.route('/affiliate-rewards')
+@admin_required
+def admin_affiliate_rewards():
+    """Affiliate & Rewards management dashboard"""
+    from models import AffiliateSettings, Wallet, ReferralReward, WithdrawalRequest, AffiliateViolation
+    
+    settings = AffiliateSettings.get_settings()
+    
+    # Stats
+    affiliate_users = User.query.filter_by(role='partner', is_banned=False).count()
+    referral_sales = ReferralReward.query.filter_by(status='approved').count()
+    discounts = db.session.query(db.func.sum(ReferralReward.discount_given)).filter_by(status='approved').scalar() or 0.0
+    wallet_rewards = db.session.query(db.func.sum(Wallet.current_balance)).scalar() or 0.0
+    pending_withdrawals = WithdrawalRequest.query.filter_by(status='pending').count()
+    
+    stats = {
+        'affiliate_users': affiliate_users,
+        'referral_sales': referral_sales,
+        'discounts': discounts,
+        'wallet_rewards': wallet_rewards,
+        'pending_withdrawals': pending_withdrawals
+    }
+    
+    # Affiliate users with wallets
+    affiliate_users_list = User.query.filter_by(role='partner').all()
+    
+    # Recent referrals
+    referrals = ReferralReward.query.order_by(ReferralReward.created_at.desc()).limit(20).all()
+    
+    # Pending withdrawals
+    withdrawals = WithdrawalRequest.query.filter(WithdrawalRequest.status.in_(['pending', 'approved'])).order_by(WithdrawalRequest.requested_at.desc()).limit(20).all()
+    
+    # Recent violations
+    violations = AffiliateViolation.query.filter_by(is_resolved=False).order_by(AffiliateViolation.created_at.desc()).limit(20).all()
+    
+    return render_template('admin/affiliate_rewards.html',
+                         stats=stats,
+                         settings=settings,
+                         affiliate_users=affiliate_users_list,
+                         referrals=referrals,
+                         withdrawals=withdrawals,
+                         violations=violations)
+
+
+@admin_bp.route('/affiliate-rewards/settings', methods=['POST'])
+@admin_required
+def update_affiliate_settings():
+    """Update affiliate program settings"""
+    from models import AffiliateSettings
+    
+    settings = AffiliateSettings.get_settings()
+    settings.buyer_discount_amount = float(request.form.get('buyer_discount_amount', 0))
+    settings.referrer_reward_amount = float(request.form.get('referrer_reward_amount', 0))
+    settings.minimum_withdrawal_amount = float(request.form.get('minimum_withdrawal_amount', 150))
+    settings.affiliate_enabled = 'affiliate_enabled' in request.form
+    settings.cash_withdrawal_enabled = 'cash_withdrawal_enabled' in request.form
+    settings.coupon_conversion_enabled = 'coupon_conversion_enabled' in request.form
+    settings.updated_by_admin_id = session.get('user_id')
+    
+    db.session.commit()
+    flash('Affiliate settings updated successfully.', 'success')
+    return redirect(url_for('admin.admin_affiliate_rewards'))
+
+
+@admin_bp.route('/affiliate-rewards/moderate/<int:user_id>/<action>', methods=['POST'])
+@admin_required
+def moderate_affiliate(user_id, action):
+    """Enable, disable, ban, unban, or reset affiliate code"""
+    from models import AdminLog
+    
+    user = User.query.get_or_404(user_id)
+    
+    if action == 'enable':
+        user.affiliate_enabled = True
+        user.affiliate_banned = False
+        flash(f'Affiliate {user.email} enabled.', 'success')
+    elif action == 'disable':
+        reason = request.form.get('reason', '')
+        user.affiliate_enabled = False
+        user.affiliate_disabled_reason = reason
+        flash(f'Affiliate {user.email} disabled.', 'success')
+    elif action == 'ban':
+        user.affiliate_banned = True
+        user.affiliate_enabled = False
+        flash(f'Affiliate {user.email} banned.', 'success')
+    elif action == 'unban':
+        user.affiliate_banned = False
+        user.affiliate_enabled = True
+        flash(f'Affiliate {user.email} unbanned.', 'success')
+    elif action == 'reset-code':
+        import secrets, string
+        user.affiliate_code = ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(8))
+        user.affiliate_code_reset_at = datetime.now(timezone.utc)
+        flash(f'Affiliate code reset for {user.email}. New code: {user.affiliate_code}', 'success')
+    
+    db.session.commit()
+    return redirect(url_for('admin.admin_affiliate_rewards'))
+
+
+@admin_bp.route('/affiliate-rewards/adjust-wallet/<int:user_id>', methods=['POST'])
+@admin_required
+def adjust_wallet(user_id):
+    """Add or remove funds from affiliate wallet"""
+    from models import Wallet, WalletTransaction
+    
+    user = User.query.get_or_404(user_id)
+    wallet = Wallet.get_or_create(user_id)
+    
+    action = request.form.get('action')
+    amount = float(request.form.get('amount', 0))
+    
+    if amount <= 0:
+        flash('Amount must be positive.', 'error')
+        return redirect(url_for('admin.admin_affiliate_rewards'))
+    
+    if action == 'add':
+        wallet.current_balance += amount
+        wallet.lifetime_earned += amount
+        txn_type = 'credit'
+        notes = f'Admin adjustment: +{amount}'
+    elif action == 'remove':
+        wallet.current_balance = max(0, wallet.current_balance - amount)
+        txn_type = 'debit'
+        notes = f'Admin adjustment: -{amount}'
+    else:
+        flash('Invalid action.', 'error')
+        return redirect(url_for('admin.admin_affiliate_rewards'))
+    
+    txn = WalletTransaction(
+        wallet_id=wallet.id,
+        user_id=user_id,
+        amount=amount,
+        transaction_type=txn_type,
+        source='admin_adjustment',
+        status='completed',
+        notes=notes,
+        admin_id=session.get('user_id')
+    )
+    db.session.add(txn)
+    db.session.commit()
+    
+    flash(f'Wallet adjusted for {user.email}. New balance: Rs. {wallet.current_balance:.2f}', 'success')
+    return redirect(url_for('admin.admin_affiliate_rewards'))
+
+
+@admin_bp.route('/affiliate-rewards/withdrawal/<int:withdrawal_id>/<action>', methods=['POST'])
+@admin_required
+def update_wallet_withdrawal(withdrawal_id, action):
+    """Approve, reject, or mark withdrawal as paid"""
+    from models import WithdrawalRequest, Wallet, WalletTransaction
+    
+    withdrawal = WithdrawalRequest.query.get_or_404(withdrawal_id)
+    admin_id = session.get('user_id')
+    
+    if action == 'approve':
+        if withdrawal.status != 'pending':
+            flash('Only pending withdrawals can be approved.', 'error')
+            return redirect(url_for('admin.admin_affiliate_rewards'))
+        withdrawal.status = 'approved'
+        withdrawal.reviewed_at = datetime.now(timezone.utc)
+        withdrawal.reviewed_by_admin_id = admin_id
+        flash('Withdrawal approved.', 'success')
+    
+    elif action == 'reject':
+        if withdrawal.status not in ['pending', 'approved']:
+            flash('Cannot reject this withdrawal.', 'error')
+            return redirect(url_for('admin.admin_affiliate_rewards'))
+        # Refund the amount back to wallet
+        wallet = Wallet.get_or_create(withdrawal.user_id)
+        wallet.current_balance += withdrawal.amount
+        wallet.pending_balance = max(0, wallet.pending_balance - withdrawal.amount)
+        
+        txn = WalletTransaction(
+            wallet_id=wallet.id,
+            user_id=withdrawal.user_id,
+            amount=withdrawal.amount,
+            transaction_type='credit',
+            source='withdrawal_rejected',
+            status='completed',
+            notes=f'Withdrawal #{withdrawal.id} rejected',
+            admin_id=admin_id
+        )
+        db.session.add(txn)
+        
+        withdrawal.status = 'rejected'
+        withdrawal.reviewed_at = datetime.now(timezone.utc)
+        withdrawal.reviewed_by_admin_id = admin_id
+        flash('Withdrawal rejected. Amount returned to wallet.', 'success')
+    
+    elif action == 'paid':
+        if withdrawal.status != 'approved':
+            flash('Only approved withdrawals can be marked as paid.', 'error')
+            return redirect(url_for('admin.admin_affiliate_rewards'))
+        transaction_id = request.form.get('transaction_id', '').strip()
+        if not transaction_id:
+            flash('Transaction ID is required.', 'error')
+            return redirect(url_for('admin.admin_affiliate_rewards'))
+        withdrawal.status = 'paid'
+        withdrawal.transaction_id = transaction_id
+        withdrawal.paid_at = datetime.now(timezone.utc)
+        
+        # Update wallet
+        wallet = Wallet.get_or_create(withdrawal.user_id)
+        wallet.lifetime_withdrawn += withdrawal.amount
+        wallet.pending_balance = max(0, wallet.pending_balance - withdrawal.amount)
+        
+        flash('Withdrawal marked as paid.', 'success')
+    
+    db.session.commit()
+    return redirect(url_for('admin.admin_affiliate_rewards'))
+# ========================================================================
+# SURVEYS ROUTES
+# ========================================================================
+
+@admin_bp.route('/surveys', methods=['GET', 'POST'])
+@admin_required
+def admin_surveys():
+    """Survey management - create, view, assign surveys"""
+    from models import Survey, SurveyQuestion, SurveyAssignment
+    
+    if request.method == 'POST':
+        title = request.form.get('title', '').strip()
+        survey_type = request.form.get('survey_type', 'text')
+        reward_amount = float(request.form.get('reward_amount', 0))
+        description = request.form.get('description', '').strip()
+        questions_text = request.form.get('questions', '').strip()
+        
+        if not title or reward_amount <= 0:
+            flash('Title and reward amount are required.', 'error')
+            return redirect(url_for('admin.admin_surveys'))
+        
+        survey = Survey(
+            title=title,
+            description=description,
+            survey_type=survey_type,
+            reward_amount=reward_amount,
+            created_by_admin_id=session.get('user_id')
+        )
+        db.session.add(survey)
+        db.session.flush()
+        
+        if questions_text:
+            for i, line in enumerate(questions_text.split('\n')):
+                line = line.strip()
+                if line:
+                    db.session.add(SurveyQuestion(
+                        survey_id=survey.id,
+                        question_text=line,
+                        display_order=i
+                    ))
+        
+        db.session.commit()
+        flash('Survey created successfully!', 'success')
+        return redirect(url_for('admin.admin_surveys'))
+    
+    surveys = Survey.query.order_by(Survey.created_at.desc()).all()
+    users = User.query.filter_by(is_admin=False).order_by(User.email).all()
+    assignments = SurveyAssignment.query.order_by(SurveyAssignment.assigned_at.desc()).limit(50).all()
+    
+    return render_template('admin/surveys.html',
+                         surveys=surveys,
+                         users=users,
+                         assignments=assignments)
+
+
+@admin_bp.route('/surveys/assign/<int:survey_id>', methods=['POST'])
+@admin_required
+def assign_survey(survey_id):
+    """Assign survey to users based on target filter"""
+    from models import Survey, SurveyAssignment
+    
+    survey = Survey.query.get_or_404(survey_id)
+    target = request.form.get('target', 'all')
+    selected_ids = request.form.getlist('user_ids')
+    
+    if target == 'all':
+        users = User.query.filter_by(is_admin=False).all()
+    elif target == 'kyc_approved':
+        users = User.query.filter_by(kyc_status='approved', is_admin=False).all()
+    elif target == 'active_traders':
+        active_challenge_users = db.session.query(ChallengePurchase.user_id).filter(
+            ChallengePurchase.status.in_(['active', 'funded'])
+        ).distinct().all()
+        active_ids = [u[0] for u in active_challenge_users]
+        users = User.query.filter(User.id.in_(active_ids), User.is_admin == False).all()
+    elif target == 'affiliate_users':
+        users = User.query.filter_by(role='partner', is_banned=False).all()
+    elif target == 'selected':
+        if not selected_ids:
+            flash('No users selected.', 'error')
+            return redirect(url_for('admin.admin_surveys'))
+        users = User.query.filter(User.id.in_(selected_ids)).all()
+    else:
+        flash('Invalid target.', 'error')
+        return redirect(url_for('admin.admin_surveys'))
+    
+    assigned = 0
+    for user in users:
+        existing = SurveyAssignment.query.filter_by(
+            survey_id=survey.id, user_id=user.id
+        ).first()
+        if not existing:
+            db.session.add(SurveyAssignment(
+                survey_id=survey.id,
+                user_id=user.id,
+                status='assigned' if survey.survey_type == 'text' else 'waiting_for_call'
+            ))
+            assigned += 1
+    
+    db.session.commit()
+    flash(f'Survey assigned to {assigned} users.', 'success')
+    return redirect(url_for('admin.admin_surveys'))
+
+
+@admin_bp.route('/surveys/grant-reward/<int:assignment_id>', methods=['POST'])
+@admin_required
+def grant_call_survey_reward(assignment_id):
+    """Grant reward for completed call survey"""
+    from models import SurveyAssignment, Wallet, WalletTransaction
+    
+    assignment = SurveyAssignment.query.get_or_404(assignment_id)
+    
+    if assignment.survey.survey_type != 'call' or assignment.status != 'waiting_for_call':
+        flash('Invalid assignment for reward.', 'error')
+        return redirect(url_for('admin.admin_surveys'))
+    
+    reward = assignment.survey.reward_amount
+    wallet = Wallet.get_or_create(assignment.user_id)
+    wallet.current_balance += reward
+    wallet.lifetime_earned += reward
+    
+    txn = WalletTransaction(
+        wallet_id=wallet.id,
+        user_id=assignment.user_id,
+        amount=reward,
+        transaction_type='credit',
+        source='survey_reward',
+        status='completed',
+        notes=f'Reward for survey: {assignment.survey.title}',
+        admin_id=session.get('user_id')
+    )
+    db.session.add(txn)
+    
+    assignment.status = 'rewarded'
+    assignment.rewarded_at = datetime.now(timezone.utc)
+    assignment.reward_transaction_id = txn.id  # Will be set after flush
+    
+    db.session.flush()
+    txn.reference_type = 'survey_assignment'
+    txn.reference_id = assignment.id
+    
+    db.session.commit()
+    flash(f'Reward of Rs. {reward:.2f} granted to {assignment.user.email}.', 'success')
+    return redirect(url_for('admin.admin_surveys'))

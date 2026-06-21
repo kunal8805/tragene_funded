@@ -1,0 +1,103 @@
+{% extends "user/base.html" %}
+
+{% block title %}Earn - Tragene Funded{% endblock %}
+{% block header_title %}Earn{% endblock %}
+{% block header_subtitle %}Affiliate rewards, wallet, surveys and withdrawals{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="glass-card p-5"><p class="text-sm text-gray-500">Wallet Balance</p><p class="text-2xl font-bold">Rs. {{ "%.2f"|format(wallet.current_balance) }}</p></div>
+        <div class="glass-card p-5"><p class="text-sm text-gray-500">Lifetime Earned</p><p class="text-2xl font-bold">Rs. {{ "%.2f"|format(wallet.lifetime_earned) }}</p></div>
+        <div class="glass-card p-5"><p class="text-sm text-gray-500">Withdrawable</p><p class="text-2xl font-bold">Rs. {{ "%.2f"|format(wallet.withdrawable_amount) }}</p></div>
+        <div class="glass-card p-5"><p class="text-sm text-gray-500">Pending</p><p class="text-2xl font-bold">Rs. {{ "%.2f"|format(wallet.pending_balance) }}</p></div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <section class="glass-card p-6">
+            <h3 class="text-lg font-semibold mb-4">Affiliate Program</h3>
+            {% if user.kyc_status != 'approved' %}
+            <p class="text-amber-600">Affiliate access unlocks after KYC approval.</p>
+            {% elif user.affiliate_banned or not user.affiliate_enabled %}
+            <p class="text-red-600">{{ user.affiliate_disabled_reason or 'Affiliate access is disabled.' }}</p>
+            {% else %}
+            <div class="space-y-3">
+                <div><p class="text-sm text-gray-500">Affiliate Code</p><p class="text-2xl font-bold">{{ user.affiliate_code }}</p></div>
+                <div><p class="text-sm text-gray-500">Referral Link</p><input class="w-full p-3 rounded-lg border dark:bg-gray-800" readonly value="{{ request.url_root.rstrip('/') }}{{ url_for('auth.register') }}?ref={{ user.affiliate_code }}"></div>
+            </div>
+            {% endif %}
+        </section>
+
+        <section class="glass-card p-6">
+            <h3 class="text-lg font-semibold mb-4">Withdrawals</h3>
+            {% if wallet.is_frozen %}
+            <p class="text-red-600">{{ wallet.frozen_reason or 'Wallet is frozen.' }}</p>
+            {% elif settings.cash_withdrawal_enabled %}
+            <form method="post" action="{{ url_for('user.request_wallet_withdrawal') }}" class="grid grid-cols-1 gap-3">
+                <input name="amount" type="number" step="0.01" min="{{ settings.minimum_withdrawal_amount }}" max="{{ wallet.withdrawable_amount }}" placeholder="Amount" class="p-3 rounded-lg border dark:bg-gray-800" required>
+                <input name="upi_id" placeholder="UPI ID" class="p-3 rounded-lg border dark:bg-gray-800" required>
+                <button class="bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-lg font-semibold">Request Withdrawal</button>
+            </form>
+            <p class="text-xs text-gray-500 mt-2">Minimum: Rs. {{ "%.2f"|format(settings.minimum_withdrawal_amount) }}</p>
+            {% else %}
+            <p class="text-gray-500">Cash withdrawals are currently disabled.</p>
+            {% endif %}
+        </section>
+    </div>
+
+    <section class="glass-card p-6">
+        <h3 class="text-lg font-semibold mb-4">Wallet Usage</h3>
+        {% if settings.coupon_conversion_enabled %}
+        <form method="post" action="{{ url_for('user.convert_wallet_to_coupon') }}" class="flex flex-col sm:flex-row gap-3">
+            <input name="amount" type="number" step="0.01" max="{{ wallet.withdrawable_amount }}" placeholder="Amount to convert" class="p-3 rounded-lg border dark:bg-gray-800 flex-1" required>
+            <button class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-lg font-semibold">Convert to Coupon</button>
+        </form>
+        {% else %}
+        <p class="text-gray-500">Coupon conversion is currently disabled.</p>
+        {% endif %}
+    </section>
+
+    <section class="glass-card p-6">
+        <h3 class="text-lg font-semibold mb-4">Surveys</h3>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead><tr class="text-left border-b"><th class="py-2">Survey</th><th>Status</th><th>Reward</th><th></th></tr></thead>
+                <tbody>
+                {% for assignment in assignments %}
+                <tr class="border-b">
+                    <td class="py-3">{{ assignment.survey.title }}</td>
+                    <td>{{ assignment.status.replace('_', ' ').title() }}</td>
+                    <td>Rs. {{ "%.2f"|format(assignment.survey.reward_amount) }}</td>
+                    <td class="text-right"><a href="{{ url_for('user.survey_assignment', assignment_id=assignment.id) }}" class="text-blue-600 font-semibold">Open</a></td>
+                </tr>
+                {% else %}
+                <tr><td colspan="4" class="py-6 text-center text-gray-500">No surveys assigned.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <section class="glass-card p-6">
+            <h3 class="text-lg font-semibold mb-4">Referral History</h3>
+            {% for referral in referrals %}
+            <div class="py-3 border-b dark:border-gray-700">
+                <p class="font-medium">{{ referral.buyer.get_full_name() if referral.buyer else 'Buyer' }} - {{ referral.status.title() }}</p>
+                <p class="text-sm text-gray-500">Discount Rs. {{ "%.2f"|format(referral.discount_given) }} | Reward Rs. {{ "%.2f"|format(referral.reward_given) }}</p>
+            </div>
+            {% else %}<p class="text-gray-500">No referrals yet.</p>{% endfor %}
+        </section>
+
+        <section class="glass-card p-6">
+            <h3 class="text-lg font-semibold mb-4">Withdrawal History</h3>
+            {% for withdrawal in withdrawals %}
+            <div class="py-3 border-b dark:border-gray-700">
+                <p class="font-medium">Rs. {{ "%.2f"|format(withdrawal.amount) }} - {{ withdrawal.status.title() }}</p>
+                <p class="text-sm text-gray-500">{{ withdrawal.upi_id }} | {{ withdrawal.requested_at.strftime('%Y-%m-%d') }}</p>
+            </div>
+            {% else %}<p class="text-gray-500">No withdrawal requests.</p>{% endfor %}
+        </section>
+    </div>
+</div>
+{% endblock %}
