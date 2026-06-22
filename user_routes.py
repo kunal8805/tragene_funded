@@ -325,12 +325,12 @@ def kyc_verification():
             return redirect(url_for('user.kyc_verification'))
         
         if not document_number:
+
             flash('Please enter your document number.', 'error')
             return redirect(url_for('user.kyc_verification'))
         
         front_file = request.files.get('front_file')
         back_file = request.files.get('back_file')
-        selfie_file = request.files.get('selfie_file')
         
         if not front_file or front_file.filename == '':
             flash('Please upload front side of your document.', 'error')
@@ -338,10 +338,6 @@ def kyc_verification():
         
         if not back_file or back_file.filename == '':
             flash('Please upload back side of your document.', 'error')
-            return redirect(url_for('user.kyc_verification'))
-
-        if not selfie_file or selfie_file.filename == '':
-            flash('Please upload your selfie.', 'error')
             return redirect(url_for('user.kyc_verification'))
         
         # Check file sizes before processing
@@ -360,18 +356,11 @@ def kyc_verification():
         if back_size > max_size:
             flash('Your back document image is too large. Please reduce the size and try again.', 'warning')
             return redirect(url_for('user.file_too_large'))
-
-        selfie_file.seek(0, 2)
-        selfie_size = selfie_file.tell()
-        selfie_file.seek(0)
-        if selfie_size > max_size:
-            flash('Your selfie image is too large. Please reduce the size and try again.', 'warning')
-            return redirect(url_for('user.file_too_large'))
         
         def allowed_file(filename):
             return '.' in filename and filename.rsplit('.', 1)[1].lower() in {'png', 'jpg', 'jpeg', 'pdf'}
         
-        if not (allowed_file(front_file.filename) and allowed_file(back_file.filename) and allowed_file(selfie_file.filename)):
+        if not (allowed_file(front_file.filename) and allowed_file(back_file.filename)):
             flash('Only PNG, JPG, JPEG, and PDF files are allowed.', 'error')
             return redirect(url_for('user.kyc_verification'))
         
@@ -412,15 +401,13 @@ def kyc_verification():
         try:
             front_rel_path = process_kyc_image(front_file, 'front')
             back_rel_path = process_kyc_image(back_file, 'back')
-            selfie_rel_path = process_kyc_image(selfie_file, 'selfie')
             
-            if not front_rel_path or not back_rel_path or not selfie_rel_path:
+            if not front_rel_path or not back_rel_path:
                 flash('Error processing files. Please try again.', 'error')
                 return redirect(url_for('user.kyc_verification'))
 
             user.id_front_url = front_rel_path
             user.id_back_url = back_rel_path
-            user.selfie_url = selfie_rel_path
             user.document_type = document_type
             user.document_number = document_number
             user.kyc_status = 'submitted'
