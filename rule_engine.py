@@ -157,7 +157,8 @@ def process_sync(challenge, data):
             ChallengeState.FUNDED,
             ChallengeState.PHASE1_ACTIVE,
             ChallengeState.PHASE2_ACTIVE,
-            ChallengeState.FUNDED_ACTIVE
+            ChallengeState.FUNDED_ACTIVE,
+            ChallengeState.UNDER_REVIEW
         ):
             print(f"[IGNORED] Challenge status {challenge.status}")
             return
@@ -218,7 +219,7 @@ def check_equity_violations(challenge, data, rules):
     if challenge.status in (ChallengeState.PASSED, ChallengeState.FAILED, ChallengeState.FUNDED):
         return
 
-    if challenge.monitoring_status == ChallengeState.UNDER_REVIEW and challenge.review_required:
+    if challenge.monitoring_status == ChallengeState.UNDER_REVIEW and challenge.review_required and challenge.violation_reason:
         print(f"[VIOLATION SKIP] Already under review")
         return
 

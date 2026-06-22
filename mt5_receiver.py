@@ -121,7 +121,7 @@ def mt5_sync():
                 if journey.is_terminated:
                     return jsonify({"status": "error", "message": "Challenge has been breached/terminated"}), 403
                 
-                if journey.status not in ['active', 'funded']:
+                if journey.status not in ['active', 'funded', 'under_review']:
                     return jsonify({
                         "status": "ignored",
                         "message": f"Challenge status {journey.status} is not eligible for MT5 sync"
