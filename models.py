@@ -118,7 +118,7 @@ class User(db.Model):
     is_compact_view = db.Column(db.Boolean, default=False)
 
     # ========================================================================
-    # LEAD CRM FIELDS (NEW)
+    # LEAD CRM FIELDS
     # ========================================================================
     lead_status_id = db.Column(db.Integer, db.ForeignKey('lead_statuses.id'), nullable=True, index=True)
     last_contacted_at = db.Column(db.DateTime(timezone=True), nullable=True)
@@ -222,6 +222,13 @@ class ChallengeTemplate(db.Model):
     instant_min_days = db.Column(db.Integer, nullable=True)
     instant_leverage = db.Column(db.String(20), nullable=True)
     instant_rules = db.Column(db.Text, nullable=True)
+
+    # 🛡️ TRADING SAFETY RULES (NEW)
+    sl_mandatory_enabled = db.Column(db.Boolean, default=False)
+    sl_grace_period_minutes = db.Column(db.Integer, default=3)
+    max_risk_per_trade_percent = db.Column(db.Float, default=1.5)
+    activity_rule_enabled = db.Column(db.Boolean, default=False)
+    max_inactive_days = db.Column(db.Integer, default=4)
 
     user_profit_share = db.Column(db.Integer, nullable=False)
     payout_cycle = db.Column(db.String(20), default='biweekly')
@@ -328,6 +335,12 @@ class ChallengeTemplate(db.Model):
             'weekend_trading': self.weekend_trading,
             'profit_split': self.user_profit_share,
             'payout_cycle': self.payout_cycle,
+            # 🛡️ Safety rules in snapshot
+            'sl_mandatory_enabled': self.sl_mandatory_enabled,
+            'sl_grace_period_minutes': self.sl_grace_period_minutes,
+            'max_risk_per_trade_percent': self.max_risk_per_trade_percent,
+            'activity_rule_enabled': self.activity_rule_enabled,
+            'max_inactive_days': self.max_inactive_days,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }
 
@@ -390,7 +403,7 @@ class TradingJourney(db.Model):
     day_start_equity = db.Column(db.Float, nullable=True)
     day_start_balance = db.Column(db.Float, nullable=True)
     
-    # NEW: Lifetime lowest equity tracking (never resets)
+    # Lifetime lowest equity tracking (never resets)
     lowest_equity_lifetime = db.Column(db.Float, nullable=True)
     lowest_equity_phase = db.Column(db.Float, nullable=True)
     
@@ -399,7 +412,7 @@ class TradingJourney(db.Model):
     monitoring_status = db.Column(db.String(30), default=MonitoringStatus.ACTIVE)
     review_required = db.Column(db.Boolean, default=False)
     
-    # NEW: Violation review tracking
+    # Violation review tracking
     violation_reviewed = db.Column(db.Boolean, default=False)
     last_violation_evidence_id = db.Column(db.Integer, nullable=True)
     
@@ -429,6 +442,10 @@ class TradingJourney(db.Model):
 
     # Last trade date
     last_trade_date = db.Column(db.Date, nullable=True)
+    
+    # 🛡️ SAFETY RULE VIOLATION COUNTERS (NEW)
+    sl_violation_count = db.Column(db.Integer, default=0)
+    activity_violation_count = db.Column(db.Integer, default=0)
     
     # Tracker for balance manipulation detection
     last_verified_balance = db.Column(db.Float, default=0.0)
@@ -569,7 +586,10 @@ class TradingJourney(db.Model):
             'distance_to_breach': self.distance_to_breach,
             'lowest_equity_lifetime': self.lowest_equity_lifetime,
             'lowest_equity_phase': self.lowest_equity_phase,
-            'violation_reviewed': self.violation_reviewed
+            'violation_reviewed': self.violation_reviewed,
+            # 🛡️ Safety counters
+            'sl_violation_count': self.sl_violation_count,
+            'activity_violation_count': self.activity_violation_count
         }
     
     def __repr__(self):
@@ -674,12 +694,11 @@ class ViolationEvidence(db.Model):
 
 
 # ========================================================================
-# NEW MODELS FOR RULE ENGINE
+# [ALL REMAINING MODELS UNCHANGED - KEEP EXACTLY AS ORIGINAL]
 # ========================================================================
 
 class ProgressionRequest(db.Model):
     __tablename__ = 'progression_requests'
-
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
     challenge_purchase_id = db.Column(db.Integer, db.ForeignKey('challenge_purchase.id'), nullable=False, index=True)
@@ -689,20 +708,16 @@ class ProgressionRequest(db.Model):
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
     approved_at = db.Column(db.DateTime(timezone=True), nullable=True)
     declined_at = db.Column(db.DateTime(timezone=True), nullable=True)
-
     user = db.relationship('User', backref=db.backref('progression_requests', lazy=True, cascade='all, delete-orphan'))
-
     __table_args__ = (
         Index('idx_progression_request_user_status', 'user_id', 'status'),
         Index('idx_progression_request_challenge_type_status', 'challenge_purchase_id', 'request_type', 'status'),
     )
-
     def __repr__(self):
         return f'<ProgressionRequest {self.id} - {self.request_type} - {self.status}>'
 
 class RuleLog(db.Model):
     __tablename__ = 'rule_logs'
-    
     id = db.Column(db.Integer, primary_key=True)
     challenge_id = db.Column(db.Integer, db.ForeignKey('challenge_purchase.id'), nullable=False, index=True)
     rule_name = db.Column(db.String(100), nullable=False, index=True)
@@ -712,19 +727,15 @@ class RuleLog(db.Model):
     threshold_value = db.Column(db.Float, nullable=True)
     additional_data = db.Column(db.JSON, nullable=True)
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
-    
     __table_args__ = (
         Index('idx_rulelog_challenge_rule', 'challenge_id', 'rule_name'),
         Index('idx_rulelog_severity_date', 'severity', 'created_at'),
     )
-    
     def __repr__(self):
         return f'<RuleLog {self.rule_name} - {self.severity}>'
 
-
 class TradeHistory(db.Model):
     __tablename__ = 'trade_history'
-    
     id = db.Column(db.Integer, primary_key=True)
     challenge_id = db.Column(db.Integer, db.ForeignKey('challenge_purchase.id'), nullable=False, index=True)
     ticket = db.Column(db.BigInteger, nullable=False)
@@ -744,24 +755,16 @@ class TradeHistory(db.Model):
     comment = db.Column(db.String(200), nullable=True)
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
-    
     __table_args__ = (
         db.UniqueConstraint('challenge_id', 'ticket', name='unique_challenge_ticket_history'),
         Index('idx_tradehistory_challenge_open', 'challenge_id', 'is_open'),
         Index('idx_tradehistory_close_date', 'close_time'),
     )
-    
     def __repr__(self):
         return f'<TradeHistory {self.ticket} - {self.symbol}>'
 
-
-# ========================================================================
-# EXISTING MODELS
-# ========================================================================
-
 class AccountSnapshot(db.Model):
     __tablename__ = 'account_snapshot'
-    
     id = db.Column(db.Integer, primary_key=True)
     challenge_purchase_id = db.Column(db.Integer, db.ForeignKey('challenge_purchase.id'), nullable=False, index=True)
     timestamp = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
@@ -781,19 +784,15 @@ class AccountSnapshot(db.Model):
     open_positions_count = db.Column(db.Integer, default=0)
     is_archived = db.Column(db.Boolean, default=False, index=True)
     archived_at = db.Column(db.DateTime(timezone=True), nullable=True)
-    
     def __repr__(self):
         return f'<Snapshot {self.id} - Challenge {self.challenge_purchase_id} - {self.timestamp}>'
-    
     __table_args__ = (
         Index('idx_snapshot_challenge_timestamp', 'challenge_purchase_id', 'timestamp'),
         Index('idx_snapshot_challenge_archived', 'challenge_purchase_id', 'is_archived'),
     )
 
-
 class EATrade(db.Model):
     __tablename__ = 'ea_trade'
-    
     id = db.Column(db.Integer, primary_key=True)
     challenge_purchase_id = db.Column(db.Integer, db.ForeignKey('challenge_purchase.id'), nullable=False, index=True)
     ticket = db.Column(db.BigInteger, nullable=False, index=True)
@@ -814,27 +813,18 @@ class EATrade(db.Model):
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
     updated_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     is_archived = db.Column(db.Boolean, default=False, index=True)
-    
     __table_args__ = (
         db.UniqueConstraint('challenge_purchase_id', 'ticket', name='unique_challenge_ticket'),
         Index('idx_trade_challenge_status', 'challenge_purchase_id', 'status'),
         Index('idx_trade_challenge_close', 'challenge_purchase_id', 'close_time'),
         Index('idx_trade_magic', 'magic', 'challenge_purchase_id'),
     )
-    
-    def is_manual_trade(self):
-        return self.magic == 0
-    
-    def is_bot_trade(self):
-        return self.magic > 0
-    
-    def __repr__(self):
-        return f'<EATrade {self.ticket} - {self.symbol} - {self.status}>'
-
+    def is_manual_trade(self): return self.magic == 0
+    def is_bot_trade(self): return self.magic > 0
+    def __repr__(self): return f'<EATrade {self.ticket} - {self.symbol} - {self.status}>'
 
 class RuleViolation(db.Model):
     __tablename__ = 'rule_violation'
-    
     id = db.Column(db.Integer, primary_key=True)
     challenge_purchase_id = db.Column(db.Integer, db.ForeignKey('challenge_purchase.id'), nullable=False, index=True)
     rule_name = db.Column(db.String(100), nullable=False, index=True)
@@ -847,19 +837,14 @@ class RuleViolation(db.Model):
     action_taken = db.Column(db.String(50), default='logged')
     violated_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
     snapshot = db.relationship('AccountSnapshot', backref='violations', lazy=True)
-    
-    def __repr__(self):
-        return f'<RuleViolation {self.rule_name} - Challenge {self.challenge_purchase_id}>'
-    
+    def __repr__(self): return f'<RuleViolation {self.rule_name} - Challenge {self.challenge_purchase_id}>'
     __table_args__ = (
         Index('idx_violation_challenge_rule', 'challenge_purchase_id', 'rule_name'),
         Index('idx_violation_severity_date', 'severity', 'violated_at'),
     )
 
-
 class DailySnapshot(db.Model):
     __tablename__ = 'daily_snapshot'
-    
     id = db.Column(db.Integer, primary_key=True)
     challenge_purchase_id = db.Column(db.Integer, db.ForeignKey('challenge_purchase.id'), nullable=False, index=True)
     snapshot_date = db.Column(db.Date, nullable=False, index=True)
@@ -878,16 +863,12 @@ class DailySnapshot(db.Model):
     violated_daily_dd = db.Column(db.Boolean, default=False, index=True)
     had_manual_trades = db.Column(db.Boolean, default=False, index=True)
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
-    
     __table_args__ = (
         db.UniqueConstraint('challenge_purchase_id', 'snapshot_date', name='unique_challenge_date'),
         Index('idx_daily_challenge_date', 'challenge_purchase_id', 'snapshot_date', 'is_trading_day'),
         Index('idx_daily_trading_status', 'challenge_purchase_id', 'is_trading_day', 'snapshot_date'),
     )
-    
-    def __repr__(self):
-        return f'<DailySnapshot {self.snapshot_date} - Challenge {self.challenge_purchase_id}>'
-
+    def __repr__(self): return f'<DailySnapshot {self.snapshot_date} - Challenge {self.challenge_purchase_id}>'
 
 class Payout(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -916,13 +897,9 @@ class Payout(db.Model):
     bank_account_details = db.Column(db.Text)
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
     updated_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
-    
     user = db.relationship('User', backref='payouts_list', foreign_keys=[user_id])
     challenge_purchase = db.relationship('TradingJourney', backref='payouts_list', foreign_keys=[challenge_purchase_id])
-    
-    def __repr__(self):
-        return f'<Payout {self.id} - ${self.amount}>'
-
+    def __repr__(self): return f'<Payout {self.id} - ${self.amount}>'
 
 class PayoutAuditLog(db.Model):
     __tablename__ = 'payout_audit_log'
@@ -933,13 +910,9 @@ class PayoutAuditLog(db.Model):
     admin_username = db.Column(db.String(120), default='')
     notes = db.Column(db.Text, default='')
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
-
     payout = db.relationship('Payout', backref=db.backref('audit_logs', cascade='all, delete-orphan', lazy=True))
     admin = db.relationship('User', foreign_keys=[admin_user_id])
-
-    def __repr__(self):
-        return f'<PayoutAuditLog {self.action} - Payout {self.payout_id}>'
-
+    def __repr__(self): return f'<PayoutAuditLog {self.action} - Payout {self.payout_id}>'
 
 class Payment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -981,14 +954,10 @@ class Payment(db.Model):
     rule_version_snapshot = db.Column(db.String(50), nullable=True)
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
     updated_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
-    
     user = db.relationship('User', backref='payments_list', foreign_keys=[user_id])
     challenge_purchase = db.relationship('TradingJourney', backref='payment_obj', foreign_keys=[challenge_purchase_id])
     coupon = db.relationship('Coupon', backref='payments_list')
-
-    def __repr__(self):
-        return f'<Payment {self.payment_id} - {self.status}>'
-
+    def __repr__(self): return f'<Payment {self.payment_id} - {self.status}>'
 
 class WebhookLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -1001,14 +970,10 @@ class WebhookLog(db.Model):
     error_message = db.Column(db.Text)
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
     processed_at = db.Column(db.DateTime(timezone=True), nullable=True)
-    
-    def __repr__(self):
-        return f'<WebhookLog {self.event_type} - {self.order_id} - {self.status}>'
-
+    def __repr__(self): return f'<WebhookLog {self.event_type} - {self.order_id} - {self.status}>'
 
 class RulebookSection(db.Model):
     __tablename__ = 'rulebook_section'
-
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200), nullable=False, index=True)
     content = db.Column(db.Text, nullable=False)
@@ -1017,16 +982,11 @@ class RulebookSection(db.Model):
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
     created_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
-
     creator = db.relationship('User', foreign_keys=[created_by])
-
-    def __repr__(self):
-        return f'<RulebookSection {self.display_order} - {self.title}>'
-
+    def __repr__(self): return f'<RulebookSection {self.display_order} - {self.title}>'
 
 class PurchaseRuleAcceptance(db.Model):
     __tablename__ = 'purchase_rule_acceptance'
-
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
     challenge_template_id = db.Column(db.Integer, db.ForeignKey('challenge_template.id'), nullable=False, index=True)
@@ -1037,15 +997,11 @@ class PurchaseRuleAcceptance(db.Model):
     user_agent = db.Column(db.Text, nullable=True)
     challenge_version_snapshot = db.Column(db.JSON, nullable=False)
     rule_version_snapshot = db.Column(db.String(50), nullable=False, default='rulebook-v1')
-
     user = db.relationship('User', foreign_keys=[user_id])
     challenge_template = db.relationship('ChallengeTemplate', foreign_keys=[challenge_template_id])
     challenge_purchase = db.relationship('TradingJourney', foreign_keys=[challenge_purchase_id], backref=db.backref('rule_acceptances', lazy=True))
     payment = db.relationship('Payment', foreign_keys=[payment_id], backref=db.backref('rule_acceptance', uselist=False))
-
-    def __repr__(self):
-        return f'<PurchaseRuleAcceptance user={self.user_id} challenge={self.challenge_template_id}>'
-
+    def __repr__(self): return f'<PurchaseRuleAcceptance user={self.user_id} challenge={self.challenge_template_id}>'
 
 class AdminLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -1057,10 +1013,7 @@ class AdminLog(db.Model):
     ip_address = db.Column(db.String(50))
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
     admin = db.relationship('User', backref='admin_logs', lazy=True)
-    
-    def __repr__(self):
-        return f'<AdminLog {self.action} by {self.admin_id}>'
-
+    def __repr__(self): return f'<AdminLog {self.action} by {self.admin_id}>'
 
 class AdminAuditLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -1073,14 +1026,10 @@ class AdminAuditLog(db.Model):
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
     admin = db.relationship('User', foreign_keys=[admin_id], backref='audit_logs', lazy=True)
     payment = db.relationship('Payment', backref='audit_logs', lazy=True)
-    
-    def __repr__(self):
-        return f'<AdminAuditLog {self.action} by {self.admin_id}>'
-
+    def __repr__(self): return f'<AdminAuditLog {self.action} by {self.admin_id}>'
 
 class SupportTicket(db.Model):
     __tablename__ = 'support_ticket'
-    
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
     subject = db.Column(db.String(200), nullable=False)
@@ -1100,14 +1049,10 @@ class SupportTicket(db.Model):
     user = db.relationship('User', foreign_keys=[user_id], backref='support_tickets', lazy=True)
     assignee = db.relationship('User', foreign_keys=[assigned_to], lazy=True)
     messages = db.relationship('TicketMessage', backref='ticket', cascade='all, delete-orphan', lazy='dynamic')
-    
-    def __repr__(self):
-        return f'<SupportTicket {self.ticket_number} - {self.subject}>'
-
+    def __repr__(self): return f'<SupportTicket {self.ticket_number} - {self.subject}>'
 
 class TicketMessage(db.Model):
     __tablename__ = 'ticket_message'
-    
     id = db.Column(db.Integer, primary_key=True)
     ticket_id = db.Column(db.Integer, db.ForeignKey('support_ticket.id'), nullable=False, index=True)
     sender_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
@@ -1116,10 +1061,7 @@ class TicketMessage(db.Model):
     attachment_url = db.Column(db.String(500))
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     sender = db.relationship('User', foreign_keys=[sender_id], lazy=True)
-
-    def __repr__(self):
-        return f'<TicketMessage {self.id} for Ticket {self.ticket_id}>'
-
+    def __repr__(self): return f'<TicketMessage {self.id} for Ticket {self.ticket_id}>'
 
 class FAQ(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -1131,10 +1073,7 @@ class FAQ(db.Model):
     helpful_no = db.Column(db.Integer, default=0)
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
-
-    def __repr__(self):
-        return f'<FAQ {self.question[:30]}>'
-
+    def __repr__(self): return f'<FAQ {self.question[:30]}>'
 
 class Trade(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -1155,10 +1094,7 @@ class Trade(db.Model):
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
     updated_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     challenge_purchase = db.relationship('TradingJourney', backref='trade_list', lazy=True)
-    
-    def __repr__(self):
-        return f'<Trade {self.trade_id} - {self.symbol}>'
-
+    def __repr__(self): return f'<Trade {self.trade_id} - {self.symbol}>'
 
 class Notification(db.Model):
     __tablename__ = 'notification'
@@ -1175,17 +1111,12 @@ class Notification(db.Model):
     target_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True, index=True)
     created_by_admin_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     is_deleted = db.Column(db.Boolean, default=False, index=True)
-
     target_user = db.relationship('User', foreign_keys=[target_user_id], backref='targeted_notifications', lazy=True)
     admin = db.relationship('User', foreign_keys=[created_by_admin_id], backref='created_notifications', lazy=True)
-    
-    def __repr__(self):
-        return f'<Notification {self.id} - {self.title}>'
-
+    def __repr__(self): return f'<Notification {self.id} - {self.title}>'
 
 class NotificationTemplate(db.Model):
     __tablename__ = 'notification_template'
-    
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     title = db.Column(db.String(200), nullable=False)
@@ -1196,27 +1127,11 @@ class NotificationTemplate(db.Model):
     created_by_admin_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
-    
     created_by = db.relationship('User', foreign_keys=[created_by_admin_id], backref='created_templates', lazy=True)
-    
-    def increment_use_count(self):
-        self.use_count += 1
-    
+    def increment_use_count(self): self.use_count += 1
     def to_dict(self):
-        return {
-            'id': self.id,
-            'name': self.name,
-            'title': self.title,
-            'message': self.message,
-            'category': self.category,
-            'is_active': self.is_active,
-            'use_count': self.use_count,
-            'created_at': self.created_at.strftime('%Y-%m-%d %H:%M') if self.created_at else None
-        }
-    
-    def __repr__(self):
-        return f'<NotificationTemplate {self.name} - {self.category}>'
-
+        return {'id': self.id, 'name': self.name, 'title': self.title, 'message': self.message, 'category': self.category, 'is_active': self.is_active, 'use_count': self.use_count, 'created_at': self.created_at.strftime('%Y-%m-%d %H:%M') if self.created_at else None}
+    def __repr__(self): return f'<NotificationTemplate {self.name} - {self.category}>'
 
 class UserNotification(db.Model):
     __tablename__ = 'user_notification'
@@ -1225,17 +1140,12 @@ class UserNotification(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
     is_read = db.Column(db.Boolean, default=False, index=True)
     read_at = db.Column(db.DateTime(timezone=True), nullable=True)
-
     notification = db.relationship('Notification', backref=db.backref('user_statuses', cascade='all, delete-orphan', lazy=True))
     user = db.relationship('User', backref=db.backref('read_statuses', cascade='all, delete-orphan', lazy=True))
-    
-    def __repr__(self):
-        return f'<UserNotification {self.id} - User {self.user_id} - Read: {self.is_read}>'
-
+    def __repr__(self): return f'<UserNotification {self.id} - User {self.user_id} - Read: {self.is_read}>'
 
 class WaitlistLead(db.Model):
     __tablename__ = 'waitlist_leads'
-    
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(100), nullable=False, index=True)
@@ -1248,24 +1158,17 @@ class WaitlistLead(db.Model):
     early_access = db.Column(db.Boolean, default=False)
     status = db.Column(db.String(20), default='new', index=True)
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
-
-    def __repr__(self):
-        return f'<WaitlistLead {self.email}>'
-
+    def __repr__(self): return f'<WaitlistLead {self.email}>'
 
 class BlogPost(db.Model):
     __tablename__ = 'blog_posts'
-    
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(255), nullable=False)
     slug = db.Column(db.String(255), unique=True, nullable=False, index=True)
     content = db.Column(db.Text, nullable=False)
     meta_description = db.Column(db.String(255), nullable=False)
     date_published = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
-
-    def __repr__(self):
-        return f'<BlogPost {self.title}>'
-
+    def __repr__(self): return f'<BlogPost {self.title}>'
 
 class Coupon(db.Model):
     __tablename__ = 'coupon'
@@ -1283,60 +1186,37 @@ class Coupon(db.Model):
     created_by_admin_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     expires_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
-
     influencer = db.relationship('User', foreign_keys=[influencer_id], backref='influencer_coupons')
     admin = db.relationship('User', foreign_keys=[created_by_admin_id])
-
     @property
     def is_expired(self):
-        if not self.expires_at:
-            return False
+        if not self.expires_at: return False
         expires_at = self.expires_at
         if expires_at.tzinfo is None:
             from datetime import timezone
             expires_at = expires_at.replace(tzinfo=timezone.utc)
         from datetime import datetime, timezone
         return expires_at < datetime.now(timezone.utc)
-
     def validate_for_user_and_price(self, user_id, challenge_price):
         from datetime import datetime, timezone
-        
-        if not self.is_active or self.is_deleted:
-            return False, "Coupon is inactive or deleted", 0.0, challenge_price
-            
+        if not self.is_active or self.is_deleted: return False, "Coupon is inactive or deleted", 0.0, challenge_price
         if self.expires_at:
             expires_at = self.expires_at
-            if expires_at.tzinfo is None:
-                expires_at = expires_at.replace(tzinfo=timezone.utc)
-            if expires_at < datetime.now(timezone.utc):
-                return False, "Coupon has expired", 0.0, challenge_price
-                
-        if self.max_uses is not None and self.used_count >= self.max_uses:
-            return False, "Coupon usage limit reached", 0.0, challenge_price
-            
+            if expires_at.tzinfo is None: expires_at = expires_at.replace(tzinfo=timezone.utc)
+            if expires_at < datetime.now(timezone.utc): return False, "Coupon has expired", 0.0, challenge_price
+        if self.max_uses is not None and self.used_count >= self.max_uses: return False, "Coupon usage limit reached", 0.0, challenge_price
         usage_count = CouponUsage.query.filter_by(coupon_id=self.id, user_id=user_id).count()
-        if usage_count > 0:
-            return False, "You have already used this coupon code", 0.0, challenge_price
-            
+        if usage_count > 0: return False, "You have already used this coupon code", 0.0, challenge_price
         if self.coupon_type == 'specific':
             assignment = CouponAssignment.query.filter_by(coupon_id=self.id, user_id=user_id).first()
-            if not assignment:
-                return False, "This coupon is not assigned to your account", 0.0, challenge_price
-            if assignment.is_used:
-                return False, "You have already used this assigned coupon code", 0.0, challenge_price
-                
-        if self.discount_type == 'percent':
-            discount_amount = round(challenge_price * (self.discount_value / 100.0), 2)
-        elif self.discount_type == 'fixed':
-            discount_amount = float(self.discount_value)
-        else:
-            discount_amount = 0.0
-            
+            if not assignment: return False, "This coupon is not assigned to your account", 0.0, challenge_price
+            if assignment.is_used: return False, "You have already used this assigned coupon code", 0.0, challenge_price
+        if self.discount_type == 'percent': discount_amount = round(challenge_price * (self.discount_value / 100.0), 2)
+        elif self.discount_type == 'fixed': discount_amount = float(self.discount_value)
+        else: discount_amount = 0.0
         final_price = max(1.0, challenge_price - discount_amount)
         discount_amount = round(challenge_price - final_price, 2)
-        
         return True, "Coupon applied successfully", discount_amount, final_price
-
 
 class CouponUsage(db.Model):
     __tablename__ = 'coupon_usage'
@@ -1348,11 +1228,9 @@ class CouponUsage(db.Model):
     discount_amount = db.Column(db.Float, nullable=False)
     final_price = db.Column(db.Float, nullable=False)
     used_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
-
     coupon = db.relationship('Coupon', backref=db.backref('usages', lazy=True))
     user = db.relationship('User', backref=db.backref('coupon_usages', lazy=True))
     challenge_purchase = db.relationship('TradingJourney', backref='coupon_usage_obj')
-
 
 class CouponAssignment(db.Model):
     __tablename__ = 'coupon_assignment'
@@ -1361,10 +1239,8 @@ class CouponAssignment(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     is_used = db.Column(db.Boolean, default=False, nullable=False)
     assigned_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
-
     coupon = db.relationship('Coupon', backref=db.backref('assignments', lazy=True))
     user = db.relationship('User', backref=db.backref('coupon_assignments', lazy=True))
-
 
 class AffiliateSettings(db.Model):
     __tablename__ = 'affiliate_settings'
@@ -1377,7 +1253,6 @@ class AffiliateSettings(db.Model):
     coupon_conversion_enabled = db.Column(db.Boolean, default=False, nullable=False)
     updated_by_admin_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     updated_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
-
     @classmethod
     def get_settings(cls):
         settings = cls.query.order_by(cls.id.asc()).first()
@@ -1386,7 +1261,6 @@ class AffiliateSettings(db.Model):
             db.session.add(settings)
             db.session.flush()
         return settings
-
 
 class Wallet(db.Model):
     __tablename__ = 'wallet'
@@ -1400,9 +1274,7 @@ class Wallet(db.Model):
     frozen_reason = db.Column(db.Text, default='')
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
-
     user = db.relationship('User', backref=db.backref('wallet', uselist=False, cascade='all, delete-orphan'))
-
     @classmethod
     def get_or_create(cls, user_id):
         wallet = cls.query.filter_by(user_id=user_id).first()
@@ -1411,11 +1283,9 @@ class Wallet(db.Model):
             db.session.add(wallet)
             db.session.flush()
         return wallet
-
     @property
     def withdrawable_amount(self):
         return max(0.0, float(self.current_balance or 0) - float(self.pending_balance or 0))
-
 
 class WalletTransaction(db.Model):
     __tablename__ = 'wallet_transaction'
@@ -1431,11 +1301,9 @@ class WalletTransaction(db.Model):
     notes = db.Column(db.Text, default='')
     admin_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True, index=True)
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
-
     wallet = db.relationship('Wallet', backref=db.backref('transactions', lazy=True, cascade='all, delete-orphan'))
     user = db.relationship('User', foreign_keys=[user_id], backref=db.backref('wallet_transactions', lazy=True))
     admin = db.relationship('User', foreign_keys=[admin_id])
-
 
 class ReferralReward(db.Model):
     __tablename__ = 'referral_reward'
@@ -1452,12 +1320,10 @@ class ReferralReward(db.Model):
     violation_id = db.Column(db.Integer, db.ForeignKey('affiliate_violation.id'), nullable=True, index=True)
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
     approved_at = db.Column(db.DateTime(timezone=True), nullable=True)
-
     referrer = db.relationship('User', foreign_keys=[referrer_id], backref=db.backref('referral_rewards', lazy=True))
     buyer = db.relationship('User', foreign_keys=[buyer_id], backref=db.backref('referral_purchases', lazy=True))
     payment = db.relationship('Payment', backref=db.backref('referral_reward', uselist=False))
     challenge_purchase = db.relationship('TradingJourney')
-
 
 class WithdrawalRequest(db.Model):
     __tablename__ = 'withdrawal_request'
@@ -1473,11 +1339,9 @@ class WithdrawalRequest(db.Model):
     reviewed_at = db.Column(db.DateTime(timezone=True), nullable=True)
     paid_at = db.Column(db.DateTime(timezone=True), nullable=True)
     reviewed_by_admin_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True, index=True)
-
     user = db.relationship('User', foreign_keys=[user_id], backref=db.backref('withdrawal_requests', lazy=True))
     wallet = db.relationship('Wallet', backref=db.backref('withdrawal_requests', lazy=True))
     admin = db.relationship('User', foreign_keys=[reviewed_by_admin_id])
-
 
 class Survey(db.Model):
     __tablename__ = 'survey'
@@ -1490,10 +1354,8 @@ class Survey(db.Model):
     created_by_admin_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
     updated_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
-
     questions = db.relationship('SurveyQuestion', backref='survey', lazy=True, cascade='all, delete-orphan')
     assignments = db.relationship('SurveyAssignment', backref='survey', lazy=True, cascade='all, delete-orphan')
-
 
 class SurveyQuestion(db.Model):
     __tablename__ = 'survey_question'
@@ -1501,7 +1363,6 @@ class SurveyQuestion(db.Model):
     survey_id = db.Column(db.Integer, db.ForeignKey('survey.id'), nullable=False, index=True)
     question_text = db.Column(db.Text, nullable=False)
     display_order = db.Column(db.Integer, default=0, nullable=False)
-
 
 class SurveyAssignment(db.Model):
     __tablename__ = 'survey_assignment'
@@ -1513,10 +1374,8 @@ class SurveyAssignment(db.Model):
     responded_at = db.Column(db.DateTime(timezone=True), nullable=True)
     rewarded_at = db.Column(db.DateTime(timezone=True), nullable=True)
     reward_transaction_id = db.Column(db.Integer, db.ForeignKey('wallet_transaction.id'), nullable=True)
-
     user = db.relationship('User', backref=db.backref('survey_assignments', lazy=True))
     reward_transaction = db.relationship('WalletTransaction')
-
 
 class SurveyResponse(db.Model):
     __tablename__ = 'survey_response'
@@ -1525,10 +1384,8 @@ class SurveyResponse(db.Model):
     question_id = db.Column(db.Integer, db.ForeignKey('survey_question.id'), nullable=True, index=True)
     response_text = db.Column(db.Text, default='')
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
-
     assignment = db.relationship('SurveyAssignment', backref=db.backref('responses', lazy=True, cascade='all, delete-orphan'))
     question = db.relationship('SurveyQuestion')
-
 
 class AffiliateViolation(db.Model):
     __tablename__ = 'affiliate_violation'
@@ -1544,20 +1401,12 @@ class AffiliateViolation(db.Model):
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
     resolved_at = db.Column(db.DateTime(timezone=True), nullable=True)
     resolved_by_admin_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
-
     referrer = db.relationship('User', foreign_keys=[referrer_id], backref=db.backref('affiliate_violations_as_referrer', lazy=True))
     buyer = db.relationship('User', foreign_keys=[buyer_id], backref=db.backref('affiliate_violations_as_buyer', lazy=True))
     resolver = db.relationship('User', foreign_keys=[resolved_by_admin_id])
 
-
-# ========================================================================
-# LEAD CRM MODELS (NEW)
-# ========================================================================
-
 class LeadStatus(db.Model):
-    """Lead statuses for CRM - both default and custom"""
     __tablename__ = 'lead_statuses'
-    
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(50), nullable=False, index=True)
     color = db.Column(db.String(7), default='#6B7280')
@@ -1565,10 +1414,7 @@ class LeadStatus(db.Model):
     display_order = db.Column(db.Integer, default=0)
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
-    
-    # Relationship with User model
     users = db.relationship('User', backref='lead_status', lazy='dynamic', foreign_keys='User.lead_status_id')
-    
     DEFAULT_STATUSES = [
         {'name': 'New Lead', 'color': '#3B82F6', 'order': 1},
         {'name': 'Call Follow-up', 'color': '#F59E0B', 'order': 2},
@@ -1580,40 +1426,20 @@ class LeadStatus(db.Model):
         {'name': 'KYC Verified', 'color': '#0891B2', 'order': 8},
         {'name': 'Dead Lead', 'color': '#6B7280', 'order': 9},
     ]
-    
     @classmethod
     def create_defaults(cls):
-        """Create default lead statuses if they don't exist"""
         for status_data in cls.DEFAULT_STATUSES:
             existing = cls.query.filter_by(name=status_data['name']).first()
             if not existing:
-                status = cls(
-                    name=status_data['name'],
-                    color=status_data['color'],
-                    is_default=True,
-                    display_order=status_data['order']
-                )
+                status = cls(name=status_data['name'], color=status_data['color'], is_default=True, display_order=status_data['order'])
                 db.session.add(status)
         db.session.commit()
-    
     def to_dict(self):
-        return {
-            'id': self.id,
-            'name': self.name,
-            'color': self.color,
-            'is_default': self.is_default,
-            'display_order': self.display_order,
-            'lead_count': self.users.count()
-        }
-    
-    def __repr__(self):
-        return f'<LeadStatus {self.name}>'
-
+        return {'id': self.id, 'name': self.name, 'color': self.color, 'is_default': self.is_default, 'display_order': self.display_order, 'lead_count': self.users.count()}
+    def __repr__(self): return f'<LeadStatus {self.name}>'
 
 class LeadNote(db.Model):
-    """Notes attached to leads (users)"""
     __tablename__ = 'lead_notes'
-    
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
     admin_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
@@ -1621,59 +1447,24 @@ class LeadNote(db.Model):
     is_edited = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
     updated_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
-    
     admin = db.relationship('User', foreign_keys=[admin_id], backref='admin_lead_notes')
-    
     def to_dict(self):
-        return {
-            'id': self.id,
-            'user_id': self.user_id,
-            'admin_id': self.admin_id,
-            'content': self.content,
-            'is_edited': self.is_edited,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
-            'admin_name': self.admin.get_full_name() if self.admin else 'Unknown'
-        }
-    
-    def __repr__(self):
-        return f'<LeadNote {self.id} - User {self.user_id}>'
-
+        return {'id': self.id, 'user_id': self.user_id, 'admin_id': self.admin_id, 'content': self.content, 'is_edited': self.is_edited, 'created_at': self.created_at.isoformat() if self.created_at else None, 'updated_at': self.updated_at.isoformat() if self.updated_at else None, 'admin_name': self.admin.get_full_name() if self.admin else 'Unknown'}
+    def __repr__(self): return f'<LeadNote {self.id} - User {self.user_id}>'
 
 class FollowUp(db.Model):
-    """Scheduled follow-ups for leads"""
     __tablename__ = 'follow_ups'
-    
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
     admin_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     followup_date = db.Column(db.DateTime(timezone=True), nullable=False, index=True)
-    followup_type = db.Column(db.String(20), nullable=False, default='Call')  # Call, WhatsApp, Email
+    followup_type = db.Column(db.String(20), nullable=False, default='Call')
     notes = db.Column(db.Text, default='')
     is_completed = db.Column(db.Boolean, default=False, index=True)
     completed_at = db.Column(db.DateTime(timezone=True), nullable=True)
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
-    
     admin = db.relationship('User', foreign_keys=[admin_id], backref='admin_follow_ups')
-    
-    __table_args__ = (
-        Index('idx_followup_user_date', 'user_id', 'followup_date'),
-        Index('idx_followup_completed', 'is_completed', 'followup_date'),
-    )
-    
+    __table_args__ = (Index('idx_followup_user_date', 'user_id', 'followup_date'), Index('idx_followup_completed', 'is_completed', 'followup_date'))
     def to_dict(self):
-        return {
-            'id': self.id,
-            'user_id': self.user_id,
-            'admin_id': self.admin_id,
-            'followup_date': self.followup_date.isoformat() if self.followup_date else None,
-            'followup_type': self.followup_type,
-            'notes': self.notes,
-            'is_completed': self.is_completed,
-            'completed_at': self.completed_at.isoformat() if self.completed_at else None,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'admin_name': self.admin.get_full_name() if self.admin else 'Unknown'
-        }
-    
-    def __repr__(self):
-        return f'<FollowUp {self.id} - User {self.user_id} - {self.followup_type}>'
+        return {'id': self.id, 'user_id': self.user_id, 'admin_id': self.admin_id, 'followup_date': self.followup_date.isoformat() if self.followup_date else None, 'followup_type': self.followup_type, 'notes': self.notes, 'is_completed': self.is_completed, 'completed_at': self.completed_at.isoformat() if self.completed_at else None, 'created_at': self.created_at.isoformat() if self.created_at else None, 'admin_name': self.admin.get_full_name() if self.admin else 'Unknown'}
+    def __repr__(self): return f'<FollowUp {self.id} - User {self.user_id} - {self.followup_type}>'

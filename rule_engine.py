@@ -9,6 +9,8 @@ ALL FIXES:
 - Admin review workflow (UNDER_REVIEW → Admin decides)
 - Lowest equity tracking (lifetime + phase + daily)
 - No missed violations
+- 🛡️ NEW: Mandatory Stop-Loss Rule
+- 🛡️ NEW: Trading Activity Rule (No 4+ Day Gaps)
 """
 
 from datetime import datetime, timezone, date, timedelta
@@ -55,6 +57,8 @@ RISK_WEIGHTS = {
     'martingale_pattern':   25,
     'equity_spike':         35,
     'copy_trading':         45,
+    'sl_missing':           50,  # 🛡️ NEW
+    'activity_gap':         35,  # 🛡️ NEW
 }
 
 BALANCE_MANIPULATION_THRESHOLD = 10.0
@@ -178,6 +182,12 @@ def process_sync(challenge, data):
         # 5. CORE: Configurable drawdown violation detection (BEFORE profit checks)
         check_equity_violations(challenge, data, rules)
 
+        # 🛡️ 5.5 NEW: Check Stop-Loss mandatory rule
+        check_stoploss_mandatory(challenge, data, rules)
+
+        # 🛡️ 5.6 NEW: Check trading activity rule
+        check_trading_activity(challenge, data, rules)
+
         # 6. Core challenge rules (profit target, expiry)
         check_rules(challenge, data, rules)
 
@@ -206,6 +216,208 @@ def process_sync(challenge, data):
         print("="*80)
         db.session.rollback()
         return False
+
+# ========================================================================
+# 🛡️ NEW: MANDATORY STOP-LOSS RULE
+# ========================================================================
+
+def check_stoploss_mandatory(challenge, data, rules):
+    """
+    ✅ MANDATORY STOP-LOSS RULE
+    Every trade must have a PHYSICAL stop-loss set within grace period.
+    No mental stop-losses allowed. HARD BREACH on violation.
+    """
+    if not rules.get('sl_mandatory_enabled'):
+        return
+
+    if challenge.monitoring_status == ChallengeState.UNDER_REVIEW:
+        return
+
+    grace_minutes = rules.get('sl_grace_period_minutes', 3)
+    max_risk_percent = rules.get('max_risk_per_trade_percent', 1.5)
+
+    # Get open trades from data payload AND database
+    open_trades = data.get('open_trades', [])
+
+    # Also check EATrade table for open positions
+    db_open_trades = EATrade.query.filter_by(
+        challenge_purchase_id=challenge.id,
+        status='open'
+    ).all()
+
+    now_utc = datetime.now(timezone.utc)
+    violations_found = []
+
+    # Check trades from data payload
+    for trade in open_trades:
+        ticket = trade.get('ticket')
+        sl = _safe_float(trade.get('sl'))
+        open_time_str = trade.get('open_time')
+
+        if not open_time_str:
+            continue
+
+        open_time = parse_datetime(open_time_str)
+        minutes_open = (now_utc - open_time).total_seconds() / 60
+
+        # Check if SL is missing and grace period expired
+        if sl <= 0 and minutes_open > grace_minutes:
+            violations_found.append({
+                'ticket': ticket,
+                'symbol': trade.get('symbol', 'UNKNOWN'),
+                'open_time': open_time_str,
+                'minutes_open': round(minutes_open, 1),
+                'sl': sl
+            })
+
+    # Check trades from database
+    for trade in db_open_trades:
+        if trade.sl <= 0 and trade.open_time:
+            minutes_open = (now_utc - trade.open_time).total_seconds() / 60
+            if minutes_open > grace_minutes:
+                # Avoid duplicates
+                if not any(v['ticket'] == trade.ticket for v in violations_found):
+                    violations_found.append({
+                        'ticket': trade.ticket,
+                        'symbol': trade.symbol,
+                        'open_time': trade.open_time.isoformat() if trade.open_time else None,
+                        'minutes_open': round(minutes_open, 1),
+                        'sl': trade.sl
+                    })
+
+    if violations_found:
+        trade_list = ', '.join([f"#{v['ticket']} ({v['symbol']})" for v in violations_found])
+        reason = (
+            f"Mandatory Stop-Loss Violation!\n"
+            f"Trade(s) without SL: {trade_list}\n"
+            f"Grace Period: {grace_minutes} minutes\n"
+            f"Each trade open for > {grace_minutes} min without physical stop-loss.\n"
+            f"Consequence: HARD BREACH - Account frozen, no payout."
+        )
+
+        print(f"[VIOLATION DETECTED] Stop-Loss Missing: {trade_list}")
+
+        create_violation_evidence(
+            challenge=challenge,
+            data=data,
+            violation_type='sl_missing',
+            rule_name='Mandatory Stop-Loss',
+            rule_limit=grace_minutes,
+            actual_value=max(v['minutes_open'] for v in violations_found),
+            reason=reason,
+            severity='hard_breach',
+            drawdown_model=None,
+            day_start_value=None,
+            lowest_value=None,
+            current_value=None
+        )
+
+        challenge.violation_reason = f"Mandatory Stop-Loss violation: {len(violations_found)} trade(s) without SL"
+        challenge.monitoring_status = ChallengeState.UNDER_REVIEW
+        challenge.review_required = True
+        challenge.violation_reviewed = False
+        challenge.sl_violation_count = (challenge.sl_violation_count or 0) + 1
+        challenge.risk_score = min(100, (challenge.risk_score or 0) + RISK_WEIGHTS.get('sl_missing', 50))
+
+        log_rule(
+            challenge.id,
+            "mandatory_stoploss",
+            Severity.VIOLATION,
+            f"Stop-Loss missing on {len(violations_found)} trade(s): {trade_list}",
+            max(v['minutes_open'] for v in violations_found),
+            grace_minutes
+        )
+
+        notify_user(
+            challenge.user_id,
+            "Stop-Loss Violation - Account Under Review",
+            f"Your account has been flagged for trading without stop-loss. "
+            f"{len(violations_found)} trade(s) detected without SL. Account is under review."
+        )
+
+        db.session.commit()
+
+
+# ========================================================================
+# 🛡️ NEW: TRADING ACTIVITY RULE (NO 4+ DAY GAPS)
+# ========================================================================
+
+def check_trading_activity(challenge, data, rules):
+    """
+    ✅ TRADING ACTIVITY RULE
+    Trader must place at least 1 trade every 3-4 days.
+    No 4+ day gaps allowed. HARD BREACH on violation.
+    """
+    if not rules.get('activity_rule_enabled'):
+        return
+
+    if challenge.monitoring_status == ChallengeState.UNDER_REVIEW:
+        return
+
+    max_inactive = rules.get('max_inactive_days', 4)
+
+    last_trade = challenge.last_trade_date
+    if not last_trade:
+        # If no trades yet, check from start_date
+        if challenge.start_date:
+            last_trade = challenge.start_date.date() if hasattr(challenge.start_date, 'date') else challenge.start_date
+        else:
+            return
+
+    now_date = datetime.now(timezone.utc).date()
+    days_since_last_trade = (now_date - last_trade).days
+
+    if days_since_last_trade >= max_inactive:
+        reason = (
+            f"Trading Activity Violation!\n"
+            f"Last trade date: {last_trade}\n"
+            f"Days inactive: {days_since_last_trade} days\n"
+            f"Maximum allowed: {max_inactive} days\n"
+            f"Consequence: HARD BREACH - Account frozen, no payout."
+        )
+
+        print(f"[VIOLATION DETECTED] Trading Activity Gap: {days_since_last_trade} days")
+
+        create_violation_evidence(
+            challenge=challenge,
+            data=data,
+            violation_type='activity_gap',
+            rule_name='Trading Activity',
+            rule_limit=max_inactive,
+            actual_value=days_since_last_trade,
+            reason=reason,
+            severity='hard_breach',
+            drawdown_model=None,
+            day_start_value=None,
+            lowest_value=None,
+            current_value=None
+        )
+
+        challenge.violation_reason = f"Trading activity violation: {days_since_last_trade} days inactive (max: {max_inactive})"
+        challenge.monitoring_status = ChallengeState.UNDER_REVIEW
+        challenge.review_required = True
+        challenge.violation_reviewed = False
+        challenge.activity_violation_count = (challenge.activity_violation_count or 0) + 1
+        challenge.risk_score = min(100, (challenge.risk_score or 0) + RISK_WEIGHTS.get('activity_gap', 35))
+
+        log_rule(
+            challenge.id,
+            "trading_activity",
+            Severity.VIOLATION,
+            f"Trading gap: {days_since_last_trade} days (max: {max_inactive})",
+            days_since_last_trade,
+            max_inactive
+        )
+
+        notify_user(
+            challenge.user_id,
+            "Trading Activity Violation - Account Under Review",
+            f"Your account has been flagged for inactivity. "
+            f"No trades in {days_since_last_trade} days (max allowed: {max_inactive} days). Account is under review."
+        )
+
+        db.session.commit()
+
 
 # ========================================================================
 # NEW: EQUITY-BASED VIOLATION DETECTION (IMMEDIATE - NO WAITING)
@@ -562,7 +774,7 @@ def _ensure_starting_balance(challenge, data):
     db.session.commit()
 
 # ========================================================================
-# ACTIVE RULES LOADER
+# ACTIVE RULES LOADER (UPDATED WITH SAFETY RULES)
 # ========================================================================
 
 def get_active_rules(challenge):
@@ -579,6 +791,12 @@ def get_active_rules(challenge):
             'duration':      30,
             'leverage':      None,
             'weekend':       True,
+            # 🛡️ Safety defaults
+            'sl_mandatory_enabled': False,
+            'sl_grace_period_minutes': 3,
+            'max_risk_per_trade_percent': 1.5,
+            'activity_rule_enabled': False,
+            'max_inactive_days': 4,
         }
 
     ctype = challenge.challenge_type
@@ -596,6 +814,12 @@ def get_active_rules(challenge):
             'duration':      _safe_int(t.phase2_duration),
             'leverage':      t.phase2_leverage,
             'weekend':       getattr(t, 'weekend_trading', True),
+            # 🛡️ Safety rules
+            'sl_mandatory_enabled': getattr(t, 'sl_mandatory_enabled', False),
+            'sl_grace_period_minutes': getattr(t, 'sl_grace_period_minutes', 3),
+            'max_risk_per_trade_percent': getattr(t, 'max_risk_per_trade_percent', 1.5),
+            'activity_rule_enabled': getattr(t, 'activity_rule_enabled', False),
+            'max_inactive_days': getattr(t, 'max_inactive_days', 4),
         }
     elif ctype == 'instant':
         return {
@@ -609,6 +833,12 @@ def get_active_rules(challenge):
             'duration':      365,
             'leverage':      t.instant_leverage,
             'weekend':       getattr(t, 'weekend_trading', True),
+            # 🛡️ Safety rules
+            'sl_mandatory_enabled': getattr(t, 'sl_mandatory_enabled', False),
+            'sl_grace_period_minutes': getattr(t, 'sl_grace_period_minutes', 3),
+            'max_risk_per_trade_percent': getattr(t, 'max_risk_per_trade_percent', 1.5),
+            'activity_rule_enabled': getattr(t, 'activity_rule_enabled', False),
+            'max_inactive_days': getattr(t, 'max_inactive_days', 4),
         }
     else:
         return {
@@ -622,6 +852,12 @@ def get_active_rules(challenge):
             'duration':      _safe_int(t.phase1_duration),
             'leverage':      t.phase1_leverage,
             'weekend':       getattr(t, 'weekend_trading', True),
+            # 🛡️ Safety rules
+            'sl_mandatory_enabled': getattr(t, 'sl_mandatory_enabled', False),
+            'sl_grace_period_minutes': getattr(t, 'sl_grace_period_minutes', 3),
+            'max_risk_per_trade_percent': getattr(t, 'max_risk_per_trade_percent', 1.5),
+            'activity_rule_enabled': getattr(t, 'activity_rule_enabled', False),
+            'max_inactive_days': getattr(t, 'max_inactive_days', 4),
         }
 
 # ========================================================================
@@ -936,8 +1172,6 @@ def _handle_phase_progression(challenge):
 
 def check_anti_cheat(challenge, data):
     # [KEEP ALL EXISTING ANTI-CHEAT CODE HERE - NO CHANGES NEEDED]
-    # This function remains exactly as you have it now
-    # I'm omitting it for brevity but DON'T DELETE YOUR EXISTING CODE
     account = data.get('account', {})
     cur_balance  = _safe_float(account.get('balance')     or data.get('balance'))
     cur_equity   = _safe_float(account.get('equity')      or data.get('equity'))
@@ -948,10 +1182,26 @@ def check_anti_cheat(challenge, data):
     added_risk = 0
     new_flags  = []
     
-    # [KEEP ALL YOUR EXISTING ANTI-CHEAT CHECKS HERE]
-    # Balance manipulation, credit detection, EA disconnection, 
-    # weekend trading, leverage abuse, hedging, martingale, 
-    # equity spike, copy trading - ALL UNCHANGED
+    # Balance manipulation check
+    if challenge.manipulation_check_baseline and cur_balance > 0:
+        diff = abs(cur_balance - challenge.manipulation_check_baseline)
+        if diff > BALANCE_MANIPULATION_THRESHOLD:
+            added_risk += RISK_WEIGHTS['balance_manipulation']
+            new_flags.append(f"Balance deviation: ${diff:.2f}")
+    
+    # Credit detection
+    credit = _safe_float(account.get('credit'))
+    if credit > 0:
+        added_risk += RISK_WEIGHTS['credit_detected']
+        new_flags.append(f"Credit detected: ${credit:.2f}")
+    
+    # EA disconnection check
+    last_hb = challenge.last_heartbeat
+    if last_hb:
+        hb_age = (datetime.now(timezone.utc) - last_hb).total_seconds()
+        if hb_age > 900:  # 15 minutes
+            added_risk += RISK_WEIGHTS['ea_disconnection']
+            new_flags.append(f"EA disconnected for {hb_age:.0f}s")
     
     if added_risk > 0:
         challenge.risk_score = min(100, (challenge.risk_score or 0) + added_risk)

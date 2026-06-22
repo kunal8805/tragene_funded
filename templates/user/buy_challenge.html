@@ -10,7 +10,6 @@
 <script src="https://sdk.cashfree.com/js/v3/cashfree.js"></script>
 
 <style>
-    /* Payment Method Selection */
     .payment-option {
         border: 2px solid #e5e7eb;
         border-radius: 12px;
@@ -18,33 +17,26 @@
         cursor: pointer;
         transition: all 0.3s;
     }
-
     .dark .payment-option {
         border-color: #374151;
         background-color: #1f2937;
     }
-
     .payment-option:hover {
         border-color: #3b82f6;
         background-color: #f0f9ff;
     }
-
     .dark .payment-option:hover {
         border-color: #3b82f6;
         background-color: #1e3a8a;
     }
-
     .payment-option.selected {
         border-color: #3b82f6;
         background-color: #dbeafe;
     }
-
     .dark .payment-option.selected {
         border-color: #3b82f6;
         background-color: #1e3a8a;
     }
-
-    /* Loader */
     .loader {
         border: 3px solid #f3f3f3;
         border-top: 3px solid #3b82f6;
@@ -53,76 +45,51 @@
         height: 30px;
         animation: spin 1s linear infinite;
     }
-
     @keyframes spin {
-        0% {
-            transform: rotate(0deg);
-        }
-
-        100% {
-            transform: rotate(360deg);
-        }
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
     }
-
-    /* Alert Messages */
     .alert-success {
         background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
         border: 1px solid #10b981;
         color: #065f46;
     }
-
     .dark .alert-success {
         background: linear-gradient(135deg, #064e3b 0%, #065f46 100%);
         border: 1px solid #10b981;
         color: #d1fae5;
     }
-
     .alert-error {
         background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
         border: 1px solid #ef4444;
         color: #7f1d1d;
     }
-
     .dark .alert-error {
         background: linear-gradient(135deg, #7f1d1d 0%, #991b1b 100%);
         border: 1px solid #ef4444;
         color: #fee2e2;
     }
-
     .alert-warning {
         background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
         border: 1px solid #f59e0b;
         color: #92400e;
     }
-
     .dark .alert-warning {
         background: linear-gradient(135deg, #78350f 0%, #92400e 100%);
         border: 1px solid #f59e0b;
         color: #fef3c7;
     }
-
     .floating {
         animation: floating 3s ease-in-out infinite;
     }
-
     @keyframes floating {
-
-        0%,
-        100% {
-            transform: translateY(0px);
-        }
-
-        50% {
-            transform: translateY(-5px);
-        }
+        0%, 100% { transform: translateY(0px); }
+        50% { transform: translateY(-5px); }
     }
-
-    /* Ripple effect for payment button */
     .ripple {
         position: relative;
         overflow: hidden;
     }
-
     .ripple:after {
         content: '';
         position: absolute;
@@ -136,26 +103,13 @@
         transform: scale(1, 1) translate(-50%);
         transform-origin: 50% 50%;
     }
-
     .ripple:focus:not(:active)::after {
         animation: ripple 1s ease-out;
     }
-
     @keyframes ripple {
-        0% {
-            transform: scale(0, 0);
-            opacity: 0.5;
-        }
-
-        20% {
-            transform: scale(25, 25);
-            opacity: 0.3;
-        }
-
-        100% {
-            opacity: 0;
-            transform: scale(40, 40);
-        }
+        0% { transform: scale(0, 0); opacity: 0.5; }
+        20% { transform: scale(25, 25); opacity: 0.3; }
+        100% { opacity: 0; transform: scale(40, 40); }
     }
 </style>
 {% endblock %}
@@ -199,8 +153,7 @@
                     <div class="flex items-center mt-2 space-x-4">
                         <div class="flex items-center">
                             <i class="fas fa-wallet text-blue-600 dark:text-blue-400 mr-2"></i>
-                            <span class="text-gray-700 dark:text-gray-300">${{ "{:,}".format(challenge.account_size) }}
-                                Account</span>
+                            <span class="text-gray-700 dark:text-gray-300">${{ "{:,}".format(challenge.account_size) }} Account</span>
                         </div>
                         <div class="flex items-center">
                             <i class="fas fa-trophy text-yellow-600 dark:text-yellow-400 mr-2"></i>
@@ -215,8 +168,7 @@
                 </div>
                 <div class="hidden lg:block">
                     <div class="text-4xl font-bold text-gray-900 dark:text-white">₹{{ challenge.price }}</div>
-                    <div class="text-gray-600 dark:text-gray-400 text-sm">≈ ${{ (challenge.price * 0.012)|round(2) }}
-                        USD</div>
+                    <div class="text-gray-600 dark:text-gray-400 text-sm">≈ ${{ (challenge.price * 0.012)|round(2) }} USD</div>
                 </div>
             </div>
         </div>
@@ -297,7 +249,6 @@
             {% elif challenge.challenge_type == 'two_phase' %}
             <div class="space-y-6">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 bg-gray-50 dark:bg-gray-900/50 rounded-2xl p-4 border dark:border-gray-800">
-                    <!-- Phase 1 Box -->
                     <div class="space-y-4 border-b md:border-b-0 md:border-r border-gray-200 dark:border-gray-700 pb-4 md:pb-0 md:pr-6">
                         <h4 class="font-bold text-center text-lg text-purple-600 dark:text-purple-400 border-b dark:border-gray-700 pb-2 flex items-center justify-center">
                             <i class="fas fa-arrow-circle-right mr-2"></i> PHASE 1: EVALUATION
@@ -317,7 +268,6 @@
                         <div class="flex justify-between py-1 text-sm"><span class="text-gray-600 dark:text-gray-400">Leverage</span><span class="font-semibold">{{ challenge.phase1_leverage or "1:100" }}</span></div>
                     </div>
 
-                    <!-- Phase 2 Box -->
                     <div class="space-y-4 md:pl-6">
                         <h4 class="font-bold text-center text-lg text-purple-600 dark:text-purple-400 border-b dark:border-gray-700 pb-2 flex items-center justify-center">
                             <i class="fas fa-check-circle mr-2"></i> PHASE 2: VERIFICATION
@@ -341,7 +291,7 @@
                 <div class="flex items-start px-2 py-1">
                     <div class="w-8 h-8 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg flex items-center justify-center mr-3 mt-1 text-indigo-600 dark:text-indigo-400"><i class="fas fa-percentage"></i></div>
                     <div>
-                        <h4 class="font-medium text-gray-900 dark:text-white">Profit Split Split (Funded Account)</h4>
+                        <h4 class="font-medium text-gray-900 dark:text-white">Profit Split (Funded Account)</h4>
                         <p class="text-gray-600 dark:text-gray-400">{{ challenge.user_profit_share }}% for you, {{ 100 - challenge.user_profit_share }}% for firm</p>
                         <p class="text-sm text-gray-500">Split automatically disbursed at payout cycles</p>
                     </div>
@@ -369,7 +319,6 @@
                             <h4 class="font-medium text-gray-900 dark:text-white">Maximum Overall Loss</h4>
                             <p class="text-gray-600 dark:text-gray-400">{{ instant_overall }}% (${{ "{:,.0f}".format(instant_overall_amount) }})</p>
                             <p class="text-sm text-gray-500">{{ dd_label(challenge.instant_overall_dd_type) }}</p>
-                            <p class="text-sm text-gray-500">Total overall loss limit</p>
                         </div>
                     </div>
                 </div>
@@ -397,10 +346,50 @@
             {% endif %}
         </div>
 
+        <!-- 🛡️ SAFETY RULES SECTION (NEW) -->
+        {% if challenge.sl_mandatory_enabled or challenge.activity_rule_enabled %}
+        <div class="glass-card p-6 border dark:border-dark-border" data-aos="fade-up" data-aos-delay="150">
+            <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+                <i class="fas fa-shield-alt text-amber-500 mr-2"></i>
+                Trading Safety Rules
+            </h3>
+            
+            {% if challenge.sl_mandatory_enabled %}
+            <div class="bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800 rounded-xl p-4 mb-3">
+                <div class="flex items-start">
+                    <span class="text-2xl mr-3">🛡️</span>
+                    <div class="flex-1">
+                        <h4 class="font-bold text-amber-800 dark:text-amber-300">Mandatory Stop-Loss Rule</h4>
+                        <p class="text-sm text-amber-700 dark:text-amber-400 mt-1">Every trade must have a <strong>physical stop-loss</strong> set within <strong>{{ challenge.sl_grace_period_minutes }} minutes</strong> of opening. No mental stop-losses allowed.</p>
+                        <p class="text-sm text-amber-700 dark:text-amber-400 mt-1">Max risk per trade: <strong>{{ challenge.max_risk_per_trade_percent }}%</strong> of account equity.</p>
+                        <div class="bg-red-100 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 mt-3">
+                            <p class="text-xs text-red-700 dark:text-red-400 font-semibold">⚠️ Breach: Opening position without SL = HARD BREACH → Immediate disqualification, account frozen, no payout.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            
+            {% if challenge.activity_rule_enabled %}
+            <div class="bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 rounded-xl p-4">
+                <div class="flex items-start">
+                    <span class="text-2xl mr-3">⏱️</span>
+                    <div class="flex-1">
+                        <h4 class="font-bold text-blue-800 dark:text-blue-300">Trading Activity Rule</h4>
+                        <p class="text-sm text-blue-700 dark:text-blue-400 mt-1">Trader must place at least <strong>1 trade every {{ challenge.max_inactive_days }} days</strong>. No {{ challenge.max_inactive_days }}+ day gaps allowed.</p>
+                        <div class="bg-red-100 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 mt-3">
+                            <p class="text-xs text-red-700 dark:text-red-400 font-semibold">⚠️ Breach: {{ challenge.max_inactive_days }}+ consecutive days without trading = HARD BREACH → Account frozen, no payout.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
         <!-- Quick Stats -->
         <div class="glass-card p-6 border dark:border-dark-border" data-aos="fade-up" data-aos-delay="200">
             <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Quick Stats</h3>
-
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div class="text-center p-4 bg-blue-50 dark:bg-blue-900/30 rounded-xl">
                     <div class="text-2xl font-bold text-blue-600 dark:text-blue-400 mb-1">35%</div>
@@ -425,7 +414,6 @@
     <!-- Right Column: Purchase Box (1/3 on desktop) - STICKY -->
     <div class="lg:sticky lg:top-24 h-fit">
         <div class="glass-card p-6 floating border dark:border-dark-border" data-aos="fade-left">
-            <!-- Price on mobile -->
             <div class="lg:hidden mb-6 text-center">
                 <div class="text-4xl font-bold text-gray-900 dark:text-white">₹{{ challenge.price }}</div>
                 <div class="text-gray-600 dark:text-gray-400">≈ ${{ (challenge.price * 0.012)|round(2) }} USD</div>
@@ -440,8 +428,7 @@
                 </div>
                 <div class="flex justify-between">
                     <span class="text-gray-600 dark:text-gray-400">Account Size:</span>
-                    <span class="font-medium text-gray-900 dark:text-white">${{ "{:,}".format(challenge.account_size)
-                        }}</span>
+                    <span class="font-medium text-gray-900 dark:text-white">${{ "{:,}".format(challenge.account_size) }}</span>
                 </div>
                 <div class="flex justify-between">
                     <span class="text-gray-600 dark:text-gray-400">Duration:</span>
@@ -449,8 +436,7 @@
                 </div>
                 <div class="flex justify-between">
                     <span class="text-gray-600 dark:text-gray-400">Your Profit Share:</span>
-                    <span class="font-medium text-green-600 dark:text-green-400">{{ challenge.user_profit_share
-                        }}%</span>
+                    <span class="font-medium text-green-600 dark:text-green-400">{{ challenge.user_profit_share }}%</span>
                 </div>
                 <div class="border-t dark:border-gray-700 pt-3 mt-3 space-y-2">
                     <div class="flex justify-between text-sm" id="originalPriceRow">
@@ -474,7 +460,6 @@
                     </div>
                 </div>
 
-                <!-- Coupon Input Field -->
                 <div class="mt-4 pt-3 border-t dark:border-gray-700">
                     <label for="couponCodeInput" class="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1.5 uppercase tracking-wider">Have a Coupon?</label>
                     <div class="flex gap-2">
@@ -488,11 +473,9 @@
                 </div>
             </div>
 
-            <!-- KYC Status Check -->
             <div class="mb-6">
                 {% if user.kyc_status == 'approved' %}
-                <div
-                    class="flex items-center p-3 bg-green-50 dark:bg-green-900/30 rounded-lg border border-green-200 dark:border-green-800">
+                <div class="flex items-center p-3 bg-green-50 dark:bg-green-900/30 rounded-lg border border-green-200 dark:border-green-800">
                     <i class="fas fa-check-circle text-green-600 dark:text-green-400 mr-3"></i>
                     <div>
                         <p class="font-medium text-green-800 dark:text-green-300">KYC Verified</p>
@@ -500,36 +483,30 @@
                     </div>
                 </div>
                 {% else %}
-                <div
-                    class="flex items-center p-3 bg-red-50 dark:bg-red-900/30 rounded-lg border border-red-200 dark:border-red-800">
+                <div class="flex items-center p-3 bg-red-50 dark:bg-red-900/30 rounded-lg border border-red-200 dark:border-red-800">
                     <i class="fas fa-exclamation-circle text-red-600 dark:text-red-400 mr-3"></i>
                     <div>
                         <p class="font-medium text-red-800 dark:text-red-300">KYC Not Verified</p>
                         <p class="text-sm text-red-700 dark:text-red-400">Complete KYC to purchase</p>
                     </div>
                 </div>
-                <a href="/user/kyc"
-                    class="mt-3 block text-center bg-orange-500 hover:bg-orange-600 text-white py-2 rounded-lg font-medium transition">
+                <a href="/user/kyc" class="mt-3 block text-center bg-orange-500 hover:bg-orange-600 text-white py-2 rounded-lg font-medium transition">
                     Complete KYC
                 </a>
                 {% endif %}
             </div>
 
-            <!-- Payment Method Selection -->
             {% if user.kyc_status == 'approved' %}
             <div class="mb-6">
                 <h4 class="font-medium text-gray-900 dark:text-white mb-3">Select Payment Method</h4>
-
                 <form id="paymentForm" onsubmit="handlePayment(event)">
                     <input type="hidden" name="challenge_id" id="challenge_id" value="{{ challenge.id }}">
                     <input type="hidden" name="account_size" value="{{ challenge.account_size }}">
 
                     <div class="space-y-3 mb-6">
-                        <label class="payment-option flex items-center justify-between cursor-pointer"
-                            onclick="selectPaymentMethod(event, 'card')">
+                        <label class="payment-option flex items-center justify-between cursor-pointer" onclick="selectPaymentMethod(event, 'card')">
                             <div class="flex items-center">
-                                <div
-                                    class="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center mr-3">
+                                <div class="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center mr-3">
                                     <i class="fas fa-credit-card text-blue-600 dark:text-blue-400"></i>
                                 </div>
                                 <div>
@@ -538,16 +515,12 @@
                                 </div>
                             </div>
                             <input type="radio" name="payment_method" value="card" class="hidden" required>
-                            <div
-                                class="payment-radio w-5 h-5 rounded-full border-2 border-gray-300 dark:border-gray-500">
-                            </div>
+                            <div class="payment-radio w-5 h-5 rounded-full border-2 border-gray-300 dark:border-gray-500"></div>
                         </label>
 
-                        <label class="payment-option flex items-center justify-between cursor-pointer"
-                            onclick="selectPaymentMethod(event, 'upi')">
+                        <label class="payment-option flex items-center justify-between cursor-pointer" onclick="selectPaymentMethod(event, 'upi')">
                             <div class="flex items-center">
-                                <div
-                                    class="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center mr-3">
+                                <div class="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center mr-3">
                                     <i class="fas fa-mobile-alt text-green-600 dark:text-green-400"></i>
                                 </div>
                                 <div>
@@ -556,16 +529,12 @@
                                 </div>
                             </div>
                             <input type="radio" name="payment_method" value="upi" class="hidden" required>
-                            <div
-                                class="payment-radio w-5 h-5 rounded-full border-2 border-gray-300 dark:border-gray-500">
-                            </div>
+                            <div class="payment-radio w-5 h-5 rounded-full border-2 border-gray-300 dark:border-gray-500"></div>
                         </label>
 
-                        <label class="payment-option flex items-center justify-between cursor-pointer"
-                            onclick="selectPaymentMethod(event, 'bank')">
+                        <label class="payment-option flex items-center justify-between cursor-pointer" onclick="selectPaymentMethod(event, 'bank')">
                             <div class="flex items-center">
-                                <div
-                                    class="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center mr-3">
+                                <div class="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center mr-3">
                                     <i class="fas fa-university text-purple-600 dark:text-purple-400"></i>
                                 </div>
                                 <div>
@@ -574,49 +543,35 @@
                                 </div>
                             </div>
                             <input type="radio" name="payment_method" value="bank" class="hidden" required>
-                            <div
-                                class="payment-radio w-5 h-5 rounded-full border-2 border-gray-300 dark:border-gray-500">
-                            </div>
+                            <div class="payment-radio w-5 h-5 rounded-full border-2 border-gray-300 dark:border-gray-500"></div>
                         </label>
                     </div>
 
-                    <!-- Terms & Conditions -->
                     <div class="mb-6">
                         <label class="flex items-start">
-                            <input type="checkbox" id="termsCheckbox"
-                                class="mt-1 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700 text-blue-600 focus:ring-blue-500"
-                                required>
+                            <input type="checkbox" id="termsCheckbox" class="mt-1 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700 text-blue-600 focus:ring-blue-500" required>
                             <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">
-                                I agree to the <a href="/terms" target="_blank"
-                                    class="text-blue-600 dark:text-blue-400 hover:text-blue-700">Terms & Conditions</a> and <a href="/privacy" target="_blank"
-                                    class="text-blue-600 dark:text-blue-400 hover:text-blue-700">Privacy Policy</a>
+                                I agree to the <a href="/terms" target="_blank" class="text-blue-600 dark:text-blue-400 hover:text-blue-700">Terms & Conditions</a> and <a href="/privacy" target="_blank" class="text-blue-600 dark:text-blue-400 hover:text-blue-700">Privacy Policy</a>
                             </span>
                         </label>
                         <label class="flex items-start mt-3 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
-                            <input type="checkbox" id="ruleAcknowledgement"
-                                class="mt-1 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700 text-blue-600 focus:ring-blue-500"
-                                required>
+                            <input type="checkbox" id="ruleAcknowledgement" class="mt-1 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700 text-blue-600 focus:ring-blue-500" required>
                             <span class="ml-2 text-sm text-amber-900 dark:text-amber-200">
                                 I have read, understood, and accepted all the rules, terms, conditions, objectives, drawdown limits, and policies of my challenge.
                             </span>
                         </label>
                     </div>
 
-                    <!-- Submit Button -->
                     <button type="button" onclick="initiateCashfreePayment()" id="purchaseBtn"
                         class="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white py-3 rounded-xl font-bold text-lg transition-all duration-300 ripple disabled:opacity-50 disabled:cursor-not-allowed"
                         {% if user.kyc_status !='approved' %}disabled{% endif %}>
                         <span id="btnText">Proceed to Payment</span>
                         <div id="btnLoader" class="hidden mx-auto loader"></div>
                     </button>
-
                 </form>
-
-
             </div>
             {% endif %}
 
-            <!-- Security Badges -->
             <div class="border-t dark:border-gray-700 pt-4 mt-4">
                 <div class="flex justify-center space-x-4">
                     <div class="text-center">
@@ -634,12 +589,9 @@
                 </div>
             </div>
         </div>
-
-        
     </div>
 </div>
 
-<!-- Loading Modal -->
 <div id="loadingModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
     <div class="bg-white dark:bg-gray-800 rounded-2xl p-8 text-center max-w-sm w-full mx-4 border dark:border-gray-700">
         <div class="loader mx-auto mb-4"></div>
@@ -648,41 +600,30 @@
     </div>
 </div>
 
-
 {% endblock %}
 
 {% block scripts %}
 <script>
-    // Payment method selection
     function selectPaymentMethod(event, method) {
-        // Remove selected class from all options
         document.querySelectorAll('.payment-option').forEach(option => {
             option.classList.remove('selected');
             option.querySelector('.payment-radio').style.backgroundColor = '';
             option.querySelector('.payment-radio').style.borderColor = '';
         });
-
-        // Add selected class to clicked option
         const selectedOption = event.currentTarget;
         selectedOption.classList.add('selected');
         const radio = selectedOption.querySelector('.payment-radio');
         radio.style.backgroundColor = '#3b82f6';
         radio.style.borderColor = '#3b82f6';
-
-        // Check the radio input
         selectedOption.querySelector('input[type="radio"]').checked = true;
     }
 
-    // Prevent form submission
     function handlePayment(event) {
         event.preventDefault();
         return false;
     }
 
-    // Initialize Cashfree SDK
-    const cashfree = Cashfree({
-        mode: "production" 
-    });
+    const cashfree = Cashfree({ mode: "production" });
 
     let currentPaymentSessionId = null;
     let appliedCouponCode = null;
@@ -709,33 +650,22 @@
         try {
             const response = await fetch('/user/validate-coupon', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-                body: new URLSearchParams({
-                    'coupon_code': code,
-                    'challenge_id': challengeId
-                })
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({ 'coupon_code': code, 'challenge_id': challengeId })
             });
-
             const data = await response.json();
 
             if (data.success) {
                 appliedCouponCode = code;
-                
                 msgDiv.textContent = `Coupon applied: ${data.message || 'Discount applied!'}`;
                 msgDiv.className = 'text-xs mt-1.5 font-medium text-green-600 dark:text-green-400 block';
-                
                 document.getElementById('discountRow').classList.remove('hidden');
                 document.getElementById('discountValueText').textContent = `-₹${parseFloat(data.discount_amount).toFixed(2)}`;
                 document.getElementById('finalPayableText').textContent = `₹${parseFloat(data.final_price).toFixed(2)}`;
-                
                 const usdPrice = (data.final_price * 0.012).toFixed(2);
                 document.getElementById('usdPriceText').textContent = usdPrice;
-                
                 input.readOnly = true;
                 input.className = 'flex-1 bg-green-50 dark:bg-green-900/10 border-green-500 rounded-xl px-3 py-2 text-sm uppercase font-semibold tracking-wider text-green-700 dark:text-green-400 focus:outline-none';
-                
                 applyBtn.onclick = removeCoupon;
                 applyBtn.querySelector('span').textContent = 'Remove';
                 applyBtn.className = 'bg-red-600 hover:bg-red-700 text-white text-sm font-bold px-4 py-2 rounded-xl transition flex items-center justify-center min-w-[80px]';
@@ -758,154 +688,80 @@
 
     function removeCoupon() {
         appliedCouponCode = null;
-        
         const input = document.getElementById('couponCodeInput');
         input.value = '';
         input.readOnly = false;
         input.className = 'flex-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm uppercase font-semibold tracking-wider text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition';
-        
-        const msgDiv = document.getElementById('couponMessage');
-        msgDiv.classList.add('hidden');
-        
+        document.getElementById('couponMessage').classList.add('hidden');
         document.getElementById('discountRow').classList.add('hidden');
         document.getElementById('discountValueText').textContent = '-₹0.00';
         document.getElementById('finalPayableText').textContent = '₹{{ "%.2f"|format(challenge.price * 1.02) }}';
         document.getElementById('usdPriceText').textContent = '{{ ((challenge.price * 1.02) * 0.012)|round(2) }}';
-        
         const applyBtn = document.getElementById('applyCouponBtn');
         applyBtn.onclick = applyCoupon;
         applyBtn.querySelector('span').textContent = 'Apply';
         applyBtn.className = 'bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold px-4 py-2 rounded-xl transition flex items-center justify-center min-w-[80px]';
     }
 
-    // Cashfree Payment Handler
     async function initiateCashfreePayment() {
-        console.log('Starting payment process...');
-
         const challengeId = document.getElementById('challenge_id').value;
         const paymentMethod = document.querySelector('input[name="payment_method"]:checked');
         const terms = document.getElementById('termsCheckbox').checked;
         const ruleAcknowledgement = document.getElementById('ruleAcknowledgement').checked;
 
-        if (!paymentMethod) {
-            showPaymentStatus('Please select a payment method', 'warning');
-            return;
-        }
-
-        if (!terms) {
-            showPaymentStatus('Please accept the terms and conditions', 'warning');
-            return;
-        }
-
-        if (!ruleAcknowledgement) {
-            showPaymentStatus('Please confirm that you understand the drawdown calculation rules', 'warning');
-            return;
-        }
+        if (!paymentMethod) { showPaymentStatus('Please select a payment method', 'warning'); return; }
+        if (!terms) { showPaymentStatus('Please accept the terms and conditions', 'warning'); return; }
+        if (!ruleAcknowledgement) { showPaymentStatus('Please confirm that you understand the drawdown calculation rules', 'warning'); return; }
 
         const btn = document.getElementById('purchaseBtn');
         const btnText = document.getElementById('btnText');
         const btnLoader = document.getElementById('btnLoader');
-
         btn.disabled = true;
         btnText.classList.add('hidden');
         btnLoader.classList.remove('hidden');
         
         try {
             const bodyParams = { 'challenge_id': challengeId, 'rule_acknowledgement': 'on' };
-            if (appliedCouponCode) {
-                bodyParams['coupon_code'] = appliedCouponCode;
-            }
-
-            // Create Cashfree order via backend
+            if (appliedCouponCode) { bodyParams['coupon_code'] = appliedCouponCode; }
             const response = await fetch('/create-cashfree-order', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: new URLSearchParams(bodyParams)
             });
-
             const data = await response.json();
-
-            if (!data.success) {
-                throw new Error(data.error || 'Failed to create payment order');
-            }
-
-            console.log('Order created successfully');
+            if (!data.success) { throw new Error(data.error || 'Failed to create payment order'); }
             currentPaymentSessionId = data.payment_session_id;
-
-            // Redirect to Cashfree Checkout seamlessly
-            cashfree.checkout({
-                paymentSessionId: currentPaymentSessionId
-            });
-
-            // Note: Re-enable buttons if user closes popup
-            setTimeout(() => {
-                btn.disabled = false;
-                btnText.classList.remove('hidden');
-                btnLoader.classList.add('hidden');
-            }, 5000);
-
+            cashfree.checkout({ paymentSessionId: currentPaymentSessionId });
+            setTimeout(() => { btn.disabled = false; btnText.classList.remove('hidden'); btnLoader.classList.add('hidden'); }, 5000);
         } catch (error) {
             console.error('Payment initiation error:', error);
             showPaymentStatus(error.message, 'error');
-            
             btn.disabled = false;
             btnText.classList.remove('hidden');
             btnLoader.classList.add('hidden');
         }
     }
 
-    // Show payment status message
     function showPaymentStatus(message, type = 'info') {
-        // Create alert element
         const alert = document.createElement('div');
         alert.className = `rounded-xl p-4 mb-6 ${type === 'error' ? 'alert-error' : type === 'success' ? 'alert-success' : 'alert-warning'}`;
         alert.setAttribute('data-aos', 'fade-up');
-        alert.innerHTML = `
-                <div class="flex items-center">
-                    <i class="fas fa-${type === 'error' ? 'exclamation-circle' : type === 'success' ? 'check-circle' : 'info-circle'} mr-3 ${type === 'error' ? 'text-red-600' : type === 'success' ? 'text-green-600' : 'text-yellow-600'}"></i>
-                    <span>${message}</span>
-                </div>
-            `;
-
-        // Insert at top of main content
+        alert.innerHTML = `<div class="flex items-center"><i class="fas fa-${type === 'error' ? 'exclamation-circle' : type === 'success' ? 'check-circle' : 'info-circle'} mr-3 ${type === 'error' ? 'text-red-600' : type === 'success' ? 'text-green-600' : 'text-yellow-600'}"></i><span>${message}</span></div>`;
         const main = document.querySelector('main');
-        const firstChild = main.firstChild;
-        main.insertBefore(alert, firstChild);
-
-        // Scroll to top
+        main.insertBefore(alert, main.firstChild);
         window.scrollTo({ top: 0, behavior: 'smooth' });
-
-        // Remove after 5 seconds if not error
-        if (type !== 'error') {
-            setTimeout(() => {
-                alert.remove();
-            }, 5000);
-        }
+        if (type !== 'error') { setTimeout(() => { alert.remove(); }, 5000); }
     }
 
-    // Auto-select first payment method on page load
     document.addEventListener('DOMContentLoaded', function () {
         const firstPaymentOption = document.querySelector('.payment-option');
-        if (firstPaymentOption) {
-            firstPaymentOption.click();
-        }
+        if (firstPaymentOption) { firstPaymentOption.click(); }
     });
 
-    // Show/hide loading modal based on network status
-    window.addEventListener('online', function () {
-        document.getElementById('loadingModal')?.classList.add('hidden');
-    });
+    window.addEventListener('online', function () { document.getElementById('loadingModal')?.classList.add('hidden'); });
+    window.addEventListener('offline', function () { document.getElementById('loadingModal')?.classList.remove('hidden'); showPaymentStatus('You are offline. Please check your internet connection.', 'error'); });
 
-    window.addEventListener('offline', function () {
-        document.getElementById('loadingModal')?.classList.remove('hidden');
-        showPaymentStatus('You are offline. Please check your internet connection.', 'error');
-    });
-
-    // Prevent accidental page leave during purchase
     let isProcessingPayment = false;
-
     window.addEventListener('beforeunload', function (e) {
         const loadingModal = document.getElementById('loadingModal');
         if (!loadingModal.classList.contains('hidden') || isProcessingPayment) {

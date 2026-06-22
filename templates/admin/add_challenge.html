@@ -19,6 +19,107 @@
 </button>
 {% endblock %}
 
+{% block head %}
+<style>
+    /* Fix dark mode input visibility */
+    .dark input[type="text"],
+    .dark input[type="number"],
+    .dark input[type="email"],
+    .dark input[type="password"],
+    .dark select,
+    .dark textarea {
+        background-color: #1f2937 !important;
+        border-color: #374151 !important;
+        color: #f9fafb !important;
+    }
+    .dark input[type="text"]:focus,
+    .dark input[type="number"]:focus,
+    .dark select:focus,
+    .dark textarea:focus {
+        border-color: #3b82f6 !important;
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3) !important;
+    }
+    .dark input::placeholder,
+    .dark textarea::placeholder {
+        color: #6b7280 !important;
+    }
+    .dark label {
+        color: #d1d5db !important;
+    }
+    .dark .text-gray-500 {
+        color: #9ca3af !important;
+    }
+    .dark .text-gray-700 {
+        color: #d1d5db !important;
+    }
+    
+    /* Toggle Switch */
+    .toggle-switch {
+        position: relative;
+        display: inline-block;
+        width: 48px;
+        height: 26px;
+    }
+    .toggle-switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+    .toggle-slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #d1d5db;
+        transition: 0.3s;
+        border-radius: 26px;
+    }
+    .dark .toggle-slider {
+        background-color: #374151;
+    }
+    .toggle-slider:before {
+        position: absolute;
+        content: "";
+        height: 20px;
+        width: 20px;
+        left: 3px;
+        bottom: 3px;
+        background-color: white;
+        transition: 0.3s;
+        border-radius: 50%;
+    }
+    input:checked + .toggle-slider {
+        background-color: #3b82f6;
+    }
+    input:checked + .toggle-slider:before {
+        transform: translateX(22px);
+    }
+    
+    /* Safety rules section */
+    .safety-rule-card {
+        border: 2px solid #e5e7eb;
+        border-radius: 16px;
+        padding: 20px;
+        transition: all 0.3s;
+        background: #f9fafb;
+    }
+    .dark .safety-rule-card {
+        border-color: #374151;
+        background: #111827;
+    }
+    .safety-rule-card.enabled {
+        border-color: #f59e0b;
+        background: #fffbeb;
+    }
+    .dark .safety-rule-card.enabled {
+        border-color: #f59e0b;
+        background: #1c1917;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <!-- Challenges List -->
 <div class="grid grid-cols-1 xl:grid-cols-3 gap-8 mb-8" data-aos="fade-up">
@@ -50,6 +151,12 @@
                         <p class="text-sm text-gray-600 dark:text-gray-400">₹{{ c.price }} • ${{ c.account_size }} Account</p>
                     </div>
                     <div class="flex items-center space-x-2">
+                        {% if c.sl_mandatory_enabled %}
+                        <span class="text-xs" title="Stop-Loss Mandatory">🛡️</span>
+                        {% endif %}
+                        {% if c.activity_rule_enabled %}
+                        <span class="text-xs" title="Activity Rule Active">⏱️</span>
+                        {% endif %}
                         <span class="px-2 py-1 text-xs rounded-full font-medium 
                             {% if c.is_active %}bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400
                             {% else %}bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400{% endif %}">
@@ -60,13 +167,19 @@
 
                 <div class="grid grid-cols-2 gap-y-2 gap-x-4 text-xs mb-4 p-3 bg-white/50 dark:bg-black/20 rounded-lg border-l-4 border-blue-500">
                     <div class="col-span-2 text-center font-bold text-blue-600 dark:text-blue-400 border-b pb-1 mb-1">PHASE 1</div>
-                    <div class="flex justify-between"><span class="text-gray-500">Target:</span> <span class="font-semibold">{{ c.phase1_target }}%</span></div>
-                    <div class="flex justify-between"><span class="text-gray-500">Daily Loss:</span> <span class="font-semibold">{{ c.phase1_daily_loss }}%</span></div>
-                    <div class="flex justify-between"><span class="text-gray-500">Overall Loss:</span> <span class="font-semibold">{{ c.phase1_overall_loss }}%</span></div>
-                    <div class="flex justify-between"><span class="text-gray-500">Min Days:</span> <span class="font-semibold">{{ c.phase1_min_days }}</span></div>
-                    <div class="flex justify-between"><span class="text-gray-500">Duration:</span> <span class="font-semibold">{{ c.phase1_duration }} days</span></div>
-                    <div class="flex justify-between"><span class="text-gray-500">Leverage:</span> <span class="font-semibold">{{ c.phase1_leverage }}</span></div>
-                    <div class="col-span-2 flex justify-between pt-2 border-t mt-1"><span class="text-gray-500">Profit Split:</span> <span class="font-semibold">{{ c.user_profit_share }}%</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500 dark:text-gray-400">Target:</span> <span class="font-semibold text-gray-900 dark:text-white">{{ c.phase1_target }}%</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500 dark:text-gray-400">Daily Loss:</span> <span class="font-semibold text-gray-900 dark:text-white">{{ c.phase1_daily_loss }}%</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500 dark:text-gray-400">Overall Loss:</span> <span class="font-semibold text-gray-900 dark:text-white">{{ c.phase1_overall_loss }}%</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500 dark:text-gray-400">Min Days:</span> <span class="font-semibold text-gray-900 dark:text-white">{{ c.phase1_min_days }}</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500 dark:text-gray-400">Duration:</span> <span class="font-semibold text-gray-900 dark:text-white">{{ c.phase1_duration }} days</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500 dark:text-gray-400">Leverage:</span> <span class="font-semibold text-gray-900 dark:text-white">{{ c.phase1_leverage }}</span></div>
+                    <div class="col-span-2 flex justify-between pt-2 border-t mt-1"><span class="text-gray-500 dark:text-gray-400">Profit Split:</span> <span class="font-semibold text-gray-900 dark:text-white">{{ c.user_profit_share }}%</span></div>
+                    {% if c.sl_mandatory_enabled or c.activity_rule_enabled %}
+                    <div class="col-span-2 flex flex-wrap gap-1 pt-1 border-t mt-1">
+                        {% if c.sl_mandatory_enabled %}<span class="text-[10px] bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-1.5 py-0.5 rounded-full">🛡️ SL Mandatory</span>{% endif %}
+                        {% if c.activity_rule_enabled %}<span class="text-[10px] bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-1.5 py-0.5 rounded-full">⏱️ Activity Rule</span>{% endif %}
+                    </div>
+                    {% endif %}
                 </div>
 
                 <div class="flex justify-end space-x-3 border-t border-gray-200 dark:border-gray-700/50 pt-3">
@@ -111,6 +224,12 @@
                         <p class="text-sm text-gray-600 dark:text-gray-400">₹{{ c.price }} • ${{ c.account_size }} Account</p>
                     </div>
                     <div class="flex items-center space-x-2">
+                        {% if c.sl_mandatory_enabled %}
+                        <span class="text-xs" title="Stop-Loss Mandatory">🛡️</span>
+                        {% endif %}
+                        {% if c.activity_rule_enabled %}
+                        <span class="text-xs" title="Activity Rule Active">⏱️</span>
+                        {% endif %}
                         <span class="px-2 py-1 text-xs rounded-full font-medium 
                             {% if c.is_active %}bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400
                             {% else %}bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400{% endif %}">
@@ -122,23 +241,29 @@
                 <div class="grid grid-cols-2 gap-4 text-xs mb-4 p-3 bg-white/50 dark:bg-black/20 rounded-lg">
                     <div class="space-y-2 border-r pr-2 border-purple-200 dark:border-purple-800">
                         <div class="text-center font-bold text-purple-600 dark:text-purple-400 border-b pb-1 mb-1">PHASE 1</div>
-                        <div class="flex justify-between"><span class="text-gray-500">Target:</span> <span class="font-semibold">{{ c.phase1_target }}%</span></div>
-                        <div class="flex justify-between"><span class="text-gray-500">Daily Loss:</span> <span class="font-semibold">{{ c.phase1_daily_loss }}%</span></div>
-                        <div class="flex justify-between"><span class="text-gray-500">Overall Loss:</span> <span class="font-semibold">{{ c.phase1_overall_loss }}%</span></div>
-                        <div class="flex justify-between"><span class="text-gray-500">Min Days:</span> <span class="font-semibold">{{ c.phase1_min_days }}</span></div>
-                        <div class="flex justify-between"><span class="text-gray-500">Duration:</span> <span class="font-semibold">{{ c.phase1_duration }}</span></div>
-                        <div class="flex justify-between"><span class="text-gray-500">Lev:</span> <span class="font-semibold">{{ c.phase1_leverage }}</span></div>
+                        <div class="flex justify-between"><span class="text-gray-500 dark:text-gray-400">Target:</span> <span class="font-semibold text-gray-900 dark:text-white">{{ c.phase1_target }}%</span></div>
+                        <div class="flex justify-between"><span class="text-gray-500 dark:text-gray-400">Daily Loss:</span> <span class="font-semibold text-gray-900 dark:text-white">{{ c.phase1_daily_loss }}%</span></div>
+                        <div class="flex justify-between"><span class="text-gray-500 dark:text-gray-400">Overall Loss:</span> <span class="font-semibold text-gray-900 dark:text-white">{{ c.phase1_overall_loss }}%</span></div>
+                        <div class="flex justify-between"><span class="text-gray-500 dark:text-gray-400">Min Days:</span> <span class="font-semibold text-gray-900 dark:text-white">{{ c.phase1_min_days }}</span></div>
+                        <div class="flex justify-between"><span class="text-gray-500 dark:text-gray-400">Duration:</span> <span class="font-semibold text-gray-900 dark:text-white">{{ c.phase1_duration }}</span></div>
+                        <div class="flex justify-between"><span class="text-gray-500 dark:text-gray-400">Lev:</span> <span class="font-semibold text-gray-900 dark:text-white">{{ c.phase1_leverage }}</span></div>
                     </div>
                     <div class="space-y-2 pl-2">
                         <div class="text-center font-bold text-purple-600 dark:text-purple-400 border-b pb-1 mb-1">PHASE 2</div>
-                        <div class="flex justify-between"><span class="text-gray-500">Target:</span> <span class="font-semibold">{{ c.phase2_target }}%</span></div>
-                        <div class="flex justify-between"><span class="text-gray-500">Daily Loss:</span> <span class="font-semibold">{{ c.phase2_daily_loss }}%</span></div>
-                        <div class="flex justify-between"><span class="text-gray-500">Overall Loss:</span> <span class="font-semibold">{{ c.phase2_overall_loss }}%</span></div>
-                        <div class="flex justify-between"><span class="text-gray-500">Min Days:</span> <span class="font-semibold">{{ c.phase2_min_days }}</span></div>
-                        <div class="flex justify-between"><span class="text-gray-500">Duration:</span> <span class="font-semibold">{{ c.phase2_duration }}</span></div>
-                        <div class="flex justify-between"><span class="text-gray-500">Lev:</span> <span class="font-semibold">{{ c.phase2_leverage }}</span></div>
+                        <div class="flex justify-between"><span class="text-gray-500 dark:text-gray-400">Target:</span> <span class="font-semibold text-gray-900 dark:text-white">{{ c.phase2_target }}%</span></div>
+                        <div class="flex justify-between"><span class="text-gray-500 dark:text-gray-400">Daily Loss:</span> <span class="font-semibold text-gray-900 dark:text-white">{{ c.phase2_daily_loss }}%</span></div>
+                        <div class="flex justify-between"><span class="text-gray-500 dark:text-gray-400">Overall Loss:</span> <span class="font-semibold text-gray-900 dark:text-white">{{ c.phase2_overall_loss }}%</span></div>
+                        <div class="flex justify-between"><span class="text-gray-500 dark:text-gray-400">Min Days:</span> <span class="font-semibold text-gray-900 dark:text-white">{{ c.phase2_min_days }}</span></div>
+                        <div class="flex justify-between"><span class="text-gray-500 dark:text-gray-400">Duration:</span> <span class="font-semibold text-gray-900 dark:text-white">{{ c.phase2_duration }}</span></div>
+                        <div class="flex justify-between"><span class="text-gray-500 dark:text-gray-400">Lev:</span> <span class="font-semibold text-gray-900 dark:text-white">{{ c.phase2_leverage }}</span></div>
                     </div>
-                    <div class="col-span-2 flex justify-between pt-2 border-t mt-1"><span class="text-gray-500">Profit Split:</span> <span class="font-semibold">{{ c.user_profit_share }}%</span></div>
+                    <div class="col-span-2 flex justify-between pt-2 border-t mt-1"><span class="text-gray-500 dark:text-gray-400">Profit Split:</span> <span class="font-semibold text-gray-900 dark:text-white">{{ c.user_profit_share }}%</span></div>
+                    {% if c.sl_mandatory_enabled or c.activity_rule_enabled %}
+                    <div class="col-span-2 flex flex-wrap gap-1 pt-1 border-t mt-1">
+                        {% if c.sl_mandatory_enabled %}<span class="text-[10px] bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-1.5 py-0.5 rounded-full">🛡️ SL Mandatory</span>{% endif %}
+                        {% if c.activity_rule_enabled %}<span class="text-[10px] bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-1.5 py-0.5 rounded-full">⏱️ Activity Rule</span>{% endif %}
+                    </div>
+                    {% endif %}
                 </div>
 
                 <div class="flex justify-end space-x-3 border-t border-gray-200 dark:border-gray-700/50 pt-3">
@@ -183,6 +308,12 @@
                         <p class="text-sm text-gray-600 dark:text-gray-400">₹{{ c.price }} • ${{ c.account_size }} Account</p>
                     </div>
                     <div class="flex items-center space-x-2">
+                        {% if c.sl_mandatory_enabled %}
+                        <span class="text-xs" title="Stop-Loss Mandatory">🛡️</span>
+                        {% endif %}
+                        {% if c.activity_rule_enabled %}
+                        <span class="text-xs" title="Activity Rule Active">⏱️</span>
+                        {% endif %}
                         <span class="px-2 py-1 text-xs rounded-full font-medium 
                             {% if c.is_active %}bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400
                             {% else %}bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400{% endif %}">
@@ -193,11 +324,17 @@
 
                 <div class="grid grid-cols-2 gap-y-2 gap-x-4 text-xs mb-4 p-3 bg-white/50 dark:bg-black/20 rounded-lg border-l-4 border-emerald-500">
                     <div class="col-span-2 text-center font-bold text-emerald-600 dark:text-emerald-400 border-b pb-1 mb-1">INSTANT FUNDED</div>
-                    <div class="flex justify-between"><span class="text-gray-500">Daily Loss:</span> <span class="font-semibold">{{ c.instant_daily_loss }}%</span></div>
-                    <div class="flex justify-between"><span class="text-gray-500">Overall Loss:</span> <span class="font-semibold">{{ c.instant_overall_loss }}%</span></div>
-                    <div class="flex justify-between"><span class="text-gray-500">Min Days:</span> <span class="font-semibold">{{ c.instant_min_days }}</span></div>
-                    <div class="flex justify-between"><span class="text-gray-500">Leverage:</span> <span class="font-semibold">{{ c.instant_leverage }}</span></div>
-                    <div class="col-span-2 flex justify-between pt-2 border-t mt-1"><span class="text-gray-500">Profit Split:</span> <span class="font-semibold">{{ c.user_profit_share }}%</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500 dark:text-gray-400">Daily Loss:</span> <span class="font-semibold text-gray-900 dark:text-white">{{ c.instant_daily_loss }}%</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500 dark:text-gray-400">Overall Loss:</span> <span class="font-semibold text-gray-900 dark:text-white">{{ c.instant_overall_loss }}%</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500 dark:text-gray-400">Min Days:</span> <span class="font-semibold text-gray-900 dark:text-white">{{ c.instant_min_days }}</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500 dark:text-gray-400">Leverage:</span> <span class="font-semibold text-gray-900 dark:text-white">{{ c.instant_leverage }}</span></div>
+                    <div class="col-span-2 flex justify-between pt-2 border-t mt-1"><span class="text-gray-500 dark:text-gray-400">Profit Split:</span> <span class="font-semibold text-gray-900 dark:text-white">{{ c.user_profit_share }}%</span></div>
+                    {% if c.sl_mandatory_enabled or c.activity_rule_enabled %}
+                    <div class="col-span-2 flex flex-wrap gap-1 pt-1 border-t mt-1">
+                        {% if c.sl_mandatory_enabled %}<span class="text-[10px] bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-1.5 py-0.5 rounded-full">🛡️ SL Mandatory</span>{% endif %}
+                        {% if c.activity_rule_enabled %}<span class="text-[10px] bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-1.5 py-0.5 rounded-full">⏱️ Activity Rule</span>{% endif %}
+                    </div>
+                    {% endif %}
                 </div>
 
                 <div class="flex justify-end space-x-3 border-t border-gray-200 dark:border-gray-700/50 pt-3">
@@ -256,17 +393,17 @@
                 <div>
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Challenge Type *</label>
                     <div class="flex items-center space-x-4 mt-2">
-                        <label class="inline-flex items-center">
+                        <label class="inline-flex items-center cursor-pointer">
                             <input type="radio" name="challenge_type" value="one_phase" checked
                                 class="form-radio h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500">
                             <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">One Phase</span>
                         </label>
-                        <label class="inline-flex items-center">
+                        <label class="inline-flex items-center cursor-pointer">
                             <input type="radio" name="challenge_type" value="two_phase"
                                 class="form-radio h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500">
                             <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">Two Phase</span>
                         </label>
-                        <label class="inline-flex items-center">
+                        <label class="inline-flex items-center cursor-pointer">
                             <input type="radio" name="challenge_type" value="instant"
                                 class="form-radio h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500">
                             <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">Instant</span>
@@ -280,44 +417,118 @@
                 
                 <!-- Phase 1 Inputs -->
                 <div id="phase1Inputs" class="space-y-4 mb-6 border-l-4 border-blue-500 pl-4">
-                    <h5 class="font-bold text-blue-600">PHASE 1</h5>
+                    <h5 class="font-bold text-blue-600 dark:text-blue-400">PHASE 1</h5>
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div><label class="block text-xs text-gray-500 mb-1">Target (%)</label><input type="number" step="0.1" id="phase1_target" name="phase1_target" class="w-full px-2 py-1 border rounded"></div>
-                        <div><label class="block text-xs text-gray-500 mb-1">Daily Loss (%)</label><input type="number" step="0.1" id="phase1_daily_loss" name="phase1_daily_loss" class="w-full px-2 py-1 border rounded"></div>
-                        <div><label class="block text-xs text-gray-500 mb-1">Daily Drawdown Type</label><select id="phase1_daily_dd_type" name="phase1_daily_dd_type" class="w-full px-2 py-1 border rounded"><option value="equity">Equity Based</option><option value="static">Static Balance Based</option></select></div>
-                        <div><label class="block text-xs text-gray-500 mb-1">Overall Loss (%)</label><input type="number" step="0.1" id="phase1_overall_loss" name="phase1_overall_loss" class="w-full px-2 py-1 border rounded"></div>
-                        <div><label class="block text-xs text-gray-500 mb-1">Overall Drawdown Type</label><select id="phase1_overall_dd_type" name="phase1_overall_dd_type" class="w-full px-2 py-1 border rounded"><option value="equity">Equity Based</option><option value="static">Static Balance Based</option></select></div>
-                        <div><label class="block text-xs text-gray-500 mb-1">Min Days</label><input type="number" id="phase1_min_days" name="phase1_min_days" class="w-full px-2 py-1 border rounded"></div>
-                        <div><label class="block text-xs text-gray-500 mb-1">Duration (Days)</label><input type="number" id="phase1_duration" name="phase1_duration" class="w-full px-2 py-1 border rounded"></div>
-                        <div><label class="block text-xs text-gray-500 mb-1">Leverage</label><input type="text" id="phase1_leverage" name="phase1_leverage" placeholder="1:100" class="w-full px-2 py-1 border rounded"></div>
+                        <div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">Target (%)</label><input type="number" step="0.1" id="phase1_target" name="phase1_target" class="w-full px-2 py-1.5 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white"></div>
+                        <div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">Daily Loss (%)</label><input type="number" step="0.1" id="phase1_daily_loss" name="phase1_daily_loss" class="w-full px-2 py-1.5 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white"></div>
+                        <div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">Daily Drawdown Type</label><select id="phase1_daily_dd_type" name="phase1_daily_dd_type" class="w-full px-2 py-1.5 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white"><option value="equity">Equity Based</option><option value="static">Static Balance Based</option></select></div>
+                        <div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">Overall Loss (%)</label><input type="number" step="0.1" id="phase1_overall_loss" name="phase1_overall_loss" class="w-full px-2 py-1.5 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white"></div>
+                        <div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">Overall Drawdown Type</label><select id="phase1_overall_dd_type" name="phase1_overall_dd_type" class="w-full px-2 py-1.5 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white"><option value="equity">Equity Based</option><option value="static">Static Balance Based</option></select></div>
+                        <div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">Min Days</label><input type="number" id="phase1_min_days" name="phase1_min_days" class="w-full px-2 py-1.5 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white"></div>
+                        <div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">Duration (Days)</label><input type="number" id="phase1_duration" name="phase1_duration" class="w-full px-2 py-1.5 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white"></div>
+                        <div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">Leverage</label><input type="text" id="phase1_leverage" name="phase1_leverage" placeholder="1:100" class="w-full px-2 py-1.5 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"></div>
                     </div>
                 </div>
 
                 <!-- Phase 2 Inputs -->
                 <div id="phase2Inputs" class="space-y-4 mb-6 border-l-4 border-purple-500 pl-4 hidden">
-                    <h5 class="font-bold text-purple-600">PHASE 2</h5>
+                    <h5 class="font-bold text-purple-600 dark:text-purple-400">PHASE 2</h5>
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div><label class="block text-xs text-gray-500 mb-1">Target (%)</label><input type="number" step="0.1" id="phase2_target" name="phase2_target" class="w-full px-2 py-1 border rounded"></div>
-                        <div><label class="block text-xs text-gray-500 mb-1">Daily Loss (%)</label><input type="number" step="0.1" id="phase2_daily_loss" name="phase2_daily_loss" class="w-full px-2 py-1 border rounded"></div>
-                        <div><label class="block text-xs text-gray-500 mb-1">Daily Drawdown Type</label><select id="phase2_daily_dd_type" name="phase2_daily_dd_type" class="w-full px-2 py-1 border rounded"><option value="equity">Equity Based</option><option value="static">Static Balance Based</option></select></div>
-                        <div><label class="block text-xs text-gray-500 mb-1">Overall Loss (%)</label><input type="number" step="0.1" id="phase2_overall_loss" name="phase2_overall_loss" class="w-full px-2 py-1 border rounded"></div>
-                        <div><label class="block text-xs text-gray-500 mb-1">Overall Drawdown Type</label><select id="phase2_overall_dd_type" name="phase2_overall_dd_type" class="w-full px-2 py-1 border rounded"><option value="equity">Equity Based</option><option value="static">Static Balance Based</option></select></div>
-                        <div><label class="block text-xs text-gray-500 mb-1">Min Days</label><input type="number" id="phase2_min_days" name="phase2_min_days" class="w-full px-2 py-1 border rounded"></div>
-                        <div><label class="block text-xs text-gray-500 mb-1">Duration (Days)</label><input type="number" id="phase2_duration" name="phase2_duration" class="w-full px-2 py-1 border rounded"></div>
-                        <div><label class="block text-xs text-gray-500 mb-1">Leverage</label><input type="text" id="phase2_leverage" name="phase2_leverage" placeholder="1:100" class="w-full px-2 py-1 border rounded"></div>
+                        <div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">Target (%)</label><input type="number" step="0.1" id="phase2_target" name="phase2_target" class="w-full px-2 py-1.5 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white"></div>
+                        <div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">Daily Loss (%)</label><input type="number" step="0.1" id="phase2_daily_loss" name="phase2_daily_loss" class="w-full px-2 py-1.5 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white"></div>
+                        <div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">Daily Drawdown Type</label><select id="phase2_daily_dd_type" name="phase2_daily_dd_type" class="w-full px-2 py-1.5 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white"><option value="equity">Equity Based</option><option value="static">Static Balance Based</option></select></div>
+                        <div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">Overall Loss (%)</label><input type="number" step="0.1" id="phase2_overall_loss" name="phase2_overall_loss" class="w-full px-2 py-1.5 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white"></div>
+                        <div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">Overall Drawdown Type</label><select id="phase2_overall_dd_type" name="phase2_overall_dd_type" class="w-full px-2 py-1.5 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white"><option value="equity">Equity Based</option><option value="static">Static Balance Based</option></select></div>
+                        <div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">Min Days</label><input type="number" id="phase2_min_days" name="phase2_min_days" class="w-full px-2 py-1.5 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white"></div>
+                        <div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">Duration (Days)</label><input type="number" id="phase2_duration" name="phase2_duration" class="w-full px-2 py-1.5 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white"></div>
+                        <div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">Leverage</label><input type="text" id="phase2_leverage" name="phase2_leverage" placeholder="1:100" class="w-full px-2 py-1.5 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"></div>
                     </div>
                 </div>
 
                 <!-- Instant Inputs -->
                 <div id="instantInputs" class="space-y-4 mb-6 border-l-4 border-emerald-500 pl-4 hidden">
-                    <h5 class="font-bold text-emerald-600">INSTANT FUNDED</h5>
+                    <h5 class="font-bold text-emerald-600 dark:text-emerald-400">INSTANT FUNDED</h5>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div><label class="block text-xs text-gray-500 mb-1">Daily Loss (%)</label><input type="number" step="0.1" id="instant_daily_loss" name="instant_daily_loss" class="w-full px-2 py-1 border rounded"></div>
-                        <div><label class="block text-xs text-gray-500 mb-1">Daily Drawdown Type</label><select id="instant_daily_dd_type" name="instant_daily_dd_type" class="w-full px-2 py-1 border rounded"><option value="equity">Equity Based</option><option value="static">Static Balance Based</option></select></div>
-                        <div><label class="block text-xs text-gray-500 mb-1">Overall Loss (%)</label><input type="number" step="0.1" id="instant_overall_loss" name="instant_overall_loss" class="w-full px-2 py-1 border rounded"></div>
-                        <div><label class="block text-xs text-gray-500 mb-1">Overall Drawdown Type</label><select id="instant_overall_dd_type" name="instant_overall_dd_type" class="w-full px-2 py-1 border rounded"><option value="equity">Equity Based</option><option value="static">Static Balance Based</option></select></div>
-                        <div><label class="block text-xs text-gray-500 mb-1">Min Days</label><input type="number" id="instant_min_days" name="instant_min_days" class="w-full px-2 py-1 border rounded"></div>
-                        <div><label class="block text-xs text-gray-500 mb-1">Leverage</label><input type="text" id="instant_leverage" name="instant_leverage" placeholder="1:100" class="w-full px-2 py-1 border rounded"></div>
+                        <div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">Daily Loss (%)</label><input type="number" step="0.1" id="instant_daily_loss" name="instant_daily_loss" class="w-full px-2 py-1.5 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white"></div>
+                        <div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">Daily Drawdown Type</label><select id="instant_daily_dd_type" name="instant_daily_dd_type" class="w-full px-2 py-1.5 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white"><option value="equity">Equity Based</option><option value="static">Static Balance Based</option></select></div>
+                        <div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">Overall Loss (%)</label><input type="number" step="0.1" id="instant_overall_loss" name="instant_overall_loss" class="w-full px-2 py-1.5 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white"></div>
+                        <div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">Overall Drawdown Type</label><select id="instant_overall_dd_type" name="instant_overall_dd_type" class="w-full px-2 py-1.5 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white"><option value="equity">Equity Based</option><option value="static">Static Balance Based</option></select></div>
+                        <div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">Min Days</label><input type="number" id="instant_min_days" name="instant_min_days" class="w-full px-2 py-1.5 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white"></div>
+                        <div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">Leverage</label><input type="text" id="instant_leverage" name="instant_leverage" placeholder="1:100" class="w-full px-2 py-1.5 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 🛡️ TRADING SAFETY RULES SECTION (NEW) -->
+            <div class="border-t dark:border-gray-700 pt-6">
+                <h4 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+                    <i class="fas fa-shield-alt text-amber-500 mr-2"></i>
+                    Trading Safety Rules
+                </h4>
+                
+                <!-- Stop-Loss Rule Card -->
+                <div id="slRuleCard" class="safety-rule-card mb-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center">
+                            <span class="text-xl mr-3">🛡️</span>
+                            <div>
+                                <h5 class="font-bold text-gray-900 dark:text-white">Mandatory Stop-Loss Rule</h5>
+                                <p class="text-xs text-gray-500 dark:text-gray-400">Every trade must have a physical stop-loss. No mental SL allowed.</p>
+                            </div>
+                        </div>
+                        <label class="toggle-switch flex-shrink-0">
+                            <input type="checkbox" id="slMandatoryEnabled" name="sl_mandatory_enabled" onchange="toggleSLCard()">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div id="slSettings" class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3 pt-3 border-t border-gray-200 dark:border-gray-700 hidden">
+                        <div>
+                            <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">SL Grace Period (minutes)</label>
+                            <input type="number" id="slGracePeriod" name="sl_grace_period_minutes" value="3" min="1" max="15"
+                                class="w-full px-2 py-1.5 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white">
+                            <p class="text-[10px] text-gray-400 mt-0.5">Time allowed to set SL after opening trade</p>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">Max Risk Per Trade (%)</label>
+                            <input type="number" step="0.1" id="maxRiskPerTrade" name="max_risk_per_trade_percent" value="1.5" min="0.1" max="10"
+                                class="w-full px-2 py-1.5 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white">
+                            <p class="text-[10px] text-gray-400 mt-0.5">Maximum % of account equity risked per trade</p>
+                        </div>
+                        <div class="md:col-span-2">
+                            <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
+                                <p class="text-xs text-red-700 dark:text-red-400 font-semibold">⚠️ Breach Consequence: HARD BREACH</p>
+                                <p class="text-xs text-red-600 dark:text-red-300">Opening position without SL = Immediate disqualification, account frozen, no payout.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Activity Rule Card -->
+                <div id="activityRuleCard" class="safety-rule-card">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center">
+                            <span class="text-xl mr-3">⏱️</span>
+                            <div>
+                                <h5 class="font-bold text-gray-900 dark:text-white">Trading Activity Rule</h5>
+                                <p class="text-xs text-gray-500 dark:text-gray-400">Trader must stay active. No 4+ day gaps allowed.</p>
+                            </div>
+                        </div>
+                        <label class="toggle-switch flex-shrink-0">
+                            <input type="checkbox" id="activityRuleEnabled" name="activity_rule_enabled" onchange="toggleActivityCard()">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div id="activitySettings" class="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700 hidden">
+                        <div>
+                            <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">Max Inactive Days</label>
+                            <input type="number" id="maxInactiveDays" name="max_inactive_days" value="4" min="1" max="30"
+                                class="w-full px-2 py-1.5 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white">
+                            <p class="text-[10px] text-gray-400 mt-0.5">Maximum days allowed without placing a trade</p>
+                        </div>
+                        <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 mt-3">
+                            <p class="text-xs text-red-700 dark:text-red-400 font-semibold">⚠️ Breach Consequence: HARD BREACH</p>
+                            <p class="text-xs text-red-600 dark:text-red-300">No trading activity for 4+ consecutive days = Account frozen, no payout.</p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -329,22 +540,22 @@
                 <!-- Phase 1 Rules -->
                 <div id="phase1RulesGroup" class="space-y-2">
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Phase 1 Rules Text</label>
-                    <textarea id="phase1Rules" name="phase1_rules" rows="3" placeholder="Enter rules for Phase 1 (e.g. daily drawdown, targets...)"
-                        class="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white"></textarea>
+                    <textarea id="phase1Rules" name="phase1_rules_text" rows="3" placeholder="Enter rules for Phase 1 (e.g. daily drawdown, targets...)"
+                        class="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"></textarea>
                 </div>
 
                 <!-- Phase 2 Rules -->
                 <div id="phase2RulesGroup" class="space-y-2 mt-4 hidden">
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Phase 2 Rules Text</label>
-                    <textarea id="phase2Rules" name="phase2_rules" rows="3" placeholder="Enter rules for Phase 2..."
-                        class="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white"></textarea>
+                    <textarea id="phase2Rules" name="phase2_rules_text" rows="3" placeholder="Enter rules for Phase 2..."
+                        class="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"></textarea>
                 </div>
 
                 <!-- Instant Rules -->
                 <div id="instantRulesGroup" class="space-y-2 mt-4 hidden">
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Instant Rules Text</label>
-                    <textarea id="instantRules" name="instant_rules" rows="3" placeholder="Enter rules for Instant Funded Account..."
-                        class="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white"></textarea>
+                    <textarea id="instantRules" name="instant_rules_text" rows="3" placeholder="Enter rules for Instant Funded Account..."
+                        class="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"></textarea>
                 </div>
             </div>
 
@@ -359,7 +570,7 @@
                     <div>
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Firm Profit Share (%)</label>
                         <input type="number" id="firmProfitShare" readonly
-                            class="w-full px-3 py-2 bg-gray-100 dark:bg-gray-600 border border-gray-300 dark:border-gray-500 rounded-lg text-gray-500">
+                            class="w-full px-3 py-2 bg-gray-100 dark:bg-gray-600 border border-gray-300 dark:border-gray-500 rounded-lg text-gray-500 dark:text-gray-400">
                     </div>
                 </div>
                 <div class="mt-4">
@@ -389,7 +600,7 @@
                 <div class="mt-4">
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Description</label>
                     <textarea id="description" name="description" rows="2"
-                        class="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white"></textarea>
+                        class="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"></textarea>
                 </div>
             </div>
         </form>
@@ -426,14 +637,12 @@
     let challengeToDelete = null;
 
     document.addEventListener('DOMContentLoaded', function () {
-        // Auto-calc profit share
         const userShare = document.getElementById('userProfitShare');
         const firmShare = document.getElementById('firmProfitShare');
         userShare.addEventListener('input', () => {
             firmShare.value = 100 - (parseInt(userShare.value) || 0);
         });
 
-        // Challenge Type Radio Buttons selection change
         const typeRadios = document.getElementsByName('challenge_type');
         typeRadios.forEach(radio => {
             radio.addEventListener('change', (e) => {
@@ -441,11 +650,24 @@
             });
         });
 
-        // Auto-open if editing (redirected from backend)
         {% if challenge %}
         editChallenge({{ challenge|to_dict|tojson|safe }});
         {% endif %}
     });
+
+    function toggleSLCard() {
+        const enabled = document.getElementById('slMandatoryEnabled').checked;
+        document.getElementById('slSettings').classList.toggle('hidden', !enabled);
+        const card = document.getElementById('slRuleCard');
+        card.classList.toggle('enabled', enabled);
+    }
+
+    function toggleActivityCard() {
+        const enabled = document.getElementById('activityRuleEnabled').checked;
+        document.getElementById('activitySettings').classList.toggle('hidden', !enabled);
+        const card = document.getElementById('activityRuleCard');
+        card.classList.toggle('enabled', enabled);
+    }
 
     function handleTypeSelection(type) {
         const p1Group = document.getElementById('phase1RulesGroup');
@@ -461,61 +683,16 @@
             if(p1Inputs) p1Inputs.classList.remove('hidden'); 
             if(p2Inputs) p2Inputs.classList.add('hidden'); 
             if(instantInputs) instantInputs.classList.add('hidden');
-
-            document.getElementById('phase1_target').value = 10;
-            document.getElementById('phase1_daily_loss').value = 5;
-            document.getElementById('phase1_daily_dd_type').value = 'equity';
-            document.getElementById('phase1_overall_loss').value = 10;
-            document.getElementById('phase1_overall_dd_type').value = 'equity';
-            document.getElementById('phase1_min_days').value = 0;
-            document.getElementById('phase1_duration').value = 30;
-            document.getElementById('phase1_leverage').value = '1:100';
-
-            document.getElementById('userProfitShare').value = 80;
-            document.getElementById('firmProfitShare').value = 20;
-
         } else if (type === 'two_phase') {
             p1Group.classList.remove('hidden'); p2Group.classList.remove('hidden'); instantGroup.classList.add('hidden');
             if(p1Inputs) p1Inputs.classList.remove('hidden'); 
             if(p2Inputs) p2Inputs.classList.remove('hidden'); 
             if(instantInputs) instantInputs.classList.add('hidden');
-
-            document.getElementById('phase1_target').value = 8;
-            document.getElementById('phase1_daily_loss').value = 5;
-            document.getElementById('phase1_daily_dd_type').value = 'equity';
-            document.getElementById('phase1_overall_loss').value = 10;
-            document.getElementById('phase1_overall_dd_type').value = 'equity';
-            document.getElementById('phase1_min_days').value = 0;
-            document.getElementById('phase1_duration').value = 30;
-            document.getElementById('phase1_leverage').value = '1:100';
-
-            document.getElementById('phase2_target').value = 5;
-            document.getElementById('phase2_daily_loss').value = 5;
-            document.getElementById('phase2_daily_dd_type').value = 'equity';
-            document.getElementById('phase2_overall_loss').value = 10;
-            document.getElementById('phase2_overall_dd_type').value = 'equity';
-            document.getElementById('phase2_min_days').value = 0;
-            document.getElementById('phase2_duration').value = 60;
-            document.getElementById('phase2_leverage').value = '1:100';
-
-            document.getElementById('userProfitShare').value = 80;
-            document.getElementById('firmProfitShare').value = 20;
-
         } else if (type === 'instant') {
             p1Group.classList.add('hidden'); p2Group.classList.add('hidden'); instantGroup.classList.remove('hidden');
             if(p1Inputs) p1Inputs.classList.add('hidden'); 
             if(p2Inputs) p2Inputs.classList.add('hidden'); 
             if(instantInputs) instantInputs.classList.remove('hidden');
-
-            document.getElementById('instant_daily_loss').value = 5;
-            document.getElementById('instant_daily_dd_type').value = 'equity';
-            document.getElementById('instant_overall_loss').value = 10;
-            document.getElementById('instant_overall_dd_type').value = 'equity';
-            document.getElementById('instant_min_days').value = 0;
-            document.getElementById('instant_leverage').value = '1:100';
-
-            document.getElementById('userProfitShare').value = 60;
-            document.getElementById('firmProfitShare').value = 40;
         }
     }
 
@@ -525,7 +702,12 @@
         document.getElementById('challengeId').value = '';
         document.getElementById('isActive').checked = true;
         
-        // Select 'one_phase' by default and trigger handles
+        // Reset safety toggles
+        document.getElementById('slMandatoryEnabled').checked = false;
+        document.getElementById('activityRuleEnabled').checked = false;
+        toggleSLCard();
+        toggleActivityCard();
+        
         const onePhaseRadio = document.querySelector('input[name="challenge_type"][value="one_phase"]');
         if (onePhaseRadio) {
             onePhaseRadio.checked = true;
@@ -542,7 +724,6 @@
         document.getElementById('challengePrice').value = c.price;
         document.getElementById('accountSize').value = c.account_size;
         
-        // Set type and render correct input groups
         const typeVal = c.challenge_type || 'one_phase';
         const typeRadio = document.querySelector(`input[name="challenge_type"][value="${typeVal}"]`);
         if (typeRadio) {
@@ -575,6 +756,15 @@
         document.getElementById('instant_overall_dd_type').value = c.instant_overall_dd_type || 'equity';
         if(c.instant_min_days !== null) document.getElementById('instant_min_days').value = c.instant_min_days;
         if(c.instant_leverage) document.getElementById('instant_leverage').value = c.instant_leverage;
+
+        // 🛡️ Safety rules
+        document.getElementById('slMandatoryEnabled').checked = c.sl_mandatory_enabled || false;
+        document.getElementById('slGracePeriod').value = c.sl_grace_period_minutes || 3;
+        document.getElementById('maxRiskPerTrade').value = c.max_risk_per_trade_percent || 1.5;
+        document.getElementById('activityRuleEnabled').checked = c.activity_rule_enabled || false;
+        document.getElementById('maxInactiveDays').value = c.max_inactive_days || 4;
+        toggleSLCard();
+        toggleActivityCard();
 
         document.getElementById('userProfitShare').value = c.user_profit_share;
         document.getElementById('firmProfitShare').value = 100 - c.user_profit_share;

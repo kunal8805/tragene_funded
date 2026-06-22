@@ -738,6 +738,13 @@ def admin_save_challenge():
         challenge.is_active = 'is_active' in request.form
         challenge.description = request.form.get('description', '')
         
+        # 🛡️ Trading Safety Rules
+        challenge.sl_mandatory_enabled = 'sl_mandatory_enabled' in request.form
+        challenge.sl_grace_period_minutes = int(request.form.get('sl_grace_period_minutes', 3) or 3)
+        challenge.max_risk_per_trade_percent = float(request.form.get('max_risk_per_trade_percent', 1.5) or 1.5)
+        challenge.activity_rule_enabled = 'activity_rule_enabled' in request.form
+        challenge.max_inactive_days = int(request.form.get('max_inactive_days', 4) or 4)
+        
         is_new_challenge = not challenge_id
         if is_new_challenge:
             db.session.add(challenge)
