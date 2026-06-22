@@ -5,7 +5,27 @@
 {% block header_title %}Challenge Details{% endblock %}
 {% block header_subtitle %}Serial No. #{{ challenge.serial_no }}{% endblock %}
 
+{% block head %}
+<style>
+    .rule-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 4px 10px;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+    .rule-card {
+        border-radius: 12px;
+        padding: 16px;
+        margin-bottom: 12px;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
+{% macro dd_label(value) -%}{{ 'Static Balance Based' if value == 'static' else 'Equity Based' }}{%- endmacro %}
+
 <!-- Back Button -->
 <div class="mb-6">
     <a href="{{ url_for('admin.admin_challenges') }}"
@@ -18,8 +38,7 @@
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
     <!-- User Information -->
     <div class="glass-card p-6">
-        <h3
-            class="text-xl font-semibold text-gray-900 dark:text-white mb-4 border-b border-gray-100 dark:border-gray-700 pb-2">
+        <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-4 border-b border-gray-100 dark:border-gray-700 pb-2">
             User Information
         </h3>
         <div class="space-y-3">
@@ -42,8 +61,7 @@
 
     <!-- Challenge Information -->
     <div class="glass-card p-6">
-        <h3
-            class="text-xl font-semibold text-gray-900 dark:text-white mb-4 border-b border-gray-100 dark:border-gray-700 pb-2">
+        <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-4 border-b border-gray-100 dark:border-gray-700 pb-2">
             Challenge Information
         </h3>
         <div class="space-y-3">
@@ -69,16 +87,38 @@
                 'pending_credentials': 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400',
                 'active': 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400',
                 'passed': 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400',
-                'failed': 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400'
+                'failed': 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400',
+                'funded': 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-400'
                 } %}
-                <span
-                    class="px-3 py-1 inline-flex text-sm font-semibold rounded-full {{ status_colors.get(challenge.status, 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300') }}">
+                <span class="px-3 py-1 inline-flex text-sm font-semibold rounded-full {{ status_colors.get(challenge.status, 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300') }}">
                     {{ challenge.status|replace('_', ' ')|title }}
                 </span>
             </div>
             <div>
-                <p class="text-sm text-gray-500 dark:text-gray-400">Phase</p>
-                <p class="font-semibold text-gray-900 dark:text-white">Phase {{ challenge.phase }}</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Challenge Type</p>
+                <div class="flex items-center gap-2 mt-1">
+                    {% set ct = challenge.challenge_template %}
+                    {% if ct.challenge_type == 'one_phase' %}
+                        <span class="rule-badge bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400">
+                            <i class="fas fa-seedling mr-1.5"></i> One Phase
+                        </span>
+                        <span class="text-sm text-gray-600 dark:text-gray-400">Phase {{ challenge.current_phase }}/1</span>
+                    {% elif ct.challenge_type == 'two_phase' %}
+                        <span class="rule-badge bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-400">
+                            <i class="fas fa-rocket mr-1.5"></i> Two Phase
+                        </span>
+                        <span class="text-sm text-gray-600 dark:text-gray-400">Phase {{ challenge.current_phase }}/2</span>
+                    {% else %}
+                        <span class="rule-badge bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-400">
+                            <i class="fas fa-crown mr-1.5"></i> Instant Funded
+                        </span>
+                        <span class="text-sm text-gray-600 dark:text-gray-400">Direct Funded</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Account Size</p>
+                <p class="font-semibold text-gray-900 dark:text-white">${{ "{:,}".format(ct.account_size) }}</p>
             </div>
             <div>
                 <p class="text-sm text-gray-500 dark:text-gray-400">Purchase Date</p>
@@ -88,6 +128,217 @@
             </div>
         </div>
     </div>
+</div>
+
+<!-- ===== TRADING RULES (NEW SECTION) ===== -->
+<div class="glass-card p-6 mb-6">
+    <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-4 border-b border-gray-100 dark:border-gray-700 pb-2 flex items-center">
+        <i class="fas fa-gavel text-orange-500 mr-2"></i>
+        Trading Rules at Time of Purchase
+    </h3>
+
+    {% set ct = challenge.challenge_template %}
+
+    {% if ct.challenge_type == 'one_phase' %}
+    <!-- One Phase Rules -->
+    <div class="rule-card bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800">
+        <h4 class="font-bold text-blue-700 dark:text-blue-400 text-lg mb-3">
+            <i class="fas fa-seedling mr-2"></i>Phase 1 Rules
+        </h4>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+            <div class="bg-white dark:bg-gray-800 rounded-lg p-3">
+                <p class="text-gray-500 dark:text-gray-400 text-xs">Profit Target</p>
+                <p class="font-bold text-green-600 dark:text-green-400">{{ ct.phase1_target }}%</p>
+                <p class="text-xs text-gray-400">${{ "{:,.0f}".format(ct.account_size * (ct.phase1_target or 0) / 100) }}</p>
+            </div>
+            <div class="bg-white dark:bg-gray-800 rounded-lg p-3">
+                <p class="text-gray-500 dark:text-gray-400 text-xs">Daily Loss Limit</p>
+                <p class="font-bold text-red-600 dark:text-red-400">{{ ct.phase1_daily_loss }}%</p>
+                <p class="text-xs text-gray-400">{{ dd_label(ct.phase1_daily_dd_type) }}</p>
+                <p class="text-xs text-gray-400">${{ "{:,.0f}".format(ct.account_size * (ct.phase1_daily_loss or 0) / 100) }}</p>
+            </div>
+            <div class="bg-white dark:bg-gray-800 rounded-lg p-3">
+                <p class="text-gray-500 dark:text-gray-400 text-xs">Overall Loss Limit</p>
+                <p class="font-bold text-red-600 dark:text-red-400">{{ ct.phase1_overall_loss }}%</p>
+                <p class="text-xs text-gray-400">{{ dd_label(ct.phase1_overall_dd_type) }}</p>
+                <p class="text-xs text-gray-400">${{ "{:,.0f}".format(ct.account_size * (ct.phase1_overall_loss or 0) / 100) }}</p>
+            </div>
+            <div class="bg-white dark:bg-gray-800 rounded-lg p-3">
+                <p class="text-gray-500 dark:text-gray-400 text-xs">Min Trading Days</p>
+                <p class="font-bold text-gray-900 dark:text-white">{{ ct.phase1_min_days or 0 }} days</p>
+            </div>
+            <div class="bg-white dark:bg-gray-800 rounded-lg p-3">
+                <p class="text-gray-500 dark:text-gray-400 text-xs">Duration</p>
+                <p class="font-bold text-gray-900 dark:text-white">{{ ct.phase1_duration or 30 }} days</p>
+            </div>
+            <div class="bg-white dark:bg-gray-800 rounded-lg p-3">
+                <p class="text-gray-500 dark:text-gray-400 text-xs">Leverage</p>
+                <p class="font-bold text-gray-900 dark:text-white">{{ ct.phase1_leverage or '1:100' }}</p>
+            </div>
+        </div>
+    </div>
+
+    {% elif ct.challenge_type == 'two_phase' %}
+    <!-- Two Phase Rules -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="rule-card bg-purple-50 dark:bg-purple-900/10 border border-purple-200 dark:border-purple-800">
+            <h4 class="font-bold text-purple-700 dark:text-purple-400 text-lg mb-3">
+                <i class="fas fa-arrow-circle-right mr-2"></i>Phase 1
+            </h4>
+            <div class="space-y-2 text-sm">
+                <div class="flex justify-between bg-white dark:bg-gray-800 rounded-lg p-2.5">
+                    <span class="text-gray-500 dark:text-gray-400">Profit Target</span>
+                    <span class="font-bold text-green-600 dark:text-green-400">{{ ct.phase1_target }}% <span class="text-xs text-gray-400">(${{ "{:,.0f}".format(ct.account_size * (ct.phase1_target or 0) / 100) }})</span></span>
+                </div>
+                <div class="flex justify-between bg-white dark:bg-gray-800 rounded-lg p-2.5">
+                    <span class="text-gray-500 dark:text-gray-400">Daily Loss</span>
+                    <span class="font-bold text-red-600 dark:text-red-400 text-right">{{ ct.phase1_daily_loss }}%<br><span class="text-xs text-gray-400">{{ dd_label(ct.phase1_daily_dd_type) }}</span></span>
+                </div>
+                <div class="flex justify-between bg-white dark:bg-gray-800 rounded-lg p-2.5">
+                    <span class="text-gray-500 dark:text-gray-400">Overall Loss</span>
+                    <span class="font-bold text-red-600 dark:text-red-400 text-right">{{ ct.phase1_overall_loss }}%<br><span class="text-xs text-gray-400">{{ dd_label(ct.phase1_overall_dd_type) }}</span></span>
+                </div>
+                <div class="flex justify-between bg-white dark:bg-gray-800 rounded-lg p-2.5">
+                    <span class="text-gray-500 dark:text-gray-400">Min Days</span>
+                    <span class="font-bold text-gray-900 dark:text-white">{{ ct.phase1_min_days or 0 }} days</span>
+                </div>
+                <div class="flex justify-between bg-white dark:bg-gray-800 rounded-lg p-2.5">
+                    <span class="text-gray-500 dark:text-gray-400">Duration</span>
+                    <span class="font-bold text-gray-900 dark:text-white">{{ ct.phase1_duration or 30 }} days</span>
+                </div>
+                <div class="flex justify-between bg-white dark:bg-gray-800 rounded-lg p-2.5">
+                    <span class="text-gray-500 dark:text-gray-400">Leverage</span>
+                    <span class="font-bold text-gray-900 dark:text-white">{{ ct.phase1_leverage or '1:100' }}</span>
+                </div>
+            </div>
+        </div>
+        <div class="rule-card bg-purple-50 dark:bg-purple-900/10 border border-purple-200 dark:border-purple-800">
+            <h4 class="font-bold text-purple-700 dark:text-purple-400 text-lg mb-3">
+                <i class="fas fa-check-circle mr-2"></i>Phase 2
+            </h4>
+            <div class="space-y-2 text-sm">
+                <div class="flex justify-between bg-white dark:bg-gray-800 rounded-lg p-2.5">
+                    <span class="text-gray-500 dark:text-gray-400">Profit Target</span>
+                    <span class="font-bold text-green-600 dark:text-green-400">{{ ct.phase2_target }}% <span class="text-xs text-gray-400">(${{ "{:,.0f}".format(ct.account_size * (ct.phase2_target or 0) / 100) }})</span></span>
+                </div>
+                <div class="flex justify-between bg-white dark:bg-gray-800 rounded-lg p-2.5">
+                    <span class="text-gray-500 dark:text-gray-400">Daily Loss</span>
+                    <span class="font-bold text-red-600 dark:text-red-400 text-right">{{ ct.phase2_daily_loss }}%<br><span class="text-xs text-gray-400">{{ dd_label(ct.phase2_daily_dd_type) }}</span></span>
+                </div>
+                <div class="flex justify-between bg-white dark:bg-gray-800 rounded-lg p-2.5">
+                    <span class="text-gray-500 dark:text-gray-400">Overall Loss</span>
+                    <span class="font-bold text-red-600 dark:text-red-400 text-right">{{ ct.phase2_overall_loss }}%<br><span class="text-xs text-gray-400">{{ dd_label(ct.phase2_overall_dd_type) }}</span></span>
+                </div>
+                <div class="flex justify-between bg-white dark:bg-gray-800 rounded-lg p-2.5">
+                    <span class="text-gray-500 dark:text-gray-400">Min Days</span>
+                    <span class="font-bold text-gray-900 dark:text-white">{{ ct.phase2_min_days or 0 }} days</span>
+                </div>
+                <div class="flex justify-between bg-white dark:bg-gray-800 rounded-lg p-2.5">
+                    <span class="text-gray-500 dark:text-gray-400">Duration</span>
+                    <span class="font-bold text-gray-900 dark:text-white">{{ ct.phase2_duration or 30 }} days</span>
+                </div>
+                <div class="flex justify-between bg-white dark:bg-gray-800 rounded-lg p-2.5">
+                    <span class="text-gray-500 dark:text-gray-400">Leverage</span>
+                    <span class="font-bold text-gray-900 dark:text-white">{{ ct.phase2_leverage or '1:100' }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% else %}
+    <!-- Instant Funded Rules -->
+    <div class="rule-card bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-200 dark:border-emerald-800">
+        <h4 class="font-bold text-emerald-700 dark:text-emerald-400 text-lg mb-3">
+            <i class="fas fa-crown mr-2"></i>Instant Funded Rules
+        </h4>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+            <div class="bg-white dark:bg-gray-800 rounded-lg p-3">
+                <p class="text-gray-500 dark:text-gray-400 text-xs">Daily Loss Limit</p>
+                <p class="font-bold text-red-600 dark:text-red-400">{{ ct.instant_daily_loss }}%</p>
+                <p class="text-xs text-gray-400">{{ dd_label(ct.instant_daily_dd_type) }}</p>
+            </div>
+            <div class="bg-white dark:bg-gray-800 rounded-lg p-3">
+                <p class="text-gray-500 dark:text-gray-400 text-xs">Overall Loss Limit</p>
+                <p class="font-bold text-red-600 dark:text-red-400">{{ ct.instant_overall_loss }}%</p>
+                <p class="text-xs text-gray-400">{{ dd_label(ct.instant_overall_dd_type) }}</p>
+            </div>
+            <div class="bg-white dark:bg-gray-800 rounded-lg p-3">
+                <p class="text-gray-500 dark:text-gray-400 text-xs">Min Trading Days</p>
+                <p class="font-bold text-gray-900 dark:text-white">{{ ct.instant_min_days or 0 }} days</p>
+            </div>
+            <div class="bg-white dark:bg-gray-800 rounded-lg p-3">
+                <p class="text-gray-500 dark:text-gray-400 text-xs">Leverage</p>
+                <p class="font-bold text-gray-900 dark:text-white">{{ ct.instant_leverage or '1:100' }}</p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Profit Split & Payout -->
+    <div class="rule-card bg-indigo-50 dark:bg-indigo-900/10 border border-indigo-200 dark:border-indigo-800 mt-4">
+        <h4 class="font-bold text-indigo-700 dark:text-indigo-400 text-lg mb-3">
+            <i class="fas fa-percentage mr-2"></i>Profit Split & Payout
+        </h4>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+            <div class="bg-white dark:bg-gray-800 rounded-lg p-3">
+                <p class="text-gray-500 dark:text-gray-400 text-xs">User Profit Share</p>
+                <p class="font-bold text-green-600 dark:text-green-400">{{ ct.user_profit_share }}%</p>
+            </div>
+            <div class="bg-white dark:bg-gray-800 rounded-lg p-3">
+                <p class="text-gray-500 dark:text-gray-400 text-xs">Firm Profit Share</p>
+                <p class="font-bold text-gray-900 dark:text-white">{{ 100 - ct.user_profit_share }}%</p>
+            </div>
+            <div class="bg-white dark:bg-gray-800 rounded-lg p-3">
+                <p class="text-gray-500 dark:text-gray-400 text-xs">Payout Cycle</p>
+                <p class="font-bold text-gray-900 dark:text-white">{{ ct.payout_cycle|title }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Weekend Trading -->
+    <div class="flex items-center gap-2 mt-4 px-2">
+        <span class="text-sm text-gray-500 dark:text-gray-400">Weekend Trading:</span>
+        {% if ct.weekend_trading %}
+        <span class="rule-badge bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400">
+            <i class="fas fa-check-circle mr-1"></i> Allowed
+        </span>
+        {% else %}
+        <span class="rule-badge bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400">
+            <i class="fas fa-times-circle mr-1"></i> Not Allowed
+        </span>
+        {% endif %}
+    </div>
+
+    <!-- 🛡️ Safety Rules (if enabled) -->
+    {% if ct.sl_mandatory_enabled or ct.activity_rule_enabled %}
+    <div class="mt-6 border-t border-gray-200 dark:border-gray-700 pt-4">
+        <h4 class="font-bold text-amber-600 dark:text-amber-400 text-lg mb-3 flex items-center">
+            <i class="fas fa-shield-alt mr-2"></i>Active Safety Rules
+        </h4>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {% if ct.sl_mandatory_enabled %}
+            <div class="rule-card bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800">
+                <h5 class="font-bold text-amber-800 dark:text-amber-300">🛡️ Mandatory Stop-Loss</h5>
+                <div class="text-sm text-amber-700 dark:text-amber-400 mt-2 space-y-1">
+                    <p>• SL must be set within <strong>{{ ct.sl_grace_period_minutes }} minutes</strong></p>
+                    <p>• Max risk: <strong>{{ ct.max_risk_per_trade_percent }}%</strong> per trade</p>
+                    <p class="text-red-600 dark:text-red-400 font-semibold mt-2">⚠️ Breach = HARD FAIL</p>
+                </div>
+            </div>
+            {% endif %}
+            {% if ct.activity_rule_enabled %}
+            <div class="rule-card bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800">
+                <h5 class="font-bold text-blue-800 dark:text-blue-300">⏱️ Trading Activity Rule</h5>
+                <div class="text-sm text-blue-700 dark:text-blue-400 mt-2 space-y-1">
+                    <p>• Must trade at least once every <strong>{{ ct.max_inactive_days }} days</strong></p>
+                    <p>• No {{ ct.max_inactive_days }}+ day gaps allowed</p>
+                    <p class="text-red-600 dark:text-red-400 font-semibold mt-2">⚠️ Breach = HARD FAIL</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
 </div>
 
 <!-- CONFIDENTIAL: EA Authentication Credentials -->
@@ -105,14 +356,12 @@
     </div>
 
     <div class="space-y-4">
-        <!-- Challenge Code -->
         <div class="bg-red-50 dark:bg-red-900/20 p-4 rounded-lg">
             <label class="block text-sm font-medium text-red-700 dark:text-red-400 mb-2">
                 Challenge Code (CHALLENGE_ID)
             </label>
             <div class="flex items-center gap-2">
-                <input type="text" value="{{ challenge.challenge_code or 'Not Generated' }}" id="challenge_code"
-                    readonly
+                <input type="text" value="{{ challenge.challenge_code or 'Not Generated' }}" id="challenge_code" readonly
                     class="flex-1 font-mono text-lg font-bold bg-white dark:bg-gray-800 border-2 border-red-300 dark:border-red-700 rounded px-3 py-2 text-gray-900 dark:text-white">
                 <button onclick="copyToClipboard('challenge_code')"
                     class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded font-medium transition">
@@ -120,19 +369,16 @@
                 </button>
             </div>
             <p class="text-xs text-red-600 dark:text-red-400 mt-2">
-                <i class="fas fa-info-circle mr-1"></i>
-                6-digit numeric identifier for EA
+                <i class="fas fa-info-circle mr-1"></i>6-digit numeric identifier for EA
             </p>
         </div>
 
-        <!-- Challenge Token -->
         <div class="bg-red-50 dark:bg-red-900/20 p-4 rounded-lg">
             <label class="block text-sm font-medium text-red-700 dark:text-red-400 mb-2">
                 Challenge Token (CHALLENGE_TOKEN)
             </label>
             <div class="flex items-center gap-2">
-                <input type="text" value="{{ challenge.challenge_token or 'Not Generated' }}" id="challenge_token"
-                    readonly
+                <input type="text" value="{{ challenge.challenge_token or 'Not Generated' }}" id="challenge_token" readonly
                     class="flex-1 font-mono text-sm bg-white dark:bg-gray-800 border-2 border-red-300 dark:border-red-700 rounded px-3 py-2 text-gray-900 dark:text-white">
                 <button onclick="copyToClipboard('challenge_token')"
                     class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded font-medium transition">
@@ -140,8 +386,7 @@
                 </button>
             </div>
             <p class="text-xs text-red-600 dark:text-red-400 mt-2">
-                <i class="fas fa-info-circle mr-1"></i>
-                Cryptographically secure authentication token
+                <i class="fas fa-info-circle mr-1"></i>Cryptographically secure authentication token
             </p>
         </div>
     </div>
@@ -158,8 +403,7 @@
 <!-- MT5 Credentials (if assigned) -->
 {% if challenge.mt5_login %}
 <div class="glass-card p-6 mb-6">
-    <h3
-        class="text-xl font-semibold text-gray-900 dark:text-white mb-4 border-b border-gray-100 dark:border-gray-700 pb-2">
+    <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-4 border-b border-gray-100 dark:border-gray-700 pb-2">
         MT5 Credentials
     </h3>
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -181,15 +425,13 @@
 
 <!-- Trading Stats -->
 <div class="glass-card p-6">
-    <h3
-        class="text-xl font-semibold text-gray-900 dark:text-white mb-4 border-b border-gray-100 dark:border-gray-700 pb-2">
+    <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-4 border-b border-gray-100 dark:border-gray-700 pb-2">
         Trading Statistics
     </h3>
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div>
             <p class="text-sm text-gray-500 dark:text-gray-400">Current Profit</p>
-            <p
-                class="text-lg font-bold {% if challenge.current_profit >= 0 %}text-green-600 dark:text-green-400{% else %}text-red-600 dark:text-red-400{% endif %}">
+            <p class="text-lg font-bold {% if challenge.current_profit >= 0 %}text-green-600 dark:text-green-400{% else %}text-red-600 dark:text-red-400{% endif %}">
                 ${{ "%.2f"|format(challenge.current_profit or 0) }}
             </p>
         </div>
@@ -220,10 +462,9 @@
     function copyToClipboard(elementId) {
         const input = document.getElementById(elementId);
         input.select();
-        input.setSelectionRange(0, 99999); // For mobile devices
+        input.setSelectionRange(0, 99999);
 
         navigator.clipboard.writeText(input.value).then(() => {
-            // Show success feedback
             const button = event.target.closest('button');
             const originalHTML = button.innerHTML;
             button.innerHTML = '<i class="fas fa-check mr-1"></i>Copied!';

@@ -2148,6 +2148,103 @@ def api_challenge_details(challenge_id):
         'created_at': e.created_at.isoformat() if e.created_at else None
     } for e in evidences]
 
+    # 🎯 GET REAL TEMPLATE RULES FROM DATABASE
+    template = ch.challenge_template
+    template_rules = None
+    
+    if template:
+        template_rules = {
+            'challenge_type': template.challenge_type or 'one_phase',
+            'account_size': template.account_size or 10000,
+            'phase': template.phase or 1,
+            
+            # Phase 1 Rules
+            'phase1_target': template.phase1_target,
+            'phase1_daily_loss': template.phase1_daily_loss,
+            'phase1_daily_dd_type': template.phase1_daily_dd_type or 'equity',
+            'phase1_overall_loss': template.phase1_overall_loss,
+            'phase1_overall_dd_type': template.phase1_overall_dd_type or 'equity',
+            'phase1_min_days': template.phase1_min_days,
+            'phase1_duration': template.phase1_duration,
+            'phase1_leverage': template.phase1_leverage or '1:100',
+            'phase1_rules': template.phase1_rules or '',
+            
+            # Phase 2 Rules
+            'phase2_target': template.phase2_target,
+            'phase2_daily_loss': template.phase2_daily_loss,
+            'phase2_daily_dd_type': template.phase2_daily_dd_type or 'equity',
+            'phase2_overall_loss': template.phase2_overall_loss,
+            'phase2_overall_dd_type': template.phase2_overall_dd_type or 'equity',
+            'phase2_min_days': template.phase2_min_days,
+            'phase2_duration': template.phase2_duration,
+            'phase2_leverage': template.phase2_leverage or '1:100',
+            'phase2_rules': template.phase2_rules or '',
+            
+            # Instant Rules
+            'instant_daily_loss': template.instant_daily_loss,
+            'instant_daily_dd_type': template.instant_daily_dd_type or 'equity',
+            'instant_overall_loss': template.instant_overall_loss,
+            'instant_overall_dd_type': template.instant_overall_dd_type or 'equity',
+            'instant_min_days': template.instant_min_days,
+            'instant_leverage': template.instant_leverage or '1:100',
+            'instant_rules': template.instant_rules or '',
+            
+            # General Settings
+            'user_profit_share': template.user_profit_share or 80,
+            'payout_cycle': template.payout_cycle or 'biweekly',
+            'weekend_trading': template.weekend_trading if template.weekend_trading is not None else True,
+            'is_active': template.is_active if template.is_active is not None else True,
+            'description': template.description or '',
+            
+            # 🛡️ Safety Rules
+            'sl_mandatory_enabled': template.sl_mandatory_enabled if template.sl_mandatory_enabled is not None else False,
+            'sl_grace_period_minutes': template.sl_grace_period_minutes or 3,
+            'max_risk_per_trade_percent': template.max_risk_per_trade_percent or 1.5,
+            'activity_rule_enabled': template.activity_rule_enabled if template.activity_rule_enabled is not None else False,
+            'max_inactive_days': template.max_inactive_days or 4,
+        }
+    
+    # Determine current phase rules
+    ctype = ch.challenge_type or 'one_phase'
+    phase = ch.current_phase or 1
+    
+    if ctype == 'instant':
+        current_rules = {
+            'phase_name': 'Instant Funded',
+            'target': template.instant_daily_loss,  # No profit target for instant
+            'daily_loss': template.instant_daily_loss,
+            'daily_dd_type': template.instant_daily_dd_type or 'equity',
+            'overall_loss': template.instant_overall_loss,
+            'overall_dd_type': template.instant_overall_dd_type or 'equity',
+            'min_days': template.instant_min_days or 0,
+            'duration': 365,
+            'leverage': template.instant_leverage or '1:100',
+        } if template else None
+    elif ctype == 'two_phase' and phase == 2:
+        current_rules = {
+            'phase_name': 'Phase 2',
+            'target': template.phase2_target,
+            'daily_loss': template.phase2_daily_loss,
+            'daily_dd_type': template.phase2_daily_dd_type or 'equity',
+            'overall_loss': template.phase2_overall_loss,
+            'overall_dd_type': template.phase2_overall_dd_type or 'equity',
+            'min_days': template.phase2_min_days or 0,
+            'duration': template.phase2_duration or 60,
+            'leverage': template.phase2_leverage or '1:100',
+        } if template else None
+    else:
+        current_rules = {
+            'phase_name': 'Phase 1',
+            'target': template.phase1_target,
+            'daily_loss': template.phase1_daily_loss,
+            'daily_dd_type': template.phase1_daily_dd_type or 'equity',
+            'overall_loss': template.phase1_overall_loss,
+            'overall_dd_type': template.phase1_overall_dd_type or 'equity',
+            'min_days': template.phase1_min_days or 0,
+            'duration': template.phase1_duration or 30,
+            'leverage': template.phase1_leverage or '1:100',
+        } if template else None
+
     return jsonify({
         'success': True,
         'challenge': {
@@ -2158,6 +2255,7 @@ def api_challenge_details(challenge_id):
             'status': ch.status,
             'monitoring_status': ch.monitoring_status,
             'current_phase': ch.current_phase,
+            'challenge_type': ctype,
             'profit_percent': ch.profit_percent,
             'daily_drawdown': ch.daily_drawdown,
             'overall_drawdown': ch.overall_drawdown,
@@ -2171,7 +2269,11 @@ def api_challenge_details(challenge_id):
             'violation_timestamp': ch.violation_timestamp.isoformat() if ch.violation_timestamp else None,
             'review_required': ch.review_required,
             'violations': violations_data,
-            'evidence': evidence_data      # ← NEW
+            'evidence': evidence_data,
+            # 🎯 REAL TEMPLATE RULES
+            'template_rules': template_rules,
+            # 🎯 CURRENT PHASE RULES (for analytics)
+            'current_rules': current_rules,
         }
     })
 

@@ -19,24 +19,35 @@
 <style>
 .modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:1000; justify-content:center; align-items:center; }
 .modal.active { display:flex; }
-.modal-content { max-width:860px; width:90%; max-height:88vh; overflow-y:auto; }
+.modal-content { max-width:900px; width:95%; max-height:90vh; overflow-y:auto; }
 
-/* Violation card */
 .violation-card { padding: 12px 16px; border-radius: 12px; border-left: 4px solid; margin-bottom: 10px; }
 .violation-critical { background: rgba(239,68,68,0.08); border-color: #ef4444; }
 .violation-warning { background: rgba(245,158,11,0.08); border-color: #f59e0b; }
 .violation-info { background: rgba(59,130,246,0.08); border-color: #3b82f6; }
 
-/* Status dots */
-.dot-active { color: #10b981; }
-.dot-flagged { color: #f59e0b; }
-.dot-under_review { color: #f59e0b; }
-.dot-failed { color: #6b7280; }
-.dot-passed { color: #10b981; }
-
-/* Tabs */
 .tab-btn { transition: all 0.2s ease; }
 .tab-btn:hover { border-bottom-color: #93c5fd; }
+
+.progress-bar-bg { background: #e5e7eb; border-radius: 9999px; height: 10px; overflow: hidden; }
+.dark .progress-bar-bg { background: #374151; }
+.progress-bar-fill { height: 100%; border-radius: 9999px; transition: width 0.5s ease; }
+
+.rule-item { padding: 14px 16px; border-radius: 12px; margin-bottom: 10px; border: 2px solid; }
+.rule-passed { background: #f0fdf4; border-color: #bbf7d0; }
+.dark .rule-passed { background: rgba(16,185,129,0.08); border-color: rgba(16,185,129,0.3); }
+.rule-at-risk { background: #fefce8; border-color: #fde68a; }
+.dark .rule-at-risk { background: rgba(245,158,11,0.08); border-color: rgba(245,158,11,0.3); }
+.rule-ok { background: #f8fafc; border-color: #e2e8f0; }
+.dark .rule-ok { background: rgba(30,41,59,0.5); border-color: rgba(71,85,105,0.5); }
+.rule-violated { background: #fef2f2; border-color: #fecaca; }
+.dark .rule-violated { background: rgba(239,68,68,0.08); border-color: rgba(239,68,68,0.3); }
+
+.win-meter { height: 10px; border-radius: 9999px; overflow: hidden; background: #e5e7eb; }
+.dark .win-meter { background: #374151; }
+
+.stat-card { padding: 16px; border-radius: 12px; text-align: center; }
+.phase-badge { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 9999px; font-weight: 700; font-size: 0.8rem; }
 </style>
 {% endblock %}
 
@@ -149,6 +160,12 @@
 let allChallenges = [];
 let refreshInterval;
 
+// Helper functions
+const ddLabel = (type) => type === 'static' ? 'Static Balance Based' : 'Equity Based';
+const formatCurrency = (val) => '$' + (val || 0).toLocaleString();
+const fmtPct = (val) => (val || 0).toFixed(2);
+const capitalize = (s) => s ? s.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : '';
+
 async function fetchAllChallenges() {
     try {
         const r = await fetch('/admin/api/challenges/all', { credentials: 'include', headers: { 'Accept': 'application/json' } });
@@ -200,7 +217,6 @@ function renderTable(challenges) {
         const overallDD= ch.overall_drawdown || 0;
         const risk     = ch.risk_score || 0;
         const daysLeft = ch.days_remaining || 0;
-
         const profitColor = profit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400';
         const profitSign  = profit > 0 ? '+' : '';
 
@@ -216,13 +232,9 @@ function renderTable(challenges) {
             'failed':       ['bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400',       'fa-times-circle',       'Failed'],
         };
         const [sClass, sIcon, sText] = statusMap[ch.status] || statusMap['active'];
-
-        // Row highlight for flagged
         const rowClass = (ch.status === 'flagged' || ch.status === 'under_review')
             ? 'bg-yellow-50 dark:bg-yellow-900/10 hover:bg-yellow-100 dark:hover:bg-yellow-900/20'
             : 'hover:bg-gray-50 dark:hover:bg-gray-700/50';
-
-        // Violation snippet
         const violationSnippet = ch.violation_reason
             ? `<div class="text-xs text-yellow-600 dark:text-yellow-400 font-semibold mt-0.5 truncate max-w-[160px]"><i class="fas fa-exclamation-circle mr-1"></i>${ch.violation_reason}</div>`
             : '';
@@ -241,7 +253,7 @@ function renderTable(challenges) {
             <td class="px-6 py-4 whitespace-nowrap">
                 <div class="${profitColor} font-bold text-sm">${profitSign}${profit.toFixed(2)}%</div>
                 <div class="w-24 bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 mt-1.5 overflow-hidden">
-                    <div class="${profit < 0 ? 'bg-red-500' : profit < 4 ? 'bg-orange-500' : 'bg-green-500'} h-full" style="width:${Math.min(100, Math.abs(profit)*5)}%"></div>
+                    <div class="${profit < 0 ? 'bg-red-500' : 'bg-green-500'} h-full" style="width:${Math.min(100, Math.abs(profit)*5)}%"></div>
                 </div>
             </td>
             <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold ${dailyDD > 4 ? 'text-red-600 dark:text-red-400' : dailyDD > 3 ? 'text-yellow-600 dark:text-yellow-400' : 'text-green-600 dark:text-green-400'}">${dailyDD.toFixed(2)}%</td>
@@ -256,16 +268,12 @@ function renderTable(challenges) {
                 </span>
             </td>
             <td class="px-6 py-4 whitespace-nowrap text-sm">
-    <button class="bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 text-blue-600 dark:text-blue-400 px-3 py-1.5 rounded-lg font-semibold text-xs transition flex items-center gap-1" onclick="viewChallengeDetails(${ch.id})">
-        <i class="fas fa-eye"></i> View
-    </button>
-    <a href="/admin/user/${ch.user_id}/analytics" target="_blank" class="bg-purple-50 hover:bg-purple-100 dark:bg-purple-900/30 dark:hover:bg-purple-900/50 text-purple-600 dark:text-purple-400 px-3 py-1.5 rounded-lg font-semibold text-xs transition flex items-center gap-1 mt-1 inline-flex">
-        <i class="fas fa-chart-line"></i> Analytics
-    </a>
-</td>
-`;
-
-}).join('');
+                <button class="bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 text-blue-600 dark:text-blue-400 px-3 py-1.5 rounded-lg font-semibold text-xs transition flex items-center gap-1" onclick="viewChallengeDetails(${ch.id})">
+                    <i class="fas fa-eye"></i> View
+                </button>
+            </td>
+        </tr>`;
+    }).join('');
 }
 
 function updateStats(challenges) {
@@ -282,6 +290,10 @@ function updateStats(challenges) {
     document.getElementById('passedToday').innerText = passedToday;
 }
 
+// ========================================================================
+// DETAIL MODAL - ALL REAL DATA FROM API
+// ========================================================================
+
 async function viewChallengeDetails(id) {
     try {
         const r = await fetch(`/admin/api/challenge/${id}/details`, { credentials: 'include' });
@@ -290,6 +302,356 @@ async function viewChallengeDetails(id) {
         const ch = d.challenge;
         const isFlagged = ch.status === 'flagged' || ch.status === 'under_review';
 
+        // 🎯 GET REAL RULES FROM API
+        const rules = ch.template_rules || {};
+        const currentRules = ch.current_rules || {};
+        const challengeType = ch.challenge_type || rules?.challenge_type || 'one_phase';
+        const isTwoPhase = challengeType === 'two_phase';
+        const isInstant = challengeType === 'instant';
+        const currentPhase = ch.current_phase || 1;
+
+        // Current phase real values
+        const profitTarget = currentRules?.target ?? rules?.phase1_target ?? 8;
+        const dailyDDLimit = currentRules?.daily_loss ?? rules?.phase1_daily_loss ?? 5;
+        const overallDDLimit = currentRules?.overall_loss ?? rules?.phase1_overall_loss ?? 10;
+        const minTradingDays = currentRules?.min_days ?? rules?.phase1_min_days ?? 5;
+        const duration = currentRules?.duration ?? rules?.phase1_duration ?? 30;
+        const leverage = currentRules?.leverage ?? rules?.phase1_leverage ?? '1:100';
+        const dailyDDType = currentRules?.daily_dd_type ?? rules?.phase1_daily_dd_type ?? 'equity';
+        const overallDDType = currentRules?.overall_dd_type ?? rules?.phase1_overall_dd_type ?? 'equity';
+        const phaseName = currentRules?.phase_name || (currentPhase === 2 ? 'Phase 2' : currentPhase === 3 ? 'Funded' : 'Phase 1');
+
+        // Template values
+        const accountSize = rules?.account_size || 10000;
+        const profitShare = rules?.user_profit_share || 80;
+        const payoutCycle = rules?.payout_cycle || 'biweekly';
+        const slEnabled = rules?.sl_mandatory_enabled || false;
+        const slGrace = rules?.sl_grace_period_minutes || 3;
+        const maxRisk = rules?.max_risk_per_trade_percent || 1.5;
+        const activityEnabled = rules?.activity_rule_enabled || false;
+        const maxInactive = rules?.max_inactive_days || 4;
+        const weekendTrading = rules?.weekend_trading !== false;
+        
+        // Phase 1 & 2 rules for display in Rules tab
+        const p1Target = rules?.phase1_target ?? 8;
+        const p1DailyLoss = rules?.phase1_daily_loss ?? 5;
+        const p1OverallLoss = rules?.phase1_overall_loss ?? 10;
+        const p1MinDays = rules?.phase1_min_days ?? 5;
+        const p1Duration = rules?.phase1_duration ?? 30;
+        const p1Leverage = rules?.phase1_leverage ?? '1:100';
+        const p1DailyDDType = rules?.phase1_daily_dd_type ?? 'equity';
+        const p1OverallDDType = rules?.phase1_overall_dd_type ?? 'equity';
+        
+        const p2Target = rules?.phase2_target ?? 5;
+        const p2DailyLoss = rules?.phase2_daily_loss ?? 5;
+        const p2OverallLoss = rules?.phase2_overall_loss ?? 10;
+        const p2MinDays = rules?.phase2_min_days ?? 5;
+        const p2Duration = rules?.phase2_duration ?? 60;
+        const p2Leverage = rules?.phase2_leverage ?? '1:100';
+        const p2DailyDDType = rules?.phase2_daily_dd_type ?? 'equity';
+        const p2OverallDDType = rules?.phase2_overall_dd_type ?? 'equity';
+        
+        const iDailyLoss = rules?.instant_daily_loss ?? 5;
+        const iOverallLoss = rules?.instant_overall_loss ?? 10;
+        const iMinDays = rules?.instant_min_days ?? 0;
+        const iLeverage = rules?.instant_leverage ?? '1:100';
+        const iDailyDDType = rules?.instant_daily_dd_type ?? 'equity';
+        const iOverallDDType = rules?.instant_overall_dd_type ?? 'equity';
+
+        // Phase colors
+        const phaseColor = currentPhase === 2 ? '#7c3aed' : currentPhase === 3 ? '#059669' : '#2563eb';
+        const phaseIcon = currentPhase === 2 ? 'fa-check-circle' : currentPhase === 3 ? 'fa-crown' : 'fa-seedling';
+
+        // ===== BUILD RULES TAB - REAL DATA =====
+        let rulesTabHtml = '';
+        
+        if (isInstant) {
+            // Instant Rules
+            rulesTabHtml = `
+            <div class="bg-gradient-to-r from-emerald-50 to-green-50 dark:from-emerald-900/10 dark:to-green-900/10 border-2 border-emerald-200 dark:border-emerald-800 rounded-xl p-5">
+                <h4 class="font-bold text-emerald-800 dark:text-emerald-300 text-lg mb-3 flex items-center gap-2">
+                    <i class="fas fa-gavel"></i> Rules at Time of Purchase
+                </h4>
+                <div class="flex items-center gap-3 mb-4">
+                    <span class="phase-badge" style="background:${phaseColor}20; color:${phaseColor}; border:1px solid ${phaseColor}40">
+                        <i class="fas fa-crown"></i> Instant Funded
+                    </span>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                    <div class="bg-white dark:bg-gray-800 rounded-lg p-3 border">
+                        <span class="text-gray-500 dark:text-gray-400 text-xs">🛑 Daily Drawdown</span>
+                        <p class="font-bold text-red-600 dark:text-red-400">${iDailyLoss}% <span class="text-xs text-gray-400 font-normal">(${ddLabel(iDailyDDType)})</span></p>
+                        <p class="text-xs text-gray-400 mt-0.5">Max loss in a single day</p>
+                    </div>
+                    <div class="bg-white dark:bg-gray-800 rounded-lg p-3 border">
+                        <span class="text-gray-500 dark:text-gray-400 text-xs">📉 Overall Drawdown</span>
+                        <p class="font-bold text-red-600 dark:text-red-400">${iOverallLoss}% <span class="text-xs text-gray-400 font-normal">(${ddLabel(iOverallDDType)})</span></p>
+                        <p class="text-xs text-gray-400 mt-0.5">Max total loss allowed</p>
+                    </div>
+                    <div class="bg-white dark:bg-gray-800 rounded-lg p-3 border">
+                        <span class="text-gray-500 dark:text-gray-400 text-xs">📅 Min Trading Days</span>
+                        <p class="font-bold text-gray-900 dark:text-white">${iMinDays} days</p>
+                    </div>
+                    <div class="bg-white dark:bg-gray-800 rounded-lg p-3 border">
+                        <span class="text-gray-500 dark:text-gray-400 text-xs">⚡ Leverage</span>
+                        <p class="font-bold text-gray-900 dark:text-white">${iLeverage}</p>
+                    </div>
+                    <div class="bg-white dark:bg-gray-800 rounded-lg p-3 border">
+                        <span class="text-gray-500 dark:text-gray-400 text-xs">💰 Profit Split</span>
+                        <p class="font-bold text-indigo-600 dark:text-indigo-400">${profitShare}% / ${100 - profitShare}%</p>
+                    </div>
+                    <div class="bg-white dark:bg-gray-800 rounded-lg p-3 border">
+                        <span class="text-gray-500 dark:text-gray-400 text-xs">🔄 Payout Cycle</span>
+                        <p class="font-bold text-gray-900 dark:text-white">${capitalize(payoutCycle)}</p>
+                    </div>
+                </div>
+            </div>`;
+        } else if (isTwoPhase) {
+            // Two Phase Rules
+            rulesTabHtml = `
+            <div class="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/10 dark:to-purple-900/10 border-2 border-purple-200 dark:border-purple-800 rounded-xl p-5">
+                <h4 class="font-bold text-purple-800 dark:text-purple-300 text-lg mb-3 flex items-center gap-2">
+                    <i class="fas fa-gavel"></i> Rules at Time of Purchase (2-Phase Challenge)
+                </h4>
+                <div class="flex items-center gap-3 mb-4">
+                    <span class="phase-badge" style="background:${phaseColor}20; color:${phaseColor}; border:1px solid ${phaseColor}40">
+                        <i class="fas ${phaseIcon}"></i> Currently: ${phaseName}
+                    </span>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Phase 1 -->
+                    <div class="border border-blue-200 dark:border-blue-800 rounded-xl p-4 bg-blue-50/50 dark:bg-blue-900/5">
+                        <h5 class="font-bold text-blue-700 dark:text-blue-400 mb-3">📗 PHASE 1</h5>
+                        <div class="space-y-2 text-sm">
+                            <div class="flex justify-between"><span class="text-gray-500">Profit Target</span><span class="font-bold text-green-600">${p1Target}% ($${((accountSize * p1Target / 100)).toFixed(0)})</span></div>
+                            <div class="flex justify-between"><span class="text-gray-500">Daily Drawdown</span><span class="font-bold text-red-600">${p1DailyLoss}% <span class="text-xs text-gray-400">${ddLabel(p1DailyDDType)}</span></span></div>
+                            <div class="flex justify-between"><span class="text-gray-500">Overall Drawdown</span><span class="font-bold text-red-600">${p1OverallLoss}% <span class="text-xs text-gray-400">${ddLabel(p1OverallDDType)}</span></span></div>
+                            <div class="flex justify-between"><span class="text-gray-500">Min Days</span><span class="font-bold">${p1MinDays} days</span></div>
+                            <div class="flex justify-between"><span class="text-gray-500">Duration</span><span class="font-bold">${p1Duration} days</span></div>
+                            <div class="flex justify-between"><span class="text-gray-500">Leverage</span><span class="font-bold">${p1Leverage}</span></div>
+                        </div>
+                    </div>
+                    <!-- Phase 2 -->
+                    <div class="border border-purple-200 dark:border-purple-800 rounded-xl p-4 bg-purple-50/50 dark:bg-purple-900/5">
+                        <h5 class="font-bold text-purple-700 dark:text-purple-400 mb-3">📕 PHASE 2</h5>
+                        <div class="space-y-2 text-sm">
+                            <div class="flex justify-between"><span class="text-gray-500">Profit Target</span><span class="font-bold text-green-600">${p2Target}% ($${((accountSize * p2Target / 100)).toFixed(0)})</span></div>
+                            <div class="flex justify-between"><span class="text-gray-500">Daily Drawdown</span><span class="font-bold text-red-600">${p2DailyLoss}% <span class="text-xs text-gray-400">${ddLabel(p2DailyDDType)}</span></span></div>
+                            <div class="flex justify-between"><span class="text-gray-500">Overall Drawdown</span><span class="font-bold text-red-600">${p2OverallLoss}% <span class="text-xs text-gray-400">${ddLabel(p2OverallDDType)}</span></span></div>
+                            <div class="flex justify-between"><span class="text-gray-500">Min Days</span><span class="font-bold">${p2MinDays} days</span></div>
+                            <div class="flex justify-between"><span class="text-gray-500">Duration</span><span class="font-bold">${p2Duration} days</span></div>
+                            <div class="flex justify-between"><span class="text-gray-500">Leverage</span><span class="font-bold">${p2Leverage}</span></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3 text-sm mt-4">
+                    <div class="bg-white dark:bg-gray-800 rounded-lg p-3 border">
+                        <span class="text-gray-500 dark:text-gray-400 text-xs">💰 Profit Split</span>
+                        <p class="font-bold text-indigo-600 dark:text-indigo-400">${profitShare}% / ${100 - profitShare}%</p>
+                    </div>
+                    <div class="bg-white dark:bg-gray-800 rounded-lg p-3 border">
+                        <span class="text-gray-500 dark:text-gray-400 text-xs">🔄 Payout Cycle</span>
+                        <p class="font-bold text-gray-900 dark:text-white">${capitalize(payoutCycle)}</p>
+                    </div>
+                </div>
+            </div>`;
+        } else {
+            // One Phase Rules
+            const targetAmount = (accountSize * profitTarget / 100).toFixed(0);
+            const dailyAmount = (accountSize * dailyDDLimit / 100).toFixed(0);
+            const overallAmount = (accountSize * overallDDLimit / 100).toFixed(0);
+            
+            rulesTabHtml = `
+            <div class="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/10 dark:to-indigo-900/10 border-2 border-blue-200 dark:border-blue-800 rounded-xl p-5">
+                <h4 class="font-bold text-blue-800 dark:text-blue-300 text-lg mb-3 flex items-center gap-2">
+                    <i class="fas fa-gavel"></i> Rules at Time of Purchase
+                </h4>
+                <div class="flex items-center gap-3 mb-4">
+                    <span class="phase-badge" style="background:${phaseColor}20; color:${phaseColor}; border:1px solid ${phaseColor}40">
+                        <i class="fas ${phaseIcon}"></i> ${phaseName}
+                    </span>
+                    ${currentPhase > 1 ? `<span class="text-xs text-gray-500 dark:text-gray-400">(Progressing through challenge)</span>` : ''}
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                    <div class="bg-white dark:bg-gray-800 rounded-lg p-3 border">
+                        <span class="text-gray-500 dark:text-gray-400 text-xs">📈 Profit Target</span>
+                        <p class="font-bold text-green-600 dark:text-green-400">${profitTarget}% <span class="text-xs text-gray-400 font-normal">($${targetAmount} on $${accountSize.toLocaleString()})</span></p>
+                        <p class="text-xs text-gray-400 mt-0.5">Must reach this % gain to pass</p>
+                    </div>
+                    <div class="bg-white dark:bg-gray-800 rounded-lg p-3 border">
+                        <span class="text-gray-500 dark:text-gray-400 text-xs">🛑 Daily Drawdown</span>
+                        <p class="font-bold text-red-600 dark:text-red-400">${dailyDDLimit}% <span class="text-xs text-gray-400 font-normal">(${ddLabel(dailyDDType)} - $${dailyAmount})</span></p>
+                        <p class="text-xs text-gray-400 mt-0.5">Max loss in a single day</p>
+                    </div>
+                    <div class="bg-white dark:bg-gray-800 rounded-lg p-3 border">
+                        <span class="text-gray-500 dark:text-gray-400 text-xs">📉 Overall Drawdown</span>
+                        <p class="font-bold text-red-600 dark:text-red-400">${overallDDLimit}% <span class="text-xs text-gray-400 font-normal">(${ddLabel(overallDDType)} - $${overallAmount})</span></p>
+                        <p class="text-xs text-gray-400 mt-0.5">Max total loss allowed</p>
+                    </div>
+                    <div class="bg-white dark:bg-gray-800 rounded-lg p-3 border">
+                        <span class="text-gray-500 dark:text-gray-400 text-xs">📅 Min Trading Days</span>
+                        <p class="font-bold text-gray-900 dark:text-white">${minTradingDays} days</p>
+                        <p class="text-xs text-gray-400 mt-0.5">Minimum before passing</p>
+                    </div>
+                    <div class="bg-white dark:bg-gray-800 rounded-lg p-3 border">
+                        <span class="text-gray-500 dark:text-gray-400 text-xs">⏰ Duration</span>
+                        <p class="font-bold text-gray-900 dark:text-white">${duration} days</p>
+                        <p class="text-xs text-gray-400 mt-0.5">Complete within this time</p>
+                    </div>
+                    <div class="bg-white dark:bg-gray-800 rounded-lg p-3 border">
+                        <span class="text-gray-500 dark:text-gray-400 text-xs">⚡ Leverage</span>
+                        <p class="font-bold text-gray-900 dark:text-white">${leverage}</p>
+                        <p class="text-xs text-gray-400 mt-0.5">Trading leverage provided</p>
+                    </div>
+                    <div class="bg-white dark:bg-gray-800 rounded-lg p-3 border">
+                        <span class="text-gray-500 dark:text-gray-400 text-xs">💰 Profit Split</span>
+                        <p class="font-bold text-indigo-600 dark:text-indigo-400">${profitShare}% / ${100 - profitShare}%</p>
+                        <p class="text-xs text-gray-400 mt-0.5">Your share after passing</p>
+                    </div>
+                    <div class="bg-white dark:bg-gray-800 rounded-lg p-3 border">
+                        <span class="text-gray-500 dark:text-gray-400 text-xs">🔄 Payout Cycle</span>
+                        <p class="font-bold text-gray-900 dark:text-white">${capitalize(payoutCycle)}</p>
+                        <p class="text-xs text-gray-400 mt-0.5">Profit distribution frequency</p>
+                    </div>
+                </div>
+            </div>`;
+        }
+
+        // Safety rules section (shown for all challenge types)
+        if (slEnabled || activityEnabled) {
+            rulesTabHtml += `
+            <div class="mt-4 p-4 bg-amber-50 dark:bg-amber-900/10 border-2 border-amber-200 dark:border-amber-800 rounded-xl">
+                <p class="text-sm font-bold text-amber-800 dark:text-amber-300 mb-3 flex items-center gap-2">
+                    <i class="fas fa-shield-alt"></i> Safety Rules Active
+                </p>
+                <div class="flex flex-wrap gap-2 mb-3">
+                    ${slEnabled ? `<span class="text-xs bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-2.5 py-1.5 rounded-full font-semibold">🛡️ SL Mandatory (within ${slGrace} min · max ${maxRisk}% risk)</span>` : ''}
+                    ${activityEnabled ? `<span class="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-2.5 py-1.5 rounded-full font-semibold">⏱️ Activity Rule (max ${maxInactive} day gap)</span>` : ''}
+                </div>
+                <p class="text-xs text-red-600 dark:text-red-400 font-semibold">⚠️ Breach of either safety rule = HARD FAIL - Immediate disqualification, no payout</p>
+            </div>`;
+        }
+
+        // ===== BUILD ANALYTICS TAB - REAL DATA =====
+        const profitProgress = Math.min(100, ((ch.profit_percent || 0) / profitTarget) * 100);
+        const dailyDDProgress = Math.min(100, ((ch.daily_drawdown || 0) / dailyDDLimit) * 100);
+        const overallDDProgress = Math.min(100, ((ch.overall_drawdown || 0) / overallDDLimit) * 100);
+        const daysProgress = Math.min(100, ((ch.trading_days || 0) / minTradingDays) * 100);
+        
+        // Win probability with real values
+        let winScore = 0;
+        let breakdown = [];
+        if ((ch.profit_percent || 0) >= profitTarget * 0.5) { winScore += 25; breakdown.push({label:`Profit > ${(profitTarget*0.5).toFixed(0)}% target`, points:25, good:true}); }
+        else { breakdown.push({label:`Profit < ${(profitTarget*0.5).toFixed(0)}% target`, points:0, good:false}); }
+        if ((ch.profit_percent || 0) >= profitTarget * 0.8) { winScore += 15; breakdown.push({label:`Profit > ${(profitTarget*0.8).toFixed(0)}% target`, points:15, good:true}); }
+        if ((ch.daily_drawdown || 0) < dailyDDLimit * 0.5) { winScore += 20; breakdown.push({label:`Daily DD < ${(dailyDDLimit*0.5).toFixed(1)}%`, points:20, good:true}); }
+        else { breakdown.push({label:`Daily DD > ${(dailyDDLimit*0.5).toFixed(1)}%`, points:0, good:false}); }
+        if ((ch.daily_drawdown || 0) < dailyDDLimit * 0.3) { winScore += 10; breakdown.push({label:`Daily DD < ${(dailyDDLimit*0.3).toFixed(1)}%`, points:10, good:true}); }
+        if ((ch.overall_drawdown || 0) < overallDDLimit * 0.5) { winScore += 15; breakdown.push({label:`Overall DD < ${(overallDDLimit*0.5).toFixed(1)}%`, points:15, good:true}); }
+        else { breakdown.push({label:`Overall DD > ${(overallDDLimit*0.5).toFixed(1)}%`, points:0, good:false}); }
+        if ((ch.trading_days || 0) >= minTradingDays * 0.5) { winScore += 10; breakdown.push({label:`Trading days > ${Math.floor(minTradingDays*0.5)}`, points:10, good:true}); }
+        else { breakdown.push({label:`Trading days < ${Math.floor(minTradingDays*0.5)}`, points:0, good:false}); }
+        if ((ch.days_remaining || 0) > 10) { winScore += 5; breakdown.push({label:'Days left > 10', points:5, good:true}); }
+        else { breakdown.push({label:'Days left < 10', points:0, good:false}); }
+        if ((ch.risk_score || 0) < 30) { winScore += 10; breakdown.push({label:'Low risk score', points:10, good:true}); }
+        if ((ch.risk_score || 0) > 60) { winScore -= 20; breakdown.push({label:'High risk score', points:-20, good:false}); }
+        if (ch.status === 'flagged' || ch.status === 'under_review') { winScore -= 30; breakdown.push({label:'Currently flagged', points:-30, good:false}); }
+        winScore = Math.max(0, Math.min(100, winScore));
+        
+        let winLabel, winColor, winIcon, winBg;
+        if (winScore >= 70) { winLabel = 'Likely to Pass ✅'; winColor = '#10b981'; winIcon = 'fa-trophy'; winBg = 'bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-800'; }
+        else if (winScore >= 40) { winLabel = 'Uncertain ⚠️'; winColor = '#f59e0b'; winIcon = 'fa-question-circle'; winBg = 'bg-yellow-50 dark:bg-yellow-900/10 border-yellow-200 dark:border-yellow-800'; }
+        else { winLabel = 'Likely to Fail ❌'; winColor = '#ef4444'; winIcon = 'fa-skull'; winBg = 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800'; }
+
+        const breakdownHtml = breakdown.map(b => `
+            <div class="flex items-center justify-between py-1.5 px-3 rounded-lg ${b.good ? 'bg-green-50 dark:bg-green-900/10' : 'bg-gray-50 dark:bg-gray-700/30'}">
+                <span class="text-xs ${b.good ? 'text-green-700 dark:text-green-400' : 'text-gray-600 dark:text-gray-400'}">${b.label}</span>
+                <span class="text-xs font-bold ${b.points > 0 ? 'text-green-600' : b.points < 0 ? 'text-red-600' : 'text-gray-400'}">${b.points > 0 ? '+' : ''}${b.points} pts</span>
+            </div>
+        `).join('');
+
+        const analyticsHtml = `
+            <div class="space-y-5">
+                <div class="${winBg} border rounded-xl p-5">
+                    <div class="flex items-center justify-between mb-3">
+                        <h4 class="font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                            <i class="fas ${winIcon}" style="color:${winColor}"></i> Win Probability
+                        </h4>
+                        <span class="px-3 py-1 rounded-full text-sm font-bold" style="background:${winColor}20; color:${winColor}">
+                            ${winScore}% - ${winLabel}
+                        </span>
+                    </div>
+                    <div class="win-meter mb-3">
+                        <div class="h-full rounded-full transition-all duration-500" style="width:${winScore}%; background:${winColor}; height:10px;"></div>
+                    </div>
+                    <div class="space-y-1 mt-3">
+                        <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Score Breakdown</p>
+                        ${breakdownHtml}
+                    </div>
+                </div>
+
+                <h4 class="font-bold text-gray-900 dark:text-white flex items-center gap-2 mt-2">
+                    <i class="fas fa-chart-bar text-blue-500"></i> Rules Progress (${phaseName})
+                </h4>
+
+                ${profitTarget > 0 ? `
+                <div class="rule-item ${profitProgress >= 100 ? 'rule-passed' : 'rule-ok'}">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-sm font-semibold text-gray-700 dark:text-gray-300">📈 Profit Target (${profitTarget}%)</span>
+                        <span class="text-sm font-bold ${profitProgress >= 100 ? 'text-green-600' : 'text-blue-600'}">${fmtPct(ch.profit_percent)}% / ${profitTarget}% ${profitProgress >= 100 ? '✅' : ''}</span>
+                    </div>
+                    <div class="progress-bar-bg"><div class="progress-bar-fill ${profitProgress >= 100 ? 'bg-green-500' : 'bg-blue-500'}" style="width:${profitProgress}%"></div></div>
+                    <div class="text-xs text-gray-400 mt-1">${profitProgress >= 100 ? 'Target achieved!' : 'Remaining: ' + (profitTarget - (ch.profit_percent||0)).toFixed(2) + '%'}</div>
+                </div>` : ''}
+
+                <div class="rule-item ${(ch.daily_drawdown||0) >= dailyDDLimit ? 'rule-violated' : (ch.daily_drawdown||0) >= dailyDDLimit * 0.7 ? 'rule-at-risk' : 'rule-ok'}">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-sm font-semibold text-gray-700 dark:text-gray-300">🛑 Daily Drawdown (${dailyDDLimit}% · ${ddLabel(dailyDDType)})</span>
+                        <span class="text-sm font-bold ${(ch.daily_drawdown||0) >= dailyDDLimit ? 'text-red-600' : (ch.daily_drawdown||0) >= dailyDDLimit * 0.7 ? 'text-yellow-600' : 'text-green-600'}">${fmtPct(ch.daily_drawdown)}% / ${dailyDDLimit}% ${(ch.daily_drawdown||0) >= dailyDDLimit ? '❌' : ''}</span>
+                    </div>
+                    <div class="progress-bar-bg"><div class="progress-bar-fill ${(ch.daily_drawdown||0) >= dailyDDLimit ? 'bg-red-500' : (ch.daily_drawdown||0) >= dailyDDLimit * 0.7 ? 'bg-yellow-500' : 'bg-green-500'}" style="width:${dailyDDProgress}%"></div></div>
+                    <div class="text-xs text-gray-400 mt-1">Buffer: ${(dailyDDLimit - (ch.daily_drawdown||0)).toFixed(2)}% remaining</div>
+                </div>
+
+                <div class="rule-item ${(ch.overall_drawdown||0) >= overallDDLimit ? 'rule-violated' : (ch.overall_drawdown||0) >= overallDDLimit * 0.7 ? 'rule-at-risk' : 'rule-ok'}">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-sm font-semibold text-gray-700 dark:text-gray-300">📉 Overall Drawdown (${overallDDLimit}% · ${ddLabel(overallDDType)})</span>
+                        <span class="text-sm font-bold ${(ch.overall_drawdown||0) >= overallDDLimit ? 'text-red-600' : (ch.overall_drawdown||0) >= overallDDLimit * 0.7 ? 'text-yellow-600' : 'text-green-600'}">${fmtPct(ch.overall_drawdown)}% / ${overallDDLimit}% ${(ch.overall_drawdown||0) >= overallDDLimit ? '❌' : ''}</span>
+                    </div>
+                    <div class="progress-bar-bg"><div class="progress-bar-fill ${(ch.overall_drawdown||0) >= overallDDLimit ? 'bg-red-500' : (ch.overall_drawdown||0) >= overallDDLimit * 0.7 ? 'bg-yellow-500' : 'bg-green-500'}" style="width:${overallDDProgress}%"></div></div>
+                    <div class="text-xs text-gray-400 mt-1">Buffer: ${(overallDDLimit - (ch.overall_drawdown||0)).toFixed(2)}% remaining</div>
+                </div>
+
+                <div class="rule-item ${daysProgress >= 100 ? 'rule-passed' : 'rule-ok'}">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-sm font-semibold text-gray-700 dark:text-gray-300">📅 Trading Days (${minTradingDays} min)</span>
+                        <span class="text-sm font-bold ${daysProgress >= 100 ? 'text-green-600' : 'text-blue-600'}">${ch.trading_days || 0} / ${minTradingDays} days ${daysProgress >= 100 ? '✅' : ''}</span>
+                    </div>
+                    <div class="progress-bar-bg"><div class="progress-bar-fill ${daysProgress >= 100 ? 'bg-green-500' : 'bg-blue-500'}" style="width:${daysProgress}%"></div></div>
+                    <div class="text-xs text-gray-400 mt-1">${daysProgress >= 100 ? 'Minimum days met!' : 'Need ' + (minTradingDays - (ch.trading_days||0)) + ' more trading day(s)'}</div>
+                </div>
+
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div class="stat-card bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600">
+                        <div class="text-xs text-gray-500 dark:text-gray-400 mb-1">⏰ Days Left</div>
+                        <div class="text-xl font-bold ${(ch.days_remaining||0) < 5 ? 'text-red-600' : 'text-green-600'}">${ch.days_remaining || 0}</div>
+                    </div>
+                    <div class="stat-card bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600">
+                        <div class="text-xs text-gray-500 dark:text-gray-400 mb-1">⚠️ Risk Score</div>
+                        <div class="text-xl font-bold" style="color:${(ch.risk_score||0)>60?'#ef4444':(ch.risk_score||0)>30?'#f59e0b':'#10b981'}">${ch.risk_score || 0}</div>
+                    </div>
+                    <div class="stat-card bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600">
+                        <div class="text-xs text-gray-500 dark:text-gray-400 mb-1">💰 Balance</div>
+                        <div class="text-xl font-bold text-gray-900 dark:text-white">${formatCurrency(ch.current_balance)}</div>
+                    </div>
+                    <div class="stat-card bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600">
+                        <div class="text-xs text-gray-500 dark:text-gray-400 mb-1">📊 Equity</div>
+                        <div class="text-xl font-bold text-gray-900 dark:text-white">${formatCurrency(ch.current_equity)}</div>
+                    </div>
+                </div>
+            </div>`;
+
+        // ===== FLAG ALERT =====
         const flagAlert = isFlagged && ch.violation_reason ? `
             <div class="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-300 dark:border-red-700 rounded-xl flex items-start gap-3">
                 <i class="fas fa-exclamation-triangle text-red-500 text-2xl flex-shrink-0 mt-0.5"></i>
@@ -300,112 +662,23 @@ async function viewChallengeDetails(id) {
                 </div>
             </div>` : '';
 
-        // Build evidence HTML
-        let evidenceHtml = '';
-        if (!ch.evidence || ch.evidence.length === 0) {
-            evidenceHtml = `<div class="p-6 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800/50 rounded-xl text-center text-sm text-green-600 dark:text-green-400"><i class="fas fa-check-circle mr-2"></i>No violations recorded for this challenge</div>`;
-        } else {
-            evidenceHtml = ch.evidence.map((ev, idx) => {
-                const posRows = (ev.open_positions || []).map(p => `
-                    <tr class="border-b border-gray-100 dark:border-gray-700">
-                        <td class="px-3 py-2 text-xs font-mono">#${p.ticket}</td>
-                        <td class="px-3 py-2 text-xs font-bold">${p.symbol}</td>
-                        <td class="px-3 py-2 text-xs"><span class="px-1.5 py-0.5 rounded text-[10px] font-bold ${p.type==='BUY'?'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400':'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'}">${p.type}</span></td>
-                        <td class="px-3 py-2 text-xs">${p.lots}</td>
-                        <td class="px-3 py-2 text-xs font-mono">${p.open_price}</td>
-                        <td class="px-3 py-2 text-xs font-mono">${p.current_price || '-'}</td>
-                        <td class="px-3 py-2 text-xs font-bold ${(p.floating_pnl||0)>=0?'text-green-600 dark:text-green-400':'text-red-600 dark:text-red-400'}">$${(p.floating_pnl||0).toFixed(2)}</td>
-                        <td class="px-3 py-2 text-xs text-gray-400">${p.open_time ? new Date(p.open_time).toLocaleString() : '-'}</td>
-                    </tr>`).join('');
-
-                const tradeRows = (ev.recent_trades || []).map(t => `
-                    <tr class="border-b border-gray-100 dark:border-gray-700">
-                        <td class="px-3 py-2 text-xs font-mono">#${t.ticket}</td>
-                        <td class="px-3 py-2 text-xs font-bold">${t.symbol}</td>
-                        <td class="px-3 py-2 text-xs">${t.lots}</td>
-                        <td class="px-3 py-2 text-xs font-mono">${t.open_price}</td>
-                        <td class="px-3 py-2 text-xs font-mono">${t.close_price || '-'}</td>
-                        <td class="px-3 py-2 text-xs font-bold ${(t.profit||0)>=0?'text-green-600 dark:text-green-400':'text-red-600 dark:text-red-400'}">$${(t.profit||0).toFixed(2)}</td>
-                        <td class="px-3 py-2 text-xs text-gray-400">${t.open_time ? new Date(t.open_time).toLocaleString() : '-'}</td>
-                        <td class="px-3 py-2 text-xs text-gray-400">${t.close_time ? new Date(t.close_time).toLocaleString() : '-'}</td>
-                    </tr>`).join('');
-
-                return `
-                <div class="border border-red-200 dark:border-red-800/50 rounded-xl overflow-hidden mb-6">
-                    <!-- Evidence Header -->
-                    <div class="bg-red-50 dark:bg-red-900/20 px-5 py-3 flex items-center justify-between">
-                        <div class="flex items-center gap-3">
+        // ===== EVIDENCE TAB =====
+        let evidenceHtml = '<div class="p-6 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800/50 rounded-xl text-center text-sm text-green-600"><i class="fas fa-check-circle mr-2"></i>No violations recorded</div>';
+        if (ch.evidence && ch.evidence.length > 0) {
+            evidenceHtml = ch.evidence.map(ev => `
+                <div class="border border-red-200 dark:border-red-800/50 rounded-xl overflow-hidden mb-4">
+                    <div class="bg-red-50 dark:bg-red-900/20 px-4 py-3 flex items-center justify-between">
+                        <div class="flex items-center gap-2">
                             <i class="fas fa-exclamation-circle text-red-500"></i>
-                            <div>
-                                <div class="font-bold text-red-800 dark:text-red-300 text-sm">${ev.rule_name} Breach</div>
-                                <div class="text-xs text-red-600 dark:text-red-400">${ev.violation_timestamp ? new Date(ev.violation_timestamp).toLocaleString() : ''}</div>
-                            </div>
+                            <div><div class="font-bold text-red-800 dark:text-red-300 text-sm">${ev.rule_name} Breach</div><div class="text-xs text-red-600 dark:text-red-400">${ev.violation_timestamp ? new Date(ev.violation_timestamp).toLocaleString() : ''}</div></div>
                         </div>
-                        <div class="text-right">
-                            <div class="text-xs text-gray-500">Actual vs Limit</div>
-                            <div class="font-bold text-red-600 dark:text-red-400 text-sm">${(ev.actual_value||0).toFixed(2)}% <span class="text-gray-400 font-normal">/ ${ev.rule_limit}%</span></div>
-                        </div>
+                        <div class="text-right"><span class="font-bold text-red-600 dark:text-red-400 text-sm">${(ev.actual_value||0).toFixed(2)}% <span class="text-gray-400 font-normal">/ ${ev.rule_limit}%</span></span></div>
                     </div>
-
-                    <!-- Reason -->
-                    <div class="px-5 py-3 bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700">
-                        <div class="text-xs font-bold text-gray-500 uppercase mb-1">Violation Reason</div>
-                        <pre class="text-xs text-gray-700 dark:text-gray-300 whitespace-pre-wrap font-sans">${ev.reason}</pre>
-                    </div>
-
-                    <!-- Account State at Violation -->
-                    <div class="px-5 py-3 bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700">
-                        <div class="text-xs font-bold text-gray-500 uppercase mb-2">Account State at Violation Moment</div>
-                        <div class="grid grid-cols-3 md:grid-cols-6 gap-3">
-                            <div class="text-center p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                                <div class="text-[10px] text-gray-400">Balance</div>
-                                <div class="text-sm font-bold text-gray-800 dark:text-white">$${(ev.balance||0).toLocaleString()}</div>
-                            </div>
-                            <div class="text-center p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                                <div class="text-[10px] text-gray-400">Equity</div>
-                                <div class="text-sm font-bold text-gray-800 dark:text-white">$${(ev.equity||0).toLocaleString()}</div>
-                            </div>
-                            <div class="text-center p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                                <div class="text-[10px] text-gray-400">Floating PnL</div>
-                                <div class="text-sm font-bold ${(ev.floating_pnl||0)>=0?'text-green-600':'text-red-600'}">$${(ev.floating_pnl||0).toFixed(2)}</div>
-                            </div>
-                            <div class="text-center p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                                <div class="text-[10px] text-gray-400">Daily DD</div>
-                                <div class="text-sm font-bold text-red-600">${(ev.daily_drawdown||0).toFixed(2)}%</div>
-                            </div>
-                            <div class="text-center p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                                <div class="text-[10px] text-gray-400">Overall DD</div>
-                                <div class="text-sm font-bold text-red-600">${(ev.overall_drawdown||0).toFixed(2)}%</div>
-                            </div>
-                            <div class="text-center p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                                <div class="text-[10px] text-gray-400">Trading Days</div>
-                                <div class="text-sm font-bold text-gray-800 dark:text-white">${ev.trading_days||0}</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Open Positions at Violation -->
-                    <div class="px-5 py-3 bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700">
-                        <div class="text-xs font-bold text-gray-500 uppercase mb-2">Open Positions at Violation (${(ev.open_positions||[]).length})</div>
-                        ${(ev.open_positions||[]).length === 0
-                            ? `<div class="text-xs text-gray-400 italic">No open positions at time of violation</div>`
-                            : `<div class="overflow-x-auto"><table class="w-full text-left"><thead><tr class="text-[10px] text-gray-400 uppercase border-b border-gray-100 dark:border-gray-700"><th class="px-3 py-2">Ticket</th><th class="px-3 py-2">Symbol</th><th class="px-3 py-2">Type</th><th class="px-3 py-2">Lots</th><th class="px-3 py-2">Open Price</th><th class="px-3 py-2">Current Price</th><th class="px-3 py-2">Float PnL</th><th class="px-3 py-2">Opened At</th></tr></thead><tbody>${posRows}</tbody></table></div>`
-                        }
-                    </div>
-
-                    <!-- Last Closed Trades -->
-                    <div class="px-5 py-3 bg-white dark:bg-gray-800">
-                        <div class="text-xs font-bold text-gray-500 uppercase mb-2">Last ${(ev.recent_trades||[]).length} Closed Trades Before Violation</div>
-                        ${(ev.recent_trades||[]).length === 0
-                            ? `<div class="text-xs text-gray-400 italic">No closed trades recorded</div>`
-                            : `<div class="overflow-x-auto"><table class="w-full text-left"><thead><tr class="text-[10px] text-gray-400 uppercase border-b border-gray-100 dark:border-gray-700"><th class="px-3 py-2">Ticket</th><th class="px-3 py-2">Symbol</th><th class="px-3 py-2">Lots</th><th class="px-3 py-2">Open Price</th><th class="px-3 py-2">Close Price</th><th class="px-3 py-2">Profit</th><th class="px-3 py-2">Opened At</th><th class="px-3 py-2">Closed At</th></tr></thead><tbody>${tradeRows}</tbody></table></div>`
-                        }
-                    </div>
-                </div>`;
-            }).join('');
+                    <div class="px-4 py-3 bg-white dark:bg-gray-800"><div class="text-xs font-bold text-gray-500 uppercase mb-1">Reason</div><pre class="text-xs text-gray-700 dark:text-gray-300 whitespace-pre-wrap font-sans">${ev.reason}</pre></div>
+                </div>`).join('');
         }
 
-        // Violations log HTML (rule logs)
+        // ===== LOGS TAB =====
         let violationsHtml = '<div class="p-4 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800/50 rounded-xl text-center text-sm text-green-600"><i class="fas fa-check-circle mr-2"></i>No rule logs</div>';
         if (ch.violations && ch.violations.length > 0) {
             violationsHtml = `<div class="space-y-2">${ch.violations.map(v => {
@@ -417,10 +690,7 @@ async function viewChallengeDetails(id) {
                     <div class="flex items-start justify-between gap-2">
                         <div class="flex items-start gap-2">
                             <i class="fas fa-${isC ? 'skull' : isW ? 'exclamation-triangle' : 'info-circle'} ${iconCls} mt-0.5"></i>
-                            <div>
-                                <div class="font-bold text-gray-900 dark:text-white text-sm">${v.rule_name?.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase())}</div>
-                                <div class="text-xs text-gray-600 dark:text-gray-400 mt-0.5">${v.message}</div>
-                            </div>
+                            <div><div class="font-bold text-gray-900 dark:text-white text-sm">${capitalize(v.rule_name)}</div><div class="text-xs text-gray-600 dark:text-gray-400 mt-0.5">${v.message}</div></div>
                         </div>
                         <div class="text-[10px] text-gray-400 whitespace-nowrap flex-shrink-0">${v.triggered_at ? new Date(v.triggered_at).toLocaleString() : ''}</div>
                     </div>
@@ -429,57 +699,30 @@ async function viewChallengeDetails(id) {
             }).join('')}</div>`;
         }
 
+        // ===== RENDER MODAL =====
         document.getElementById('modalBody').innerHTML = `
             ${flagAlert}
-
-            <!-- Tabs -->
-            <div class="flex border-b border-gray-200 dark:border-gray-700 mb-6 gap-1">
-                <button onclick="switchTab('overview')" id="tab-overview" class="tab-btn active-tab px-4 py-2 text-sm font-semibold rounded-t-lg border-b-2 border-blue-500 text-blue-600 dark:text-blue-400">Overview</button>
+            <div class="flex border-b border-gray-200 dark:border-gray-700 mb-6 gap-1 flex-wrap">
+                <button onclick="switchTab('overview')" id="tab-overview" class="tab-btn active-tab px-4 py-2 text-sm font-semibold rounded-t-lg border-b-2 border-blue-500 text-blue-600 dark:text-blue-400">📋 Overview</button>
+                <button onclick="switchTab('rules')" id="tab-rules" class="tab-btn px-4 py-2 text-sm font-semibold rounded-t-lg border-b-2 border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">📜 Rules</button>
+                <button onclick="switchTab('analytics')" id="tab-analytics" class="tab-btn px-4 py-2 text-sm font-semibold rounded-t-lg border-b-2 border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">📊 Analytics</button>
                 <button onclick="switchTab('evidence')" id="tab-evidence" class="tab-btn px-4 py-2 text-sm font-semibold rounded-t-lg border-b-2 border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 ${isFlagged ? 'text-red-500 dark:text-red-400' : ''}">
                     ${isFlagged ? '🚨 ' : ''}Evidence ${ch.evidence && ch.evidence.length > 0 ? `<span class="ml-1 px-1.5 py-0.5 bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 rounded-full text-[10px] font-bold">${ch.evidence.length}</span>` : ''}
                 </button>
-                <button onclick="switchTab('logs')" id="tab-logs" class="tab-btn px-4 py-2 text-sm font-semibold rounded-t-lg border-b-2 border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">Logs</button>
+                <button onclick="switchTab('logs')" id="tab-logs" class="tab-btn px-4 py-2 text-sm font-semibold rounded-t-lg border-b-2 border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">📝 Logs</button>
             </div>
 
-            <!-- Overview Tab -->
             <div id="tab-content-overview">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                    <div class="bg-gray-50 dark:bg-gray-850 border border-gray-200 dark:border-gray-700 p-4 rounded-xl">
-                        <div class="text-xs text-gray-500 mb-1">User</div>
-                        <div class="text-lg font-bold text-gray-900 dark:text-white">${ch.user_name||'N/A'}</div>
-                        <small class="text-gray-500">${ch.user_email||''}</small>
-                    </div>
-                    <div class="bg-gray-50 dark:bg-gray-850 border border-gray-200 dark:border-gray-700 p-4 rounded-xl">
-                        <div class="text-xs text-gray-500 mb-1">Challenge</div>
-                        <div class="text-lg font-bold text-gray-900 dark:text-white">${ch.challenge_name||'Challenge'}</div>
-                        <small class="text-gray-500">ID: ${ch.id} · Phase ${ch.current_phase||1}</small>
-                    </div>
-                    <div class="bg-gray-50 dark:bg-gray-850 border border-gray-200 dark:border-gray-700 p-4 rounded-xl">
-                        <div class="text-xs text-gray-500 mb-1">Profit</div>
-                        <div class="text-lg font-bold ${(ch.profit_percent||0) >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}">${(ch.profit_percent||0) > 0 ? '+' : ''}${(ch.profit_percent||0).toFixed(2)}%</div>
-                    </div>
-                    <div class="bg-gray-50 dark:bg-gray-850 border border-gray-200 dark:border-gray-700 p-4 rounded-xl">
-                        <div class="text-xs text-gray-500 mb-1">Balance / Equity</div>
-                        <div class="text-lg font-bold text-gray-900 dark:text-white">$${(ch.current_balance||0).toLocaleString()} / $${(ch.current_equity||0).toLocaleString()}</div>
-                    </div>
-                    <div class="bg-gray-50 dark:bg-gray-850 border border-gray-200 dark:border-gray-700 p-4 rounded-xl">
-                        <div class="text-xs text-gray-500 mb-1">Drawdowns</div>
-                        <div class="text-lg font-bold text-gray-900 dark:text-white">Daily: ${(ch.daily_drawdown||0).toFixed(2)}% / Overall: ${(ch.overall_drawdown||0).toFixed(2)}%</div>
-                    </div>
-                    <div class="bg-gray-50 dark:bg-gray-850 border border-gray-200 dark:border-gray-700 p-4 rounded-xl">
-                        <div class="text-xs text-gray-500 mb-1">Risk Score</div>
-                        <div class="text-lg font-bold" style="color:${(ch.risk_score||0)>60?'#ef4444':(ch.risk_score||0)>30?'#f59e0b':'#10b981'}">${ch.risk_score||0}/100</div>
-                    </div>
-                    <div class="bg-gray-50 dark:bg-gray-850 border border-gray-200 dark:border-gray-700 p-4 rounded-xl">
-                        <div class="text-xs text-gray-500 mb-1">Trading Days</div>
-                        <div class="text-lg font-bold text-gray-900 dark:text-white">${ch.trading_days||0} / ${ch.min_trading_days||5}</div>
-                    </div>
-                    <div class="bg-gray-50 dark:bg-gray-850 border border-gray-200 dark:border-gray-700 p-4 rounded-xl">
-                        <div class="text-xs text-gray-500 mb-1">Days Remaining</div>
-                        <div class="text-lg font-bold" style="color:${(ch.days_remaining||0)<5?'#ef4444':'#10b981'}">${ch.days_remaining||0}</div>
-                    </div>
+                    <div class="bg-gray-50 dark:bg-gray-850 border border-gray-200 dark:border-gray-700 p-4 rounded-xl"><div class="text-xs text-gray-500 mb-1">User</div><div class="text-lg font-bold text-gray-900 dark:text-white">${ch.user_name||'N/A'}</div><small class="text-gray-500">${ch.user_email||''}</small></div>
+                    <div class="bg-gray-50 dark:bg-gray-850 border border-gray-200 dark:border-gray-700 p-4 rounded-xl"><div class="text-xs text-gray-500 mb-1">Challenge</div><div class="text-lg font-bold text-gray-900 dark:text-white">${ch.challenge_name||'Challenge'}</div><small class="text-gray-500">ID: ${ch.id} · ${phaseName}</small></div>
+                    <div class="bg-gray-50 dark:bg-gray-850 border border-gray-200 dark:border-gray-700 p-4 rounded-xl"><div class="text-xs text-gray-500 mb-1">Profit</div><div class="text-lg font-bold ${(ch.profit_percent||0) >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}">${(ch.profit_percent||0) > 0 ? '+' : ''}${fmtPct(ch.profit_percent)}%</div></div>
+                    <div class="bg-gray-50 dark:bg-gray-850 border border-gray-200 dark:border-gray-700 p-4 rounded-xl"><div class="text-xs text-gray-500 mb-1">Balance / Equity</div><div class="text-lg font-bold text-gray-900 dark:text-white">${formatCurrency(ch.current_balance)} / ${formatCurrency(ch.current_equity)}</div></div>
+                    <div class="bg-gray-50 dark:bg-gray-850 border border-gray-200 dark:border-gray-700 p-4 rounded-xl"><div class="text-xs text-gray-500 mb-1">Drawdowns</div><div class="text-lg font-bold text-gray-900 dark:text-white">Daily: ${fmtPct(ch.daily_drawdown)}% / Overall: ${fmtPct(ch.overall_drawdown)}%</div></div>
+                    <div class="bg-gray-50 dark:bg-gray-850 border border-gray-200 dark:border-gray-700 p-4 rounded-xl"><div class="text-xs text-gray-500 mb-1">Risk Score</div><div class="text-lg font-bold" style="color:${(ch.risk_score||0)>60?'#ef4444':(ch.risk_score||0)>30?'#f59e0b':'#10b981'}">${ch.risk_score||0}/100</div></div>
+                    <div class="bg-gray-50 dark:bg-gray-850 border border-gray-200 dark:border-gray-700 p-4 rounded-xl"><div class="text-xs text-gray-500 mb-1">Trading Days</div><div class="text-lg font-bold text-gray-900 dark:text-white">${ch.trading_days||0} / ${minTradingDays}</div></div>
+                    <div class="bg-gray-50 dark:bg-gray-850 border border-gray-200 dark:border-gray-700 p-4 rounded-xl"><div class="text-xs text-gray-500 mb-1">Days Remaining</div><div class="text-lg font-bold" style="color:${(ch.days_remaining||0)<5?'#ef4444':'#10b981'}">${ch.days_remaining||0}</div></div>
                 </div>
-
                 <div class="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
                     <div class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Admin Actions</div>
                     <div class="flex flex-wrap gap-3">
@@ -489,66 +732,37 @@ async function viewChallengeDetails(id) {
                         <button class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl font-semibold text-sm transition flex items-center gap-1.5" onclick="forceAction(${ch.id},'fail')"><i class="fas fa-times"></i> Force Fail</button>
                         <button class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-xl font-semibold text-sm transition flex items-center gap-1.5" onclick="forceAction(${ch.id},'pass')"><i class="fas fa-check"></i> Force Pass</button>
                     </div>
-                    <p class="text-xs text-gray-400 dark:text-gray-500 mt-3"><i class="fas fa-info-circle mr-1"></i>Force Fail will permanently terminate this challenge.</p>
                 </div>
             </div>
 
-            <!-- Evidence Tab -->
-            <div id="tab-content-evidence" class="hidden">
-                <div class="mb-4 flex items-center justify-between">
-                    <h4 class="font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                        <i class="fas fa-folder-open text-red-500"></i> Violation Evidence Package
-                        ${ch.evidence && ch.evidence.length > 0 ? `<span class="px-2 py-0.5 bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 rounded-full text-xs font-bold">${ch.evidence.length} record(s)</span>` : ''}
-                    </h4>
-                </div>
-                ${evidenceHtml}
-            </div>
-
-            <!-- Logs Tab -->
-            <div id="tab-content-logs" class="hidden">
-                <h4 class="font-bold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
-                    <i class="fas fa-list text-blue-500"></i> Rule Engine Logs
-                </h4>
-                ${violationsHtml}
-            </div>`;
+            <div id="tab-content-rules" class="hidden">${rulesTabHtml}</div>
+            <div id="tab-content-analytics" class="hidden">${analyticsHtml}</div>
+            <div id="tab-content-evidence" class="hidden"><div class="mb-4 flex items-center justify-between"><h4 class="font-bold text-gray-900 dark:text-white flex items-center gap-2"><i class="fas fa-folder-open text-red-500"></i> Violation Evidence ${ch.evidence && ch.evidence.length > 0 ? `<span class="px-2 py-0.5 bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 rounded-full text-xs font-bold">${ch.evidence.length}</span>` : ''}</h4></div>${evidenceHtml}</div>
+            <div id="tab-content-logs" class="hidden"><h4 class="font-bold text-gray-900 dark:text-white mb-3 flex items-center gap-2"><i class="fas fa-list text-blue-500"></i> Rule Engine Logs</h4>${violationsHtml}</div>`;
 
         document.getElementById('modalTitle').innerHTML = `Challenge #${ch.id} — ${ch.user_name} <span class="text-sm font-normal text-gray-500">${ch.status}</span>`;
         document.getElementById('detailModal').classList.add('active');
-
-        // Auto-switch to evidence tab if flagged
-        if (isFlagged && ch.evidence && ch.evidence.length > 0) {
-            switchTab('evidence');
-        }
+        if (isFlagged && ch.evidence && ch.evidence.length > 0) switchTab('evidence');
 
     } catch (e) { console.error(e); }
 }
 
 function switchTab(tab) {
-    ['overview', 'evidence', 'logs'].forEach(t => {
+    ['overview', 'rules', 'analytics', 'evidence', 'logs'].forEach(t => {
         document.getElementById(`tab-content-${t}`).classList.add('hidden');
         const btn = document.getElementById(`tab-${t}`);
-        if (btn) {
-            btn.classList.remove('border-blue-500', 'text-blue-600', 'dark:text-blue-400');
-            btn.classList.add('border-transparent', 'text-gray-500');
-        }
+        if (btn) { btn.classList.remove('border-blue-500', 'text-blue-600', 'dark:text-blue-400'); btn.classList.add('border-transparent', 'text-gray-500'); }
     });
     document.getElementById(`tab-content-${tab}`).classList.remove('hidden');
     const activeBtn = document.getElementById(`tab-${tab}`);
-    if (activeBtn) {
-        activeBtn.classList.add('border-blue-500', 'text-blue-600', 'dark:text-blue-400');
-        activeBtn.classList.remove('border-transparent', 'text-gray-500');
-    }
+    if (activeBtn) { activeBtn.classList.add('border-blue-500', 'text-blue-600', 'dark:text-blue-400'); activeBtn.classList.remove('border-transparent', 'text-gray-500'); }
 }
 
 async function forceAction(id, action) {
     const labels = { review:'mark under review', clear:'clear the flag', extend:'extend by 7 days', fail:'PERMANENTLY FAIL', pass:'force pass' };
     if (!confirm(`Are you sure you want to ${labels[action]||action} challenge #${id}?`)) return;
     try {
-        const r = await fetch('/admin/api/challenge/action', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ challenge_id: id, action })
-        });
+        const r = await fetch('/admin/api/challenge/action', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ challenge_id: id, action }) });
         const d = await r.json();
         if (d.success) { refreshAllData(); closeModal(); }
         else alert('Action failed: ' + d.message);
@@ -557,15 +771,9 @@ async function forceAction(id, action) {
 
 function closeModal() { document.getElementById('detailModal').classList.remove('active'); }
 
-async function refreshAllData() {
-    allChallenges = await fetchAllChallenges();
-    applyFilters();
-}
+async function refreshAllData() { allChallenges = await fetchAllChallenges(); applyFilters(); }
 
-function startAutoRefresh() {
-    if (refreshInterval) clearInterval(refreshInterval);
-    refreshInterval = setInterval(refreshAllData, 30000);
-}
+function startAutoRefresh() { if (refreshInterval) clearInterval(refreshInterval); refreshInterval = setInterval(refreshAllData, 30000); }
 
 document.addEventListener('DOMContentLoaded', () => { refreshAllData(); startAutoRefresh(); });
 </script>
