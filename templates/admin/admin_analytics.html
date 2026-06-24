@@ -663,20 +663,67 @@ async function viewChallengeDetails(id) {
             </div>` : '';
 
         // ===== EVIDENCE TAB =====
-        let evidenceHtml = '<div class="p-6 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800/50 rounded-xl text-center text-sm text-green-600"><i class="fas fa-check-circle mr-2"></i>No violations recorded</div>';
-        if (ch.evidence && ch.evidence.length > 0) {
-            evidenceHtml = ch.evidence.map(ev => `
-                <div class="border border-red-200 dark:border-red-800/50 rounded-xl overflow-hidden mb-4">
-                    <div class="bg-red-50 dark:bg-red-900/20 px-4 py-3 flex items-center justify-between">
-                        <div class="flex items-center gap-2">
-                            <i class="fas fa-exclamation-circle text-red-500"></i>
-                            <div><div class="font-bold text-red-800 dark:text-red-300 text-sm">${ev.rule_name} Breach</div><div class="text-xs text-red-600 dark:text-red-400">${ev.violation_timestamp ? new Date(ev.violation_timestamp).toLocaleString() : ''}</div></div>
+        // ===== FULL DETAILED EVIDENCE TAB =====
+let evidenceHtml = '<div class="p-6 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800/50 rounded-xl text-center text-sm text-green-600"><i class="fas fa-check-circle mr-2"></i>No violations recorded for this challenge</div>';
+if (ch.evidence && ch.evidence.length > 0) {
+    evidenceHtml = ch.evidence.map((ev, idx) => {
+        const openPositions = ev.open_positions || [];
+        let openPositionsHtml = openPositions.length === 0 
+            ? '<div class="text-xs text-gray-400 italic py-3 text-center">No open positions at time of violation</div>' 
+            : `<div class="overflow-x-auto"><table class="w-full text-left text-xs"><thead><tr class="bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 uppercase text-[10px]"><th class="px-3 py-2">Ticket</th><th class="px-3 py-2">Symbol</th><th class="px-3 py-2">Type</th><th class="px-3 py-2">Lots</th><th class="px-3 py-2">Open Price</th><th class="px-3 py-2">Current</th><th class="px-3 py-2">SL</th><th class="px-3 py-2">TP</th><th class="px-3 py-2">Float PnL</th><th class="px-3 py-2">Opened At</th></tr></thead><tbody class="divide-y divide-gray-100 dark:divide-gray-700">${openPositions.map(p=>`<tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50"><td class="px-3 py-2 font-mono text-blue-600 dark:text-blue-400 font-bold">#${p.ticket}</td><td class="px-3 py-2 font-bold">${p.symbol}</td><td class="px-3 py-2"><span class="px-1.5 py-0.5 rounded text-[10px] font-bold ${p.type==='BUY'?'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400':'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'}">${p.type}</span></td><td class="px-3 py-2">${p.lots}</td><td class="px-3 py-2 font-mono">${p.open_price}</td><td class="px-3 py-2 font-mono">${p.current_price||'-'}</td><td class="px-3 py-2 font-mono font-bold ${(p.sl||0)>0?'text-green-600':'text-red-600'}">${p.sl||'0'}</td><td class="px-3 py-2 font-mono">${p.tp||'0'}</td><td class="px-3 py-2 font-bold ${(p.floating_pnl||0)>=0?'text-green-600':'text-red-600'}">$${(p.floating_pnl||0).toFixed(2)}</td><td class="px-3 py-2 text-gray-400 whitespace-nowrap text-[10px]">${p.open_time?new Date(p.open_time).toLocaleString():'-'}</td></tr>`).join('')}</tbody></table></div>`;
+
+        const recentTrades = ev.recent_trades || [];
+        let recentTradesHtml = recentTrades.length === 0 
+            ? '<div class="text-xs text-gray-400 italic py-3 text-center">No closed trades recorded before violation</div>' 
+            : `<div class="overflow-x-auto"><table class="w-full text-left text-xs"><thead><tr class="bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 uppercase text-[10px]"><th class="px-3 py-2">Ticket</th><th class="px-3 py-2">Symbol</th><th class="px-3 py-2">Lots</th><th class="px-3 py-2">Open</th><th class="px-3 py-2">Close</th><th class="px-3 py-2">Profit</th><th class="px-3 py-2">Swap</th><th class="px-3 py-2">Comm</th><th class="px-3 py-2">Opened</th><th class="px-3 py-2">Closed</th></tr></thead><tbody class="divide-y divide-gray-100 dark:divide-gray-700">${recentTrades.map(t=>`<tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50"><td class="px-3 py-2 font-mono text-blue-600 dark:text-blue-400 font-bold">#${t.ticket}</td><td class="px-3 py-2 font-bold">${t.symbol}</td><td class="px-3 py-2">${t.lots}</td><td class="px-3 py-2 font-mono">${t.open_price}</td><td class="px-3 py-2 font-mono">${t.close_price||'-'}</td><td class="px-3 py-2 font-bold ${(t.profit||0)>=0?'text-green-600':'text-red-600'}">$${(t.profit||0).toFixed(2)}</td><td class="px-3 py-2 ${(t.swap||0)!==0?'text-yellow-600 font-semibold':''}">${(t.swap||0).toFixed(2)}</td><td class="px-3 py-2">${(t.commission||0).toFixed(2)}</td><td class="px-3 py-2 text-gray-400 whitespace-nowrap text-[10px]">${t.open_time?new Date(t.open_time).toLocaleString():'-'}</td><td class="px-3 py-2 text-gray-400 whitespace-nowrap text-[10px]">${t.close_time?new Date(t.close_time).toLocaleString():'-'}</td></tr>`).join('')}</tbody></table></div>`;
+
+        return `<div class="border-2 border-red-300 dark:border-red-700 rounded-xl overflow-hidden mb-6 shadow-lg">
+            <div class="bg-gradient-to-r from-red-600 to-red-700 px-5 py-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center"><i class="fas fa-skull text-white text-lg"></i></div>
+                        <div>
+                            <div class="font-bold text-white text-lg">${ev.rule_name} BREACH</div>
+                            <div class="text-red-100 text-xs">Violation #${idx+1} · ${ev.violation_timestamp?new Date(ev.violation_timestamp).toLocaleString():'Unknown'}</div>
                         </div>
-                        <div class="text-right"><span class="font-bold text-red-600 dark:text-red-400 text-sm">${(ev.actual_value||0).toFixed(2)}% <span class="text-gray-400 font-normal">/ ${ev.rule_limit}%</span></span></div>
                     </div>
-                    <div class="px-4 py-3 bg-white dark:bg-gray-800"><div class="text-xs font-bold text-gray-500 uppercase mb-1">Reason</div><pre class="text-xs text-gray-700 dark:text-gray-300 whitespace-pre-wrap font-sans">${ev.reason}</pre></div>
-                </div>`).join('');
-        }
+                    <div class="text-right">
+                        <div class="text-red-100 text-xs">Actual vs Limit</div>
+                        <div class="font-bold text-white text-xl">${(ev.actual_value||0).toFixed(2)}% <span class="text-red-200 text-sm font-normal">/ ${ev.rule_limit}%</span></div>
+                    </div>
+                </div>
+            </div>
+            <div class="px-5 py-4 bg-red-50 dark:bg-red-900/10 border-b border-red-200 dark:border-red-800">
+                <div class="text-xs font-bold text-red-700 dark:text-red-400 uppercase mb-2">📝 Violation Reason</div>
+                <pre class="text-sm text-red-800 dark:text-red-300 whitespace-pre-wrap font-sans leading-relaxed">${ev.reason}</pre>
+            </div>
+            <div class="px-5 py-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+                <div class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-3">💻 Account State at Violation Moment</div>
+                <div class="grid grid-cols-3 md:grid-cols-6 gap-3">
+                    <div class="text-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg"><div class="text-[10px] text-gray-400 uppercase">Balance</div><div class="text-base font-bold text-gray-800 dark:text-white">$${(ev.balance||0).toLocaleString()}</div></div>
+                    <div class="text-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg"><div class="text-[10px] text-gray-400 uppercase">Equity</div><div class="text-base font-bold text-gray-800 dark:text-white">$${(ev.equity||0).toLocaleString()}</div></div>
+                    <div class="text-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg"><div class="text-[10px] text-gray-400 uppercase">Float PnL</div><div class="text-base font-bold ${(ev.floating_pnl||0)>=0?'text-green-600':'text-red-600'}">$${(ev.floating_pnl||0).toFixed(2)}</div></div>
+                    <div class="text-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg"><div class="text-[10px] text-gray-400 uppercase">Profit %</div><div class="text-base font-bold ${(ev.profit_percent||0)>=0?'text-green-600':'text-red-600'}">${(ev.profit_percent||0).toFixed(2)}%</div></div>
+                    <div class="text-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg"><div class="text-[10px] text-gray-400 uppercase">Daily DD</div><div class="text-base font-bold text-red-600">${(ev.daily_drawdown||0).toFixed(2)}%</div></div>
+                    <div class="text-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg"><div class="text-[10px] text-gray-400 uppercase">Overall DD</div><div class="text-base font-bold text-red-600">${(ev.overall_drawdown||0).toFixed(2)}%</div></div>
+                </div>
+                ${ev.drawdown_model?`<div class="mt-3 grid grid-cols-4 gap-3"><div class="text-center p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg"><div class="text-[10px] text-gray-400">Model</div><div class="text-sm font-bold text-gray-700 dark:text-gray-300">${ev.drawdown_model}</div></div><div class="text-center p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg"><div class="text-[10px] text-gray-400">Day Start</div><div class="text-sm font-bold text-gray-700 dark:text-gray-300">$${(ev.day_start_value||0).toFixed(2)}</div></div><div class="text-center p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg"><div class="text-[10px] text-gray-400">Lowest</div><div class="text-sm font-bold text-red-600">$${(ev.lowest_value||0).toFixed(2)}</div></div><div class="text-center p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg"><div class="text-[10px] text-gray-400">Trading Days</div><div class="text-sm font-bold text-gray-700 dark:text-gray-300">${ev.trading_days||0}</div></div></div>`:''}
+            </div>
+            <div class="px-5 py-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+                <div class="flex items-center justify-between mb-3"><div class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">📊 Open Positions at Violation <span class="ml-1 px-2 py-0.5 bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 rounded-full text-[10px] font-bold">${openPositions.length}</span></div></div>
+                ${openPositionsHtml}
+            </div>
+            <div class="px-5 py-4 bg-white dark:bg-gray-800">
+                <div class="flex items-center justify-between mb-3"><div class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">📝 Last ${recentTrades.length} Closed Trades Before Violation</div></div>
+                ${recentTradesHtml}
+            </div>
+            <div class="px-5 py-3 bg-gray-50 dark:bg-gray-900/30 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                <div class="flex items-center gap-2"><span class="text-xs text-gray-500">Review:</span>${ev.is_reviewed?`<span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${ev.review_decision==='confirmed_fail'?'bg-red-100 text-red-700':'bg-green-100 text-green-700'}">${ev.review_decision==='confirmed_fail'?'✅ Confirmed Fail':'✅ Cleared'}</span>`:`<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-yellow-100 text-yellow-700">⏳ Pending</span>`}</div>
+                ${ev.review_notes?`<div class="text-xs text-gray-500 italic">"${ev.review_notes}"</div>`:''}
+            </div>
+        </div>`;
+    }).join('');
+}
 
         // ===== LOGS TAB =====
         let violationsHtml = '<div class="p-4 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800/50 rounded-xl text-center text-sm text-green-600"><i class="fas fa-check-circle mr-2"></i>No rule logs</div>';
