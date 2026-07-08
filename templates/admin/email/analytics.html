@@ -1,0 +1,36 @@
+{% extends "admin/base.html" %}
+{% block title %}Email Analytics - Admin{% endblock %}
+{% block header_title %}Email Analytics{% endblock %}
+{% block header_subtitle %}Performance by campaign, template, automation and time{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    {% include "admin/email/_nav.html" %}
+
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+        {% for label, value in [('Sent', stats.sent), ('Failed', stats.failed), ('Delivered', stats.delivery_rate ~ '%'), ('Opens', stats.open_rate ~ '%'), ('Clicks', stats.click_rate ~ '%')] %}
+        <div class="bg-white dark:bg-dark-card rounded-xl border border-gray-100 dark:border-gray-800 p-4"><div class="text-xs text-gray-500 uppercase">{{ label }}</div><div class="text-2xl font-bold mt-2">{{ value }}</div></div>
+        {% endfor %}
+    </div>
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {% for title, rows in [('Campaign Performance', per_campaign), ('Template Performance', per_template), ('Automation Performance', per_automation)] %}
+        <div class="bg-white dark:bg-dark-card rounded-xl border border-gray-100 dark:border-gray-800 p-5">
+            <h3 class="font-bold mb-4">{{ title }}</h3>
+            <div class="space-y-3">
+                {% for name, total in rows %}<div class="flex justify-between text-sm"><span>{{ name or 'Unassigned' }}</span><strong>{{ total }}</strong></div>{% else %}<p class="text-sm text-gray-500">No data yet.</p>{% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    <div class="bg-white dark:bg-dark-card rounded-xl border border-gray-100 dark:border-gray-800 p-5">
+        <h3 class="font-bold mb-4">Per Day</h3>
+        <div class="h-64 flex items-end gap-1">
+            {% set max_count = daily|map(attribute='count')|max or 1 %}
+            {% for row in daily %}
+            <div class="flex-1 rounded-t bg-indigo-500/80" title="{{ row.label }}: {{ row.count }}" style="height: {{ (row.count / max_count * 220)|round(0) }}px; min-height: 2px;"></div>
+            {% endfor %}
+        </div>
+        <div class="mt-4"><a href="{{ url_for('admin.email_logs', export='csv') }}" class="px-4 py-2 rounded-lg bg-green-600 text-white text-sm font-semibold">Export CSV</a></div>
+    </div>
+</div>
+{% endblock %}

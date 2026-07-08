@@ -1,0 +1,65 @@
+{% extends "admin/base.html" %}
+{% block title %}Email Campaigns - Admin{% endblock %}
+{% block header_title %}Email Campaigns{% endblock %}
+{% block header_subtitle %}Create, schedule, send, pause, resume and archive campaigns{% endblock %}
+
+{% block content %}
+{% include "admin/email/_nav.html" %}
+<div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+    <form method="POST" class="bg-white dark:bg-dark-card rounded-xl border border-gray-100 dark:border-gray-800 p-5 space-y-4">
+        <h3 class="font-bold">Create Campaign</h3>
+        <input name="name" required placeholder="Campaign name" class="w-full px-3 py-2 rounded-lg border dark:bg-gray-900 dark:border-gray-700">
+        <input name="subject" required placeholder="Subject" class="w-full px-3 py-2 rounded-lg border dark:bg-gray-900 dark:border-gray-700">
+        <select name="campaign_type" class="w-full px-3 py-2 rounded-lg border dark:bg-gray-900 dark:border-gray-700">
+            {% for type in campaign_types %}<option value="{{ type }}">{{ type|replace('_',' ')|title }}</option>{% endfor %}
+        </select>
+        <select name="template_id" required class="w-full px-3 py-2 rounded-lg border dark:bg-gray-900 dark:border-gray-700">
+            {% for t in templates %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}
+        </select>
+        <select name="audience_type" class="w-full px-3 py-2 rounded-lg border dark:bg-gray-900 dark:border-gray-700">
+            {% for audience in audience_types %}<option value="{{ audience }}">{{ audience|replace('_',' ')|title }}</option>{% endfor %}
+        </select>
+        <input name="email" placeholder="Specific user email" class="w-full px-3 py-2 rounded-lg border dark:bg-gray-900 dark:border-gray-700">
+        <textarea name="emails" rows="2" placeholder="Multiple emails, comma-separated" class="w-full px-3 py-2 rounded-lg border dark:bg-gray-900 dark:border-gray-700"></textarea>
+        <input name="scheduled_at" type="datetime-local" class="w-full px-3 py-2 rounded-lg border dark:bg-gray-900 dark:border-gray-700">
+        <select name="recurring_rule" class="w-full px-3 py-2 rounded-lg border dark:bg-gray-900 dark:border-gray-700">
+            <option value="">No recurrence</option>
+            {% for r in ['daily','weekly','monthly','yearly'] %}<option value="{{ r }}">{{ r|title }}</option>{% endfor %}
+        </select>
+        <select name="status" class="w-full px-3 py-2 rounded-lg border dark:bg-gray-900 dark:border-gray-700">
+            <option value="draft">Save Draft</option>
+            <option value="scheduled">Scheduled</option>
+        </select>
+        <label class="text-sm flex items-center gap-2"><input type="checkbox" name="send_now"> Send immediately</label>
+        <button class="w-full px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold">Save Campaign</button>
+    </form>
+
+    <div class="xl:col-span-2 bg-white dark:bg-dark-card rounded-xl border border-gray-100 dark:border-gray-800 overflow-hidden">
+        <div class="p-5 border-b border-gray-100 dark:border-gray-800 font-bold">Campaigns</div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-gray-50 dark:bg-gray-900"><tr><th class="p-3 text-left">Campaign</th><th class="p-3">Audience</th><th class="p-3">Status</th><th class="p-3 text-right">Actions</th></tr></thead>
+                <tbody>
+                    {% for c in campaigns %}
+                    <tr class="border-t border-gray-100 dark:border-gray-800 align-top">
+                        <td class="p-3"><div class="font-semibold">{{ c.name }}</div><div class="text-xs text-gray-500">{{ c.subject }}</div><div class="text-xs text-gray-500">{{ c.campaign_type|replace('_',' ')|title }} | {{ c.created_at.strftime('%d %b %Y') }}</div></td>
+                        <td class="p-3 text-center">{{ c.audience_type|replace('_',' ')|title }}</td>
+                        <td class="p-3 text-center">{{ c.status|title }}</td>
+                        <td class="p-3">
+                            <div class="flex flex-wrap justify-end gap-2">
+                                <form method="POST" action="{{ url_for('admin.email_campaign_action', campaign_id=c.id, action='send') }}"><button class="px-3 py-1 rounded bg-green-100 text-green-700">Send</button></form>
+                                <form method="POST" action="{{ url_for('admin.email_campaign_action', campaign_id=c.id, action='duplicate') }}"><button class="px-3 py-1 rounded bg-gray-100 dark:bg-gray-800">Duplicate</button></form>
+                                <form method="POST" action="{{ url_for('admin.email_campaign_action', campaign_id=c.id, action='pause') }}"><button class="px-3 py-1 rounded bg-yellow-100 text-yellow-700">Pause</button></form>
+                                <form method="POST" action="{{ url_for('admin.email_campaign_action', campaign_id=c.id, action='resume') }}"><button class="px-3 py-1 rounded bg-blue-100 text-blue-700">Resume</button></form>
+                                <form method="POST" action="{{ url_for('admin.email_campaign_action', campaign_id=c.id, action='archive') }}"><button class="px-3 py-1 rounded bg-purple-100 text-purple-700">Archive</button></form>
+                                <form method="POST" action="{{ url_for('admin.email_campaign_action', campaign_id=c.id, action='delete') }}" onsubmit="return confirm('Delete campaign?')"><button class="px-3 py-1 rounded bg-red-100 text-red-700">Delete</button></form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}<tr><td colspan="4" class="p-6 text-center text-gray-500">No campaigns yet.</td></tr>{% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

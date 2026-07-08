@@ -375,34 +375,12 @@ def send_verification_email():
         _external=True
     )
 
-    html = f"""
-    <div style="font-family:Arial;padding:20px;">
-        <h2>Verify Your Email</h2>
-        <p>Hello {user.first_name},</p>
-        <p>Click the button below to verify your email address.</p>
-        <a href="{verification_link}"
-           style="
-               background:#16a34a;
-               color:white;
-               padding:12px 20px;
-               border-radius:8px;
-               text-decoration:none;
-               display:inline-block;
-           ">
-           Verify Email
-        </a>
-        <p style="margin-top:20px;">
-            If you did not create this account, please ignore this email.
-        </p>
-    </div>
-    """
-
-    # Lazy import to avoid circular dependency
-    from app import send_test_email
-    send_test_email(
-        user.email,
-        "Verify Your Email - Tragene Funded",
-        html
+    from email_service import send_automation_email
+    send_automation_email(
+        'email_verification',
+        user,
+        variables={'verification_link': verification_link},
+        force=True,
     )
 
     flash('Verification email sent successfully!', 'success')
@@ -415,6 +393,8 @@ def verify_email_token(token):
         user.email_verified = True
         user.email_verification_token = None
         db.session.commit()
+        from email_service import send_automation_email
+        send_automation_email('welcome_email', user)
         if 'user_id' not in session:
             session['user_id'] = user.id
             session['user_email'] = user.email
@@ -461,36 +441,12 @@ def forgot_password():
             # Create reset link
             reset_link = url_for('auth.reset_password', token=token, _external=True)
             
-            html = f"""
-            <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
-                <h2>Reset Your Password</h2>
-                <p>Hello {user.first_name},</p>
-                <p>We received a request to reset your password for your Tragene Funded account.</p>
-                <p>Click the button below to choose a new password. This link expires in 1 hour.</p>
-                <div style="margin: 20px 0;">
-                    <a href="{reset_link}"
-                       style="
-                           background: #3b82f6;
-                           color: white;
-                           padding: 12px 24px;
-                           border-radius: 8px;
-                           text-decoration: none;
-                           display: inline-block;
-                           font-weight: bold;
-                       ">
-                       Reset Password
-                    </a>
-                </div>
-                <p style="font-size: 12px; color: #666; margin-top: 30px;">
-                    If you did not request this, you can safely ignore this email.
-                </p>
-            </div>
-            """
-            
-            send_test_email(
-                user.email,
-                "Reset Your Password - Tragene Funded",
-                html
+            from email_service import send_template_email
+            send_template_email(
+                'password-reset',
+                user,
+                variables={'reset_link': reset_link},
+                dedupe_key=f"password-reset:{user.id}:{token}",
             )
             
             # Show remaining reset requests

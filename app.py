@@ -302,26 +302,14 @@ def inject_user():
     
     return context
 
-# ===== FIXED EMAIL SENDER FUNCTION =====
+# ===== EMAIL SENDER COMPATIBILITY WRAPPER =====
 def send_test_email(to_email, subject, html_content):
-    if not RESEND_AVAILABLE or not resend.api_key:
-        if DEV_MODE:
-            print("⚠️ Email skipped - Resend not available or API key missing")
-        return False
-    
     try:
-        params = {
-            "from": "Tragene Funded <support@tragenefunded.com>",
-            "to": [to_email],
-            "subject": subject,
-            "html": html_content
-        }
-        result = resend.Emails.send(params)
-        if DEV_MODE:
-            print(f"✅ Email sent successfully: {result}")
-        return True
+        from email_service import send_email
+        log = send_email(to_email, subject, html_content, ignore_preferences=True)
+        return log.status == 'sent'
     except Exception as e:
-        print(f"❌ Email failed: {str(e)}")
+        print(f"[EMAIL] Compatibility send failed: {str(e)}")
         return False
 
 # ===== LOGIN DECORATOR =====
@@ -511,6 +499,18 @@ def provision_challenge(payment, user, challenge_template_id):
     if DEV_MODE:
         print(f"[OK] Challenge purchase created: {purchase.id}")
         print(f"[OK] Rule engine fields initialized with account size: {challenge.account_size}")
+
+    try:
+        from email_service import send_automation_email
+        send_automation_email(
+            'purchase_confirmation',
+            user,
+            challenge=purchase,
+            variables={'order_id': payment.cf_order_id or payment.order_id or payment.id}
+        )
+    except Exception as e:
+        if DEV_MODE:
+            print(f"[EMAIL] Purchase confirmation skipped: {e}")
         
     return True, purchase.id
 
@@ -691,6 +691,12 @@ def api_get_template(template_id):
 # ===== SEED DEFAULT DATA =====
 with app.app_context():
     db.create_all()
+    try:
+        from email_service import seed_email_center
+        seed_email_center()
+    except Exception as e:
+        if DEV_MODE:
+            print(f"[INFO] Email Center seed skipped: {e}")
     
     try:
         admin_email = os.getenv("ADMIN_EMAIL")
@@ -897,7 +903,7 @@ def create_cashfree_order():
         gateway_charge = round(base_price * 0.02, 2)
         expected_payable_amount = round(base_price + gateway_charge, 2)
             
-        internal_order_id = f"ORDER_{user.id}_{int(time.time())}_{secrets.token_hex(4)}"
+        internal_order_id = str(int(time.time() * 1000))
         
         customer_details = CustomerDetails(
             customer_id=f"USER_{user.id}",
@@ -1176,6 +1182,18 @@ def payment_failed():
 
 # ===== RULE ENGINE API ENDPOINTS =====
 
+COMPLIANCE_REVIEW_MESSAGE = 'Your account is currently under compliance review. You will be notified once the review is complete.'
+
+def _is_user_compliance_review(challenge, user):
+    return (
+        not user.is_admin
+        and (
+            challenge.status == 'under_review'
+            or challenge.monitoring_status == 'under_review'
+            or bool(challenge.review_required)
+        )
+    )
+
 @app.route('/api/challenge/<int:challenge_id>/metrics')
 @login_required
 def get_challenge_metrics(challenge_id):
@@ -1189,6 +1207,19 @@ def get_challenge_metrics(challenge_id):
     
     if challenge.user_id != user_id and not user.is_admin:
         return jsonify({'error': 'Access denied'}), 403
+
+    if _is_user_compliance_review(challenge, user):
+        return jsonify({
+            'success': True,
+            'challenge_id': challenge.id,
+            'challenge_name': challenge.challenge_template.name if challenge.challenge_template else 'N/A',
+            'review_message': COMPLIANCE_REVIEW_MESSAGE,
+            'metrics': {
+                'status': 'under_review',
+                'monitoring_status': 'under_review',
+                'review_required': True,
+            }
+        })
     
     def safe_round(value, decimals=2):
         if value is None:
@@ -1294,6 +1325,16 @@ def get_user_all_challenges_metrics():
     
     result = []
     for challenge in challenges:
+        if challenge.status == 'under_review' or challenge.monitoring_status == 'under_review' or challenge.review_required:
+            result.append({
+                'id': challenge.id,
+                'challenge_name': challenge.challenge_template.name if challenge.challenge_template else 'N/A',
+                'status': 'under_review',
+                'days_remaining': 0,
+                'review_message': COMPLIANCE_REVIEW_MESSAGE
+            })
+            continue
+
         result.append({
             'id': challenge.id,
             'challenge_name': challenge.challenge_template.name if challenge.challenge_template else 'N/A',
@@ -1333,6 +1374,20 @@ def get_live_challenge_data(challenge_id):
     
     if challenge.user_id != user_id and not user.is_admin:
         return jsonify({'error': 'Access denied'}), 403
+
+    if _is_user_compliance_review(challenge, user):
+        return jsonify({
+            'success': True,
+            'timestamp': datetime.now(timezone.utc).isoformat(),
+            'status': {
+                'challenge_status': 'under_review',
+                'monitoring_status': 'under_review',
+                'review_required': True,
+                'review_message': COMPLIANCE_REVIEW_MESSAGE,
+            },
+            'open_positions': [],
+            'open_positions_count': 0
+        })
     
     # Get open positions
     from models import EATrade

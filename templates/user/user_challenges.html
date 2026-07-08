@@ -78,6 +78,14 @@
         border-radius: 9999px;
         font-weight: 600;
     }
+    .badge-lot-size-rule {
+        background-color: #8b5cf6;
+        color: white;
+        font-size: 0.65rem;
+        padding: 2px 6px;
+        border-radius: 9999px;
+        font-weight: 600;
+    }
 </style>
 {% endblock %}
 
@@ -174,13 +182,16 @@
                     <div class="text-sm font-semibold text-gray-700 dark:text-gray-300 mt-2">${{ "{:,}".format(challenge.account_size) }} Account Size</div>
                     
                     <!-- 🛡️ Safety Rule Badges -->
-                    {% if challenge.sl_mandatory_enabled or challenge.activity_rule_enabled %}
+                    {% if challenge.sl_mandatory_enabled or challenge.activity_rule_enabled or challenge.max_lot_size_enabled %}
                     <div class="flex justify-center gap-2 mt-3">
                         {% if challenge.sl_mandatory_enabled %}
                         <span class="badge-sl-rule">🛡️ SL Mandatory</span>
                         {% endif %}
                         {% if challenge.activity_rule_enabled %}
                         <span class="badge-activity-rule">⏱️ Activity Rule</span>
+                        {% endif %}
+                        {% if challenge.max_lot_size_enabled %}
+                        <span class="badge-lot-size-rule">⚖️ Max {{ challenge.max_lot_size }} Lot</span>
                         {% endif %}
                     </div>
                     {% endif %}

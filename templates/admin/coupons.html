@@ -57,6 +57,18 @@
                             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold {% if coupon.coupon_type == 'specific' %}bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300{% elif coupon.coupon_type == 'influencer' %}bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300{% else %}bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300{% endif %}">
                                 {{ coupon.coupon_type|capitalize }}
                             </span>
+                            {% if coupon.coupon_type == 'influencer' and coupon.influencer %}
+                                <div class="text-xs text-gray-500 mt-1">For: {{ coupon.influencer.email }} {% if coupon.influencer.phone %}({{ coupon.influencer.phone }}){% endif %}</div>
+                            {% elif coupon.coupon_type == 'specific' and coupon.assignments %}
+                                <div class="text-xs text-gray-500 mt-1">For: 
+                                    {% for assignment in coupon.assignments[:2] %}
+                                        {{ assignment.user.email }} {% if assignment.user.phone %}({{ assignment.user.phone }}){% endif %}{% if not loop.last %}, {% endif %}
+                                    {% endfor %}
+                                    {% if coupon.assignments|length > 2 %}
+                                        ... (+{{ coupon.assignments|length - 2 }} more)
+                                    {% endif %}
+                                </div>
+                            {% endif %}
                         </td>
                         <td class="p-4 font-semibold text-gray-900 dark:text-white">
                             {% if coupon.discount_type == 'percent' %}

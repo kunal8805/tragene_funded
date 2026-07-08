@@ -30,9 +30,8 @@
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 
-    <!-- AOS Animation -->
-    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
-    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <!-- Hotwired Turbo for SPA-like navigation -->
+    <script type="module" src="https://unpkg.com/@hotwired/turbo@8.0.4/dist/turbo.es2017-umd.js"></script>
 
     <!-- Custom Styles -->
     <style>
@@ -44,7 +43,23 @@
 
         * {
             box-sizing: border-box;
-            transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+            transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+        }
+
+        /* Fast Page Transition */
+        main {
+            animation: fadeInFast 150ms ease-out forwards;
+        }
+
+        @keyframes fadeInFast {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Turbo Progress Bar */
+        .turbo-progress-bar {
+            height: 3px;
+            background-color: #3b82f6; /* Tailwind blue-500 */
         }
 
         /* Professional White Theme (Default) */
@@ -361,6 +376,20 @@
                 <span>Coupons</span>
             </a>
 
+            <!-- ===== EMAIL CENTER LINK (DESKTOP) ===== -->
+            <a href="{{ url_for('admin.email_center_dashboard') }}"
+                class="flex items-center space-x-3 p-3 {% if request.endpoint and request.endpoint.startswith('admin.email_') and request.endpoint != 'admin.email_analytics' %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
+                <i class="fas fa-envelope-open-text w-5"></i>
+                <span>Email Center</span>
+            </a>
+
+            <!-- ===== EMAIL ANALYTICS LINK (DESKTOP) ===== -->
+            <a href="{{ url_for('admin.email_analytics') }}"
+                class="flex items-center space-x-3 p-3 {% if request.endpoint == 'admin.email_analytics' %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition ml-4">
+                <i class="fas fa-chart-pie w-5 text-sm"></i>
+                <span class="text-sm">Email Analytics</span>
+            </a>
+
             <a href="{{ url_for('admin_blog.list_posts') }}"
                 class="flex items-center space-x-3 p-3 {% if 'admin_blog' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
                 <i class="fas fa-blog w-5"></i>
@@ -548,6 +577,22 @@
                 <span>Coupons</span>
             </a>
 
+            <!-- ===== EMAIL CENTER LINK (MOBILE) ===== -->
+            <a href="{{ url_for('admin.email_center_dashboard') }}"
+                class="flex items-center space-x-3 p-3 {% if request.endpoint and request.endpoint.startswith('admin.email_') and request.endpoint != 'admin.email_analytics' %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition"
+                onclick="toggleSidebar()">
+                <i class="fas fa-envelope-open-text w-5"></i>
+                <span>Email Center</span>
+            </a>
+
+            <!-- ===== EMAIL ANALYTICS LINK (MOBILE) ===== -->
+            <a href="{{ url_for('admin.email_analytics') }}"
+                class="flex items-center space-x-3 p-3 {% if request.endpoint == 'admin.email_analytics' %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition ml-4"
+                onclick="toggleSidebar()">
+                <i class="fas fa-chart-pie w-5 text-sm"></i>
+                <span class="text-sm">Email Analytics</span>
+            </a>
+
             <a href="{{ url_for('admin_blog.list_posts') }}"
                 class="flex items-center space-x-3 p-3 {% if 'admin_blog' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition"
                 onclick="toggleSidebar()">
@@ -634,16 +679,6 @@
             overlay.classList.toggle('active');
         }
 
-        // Initialize animations
-        if (typeof AOS !== 'undefined') {
-            AOS.init({
-                duration: 800,
-                once: true,
-                offset: 50,
-                easing: 'ease-out-cubic'
-            });
-        }
-
         // Close sidebar when clicking outside on mobile
         document.addEventListener('click', function (event) {
             const sidebar = document.getElementById('mobileSidebar');
@@ -653,9 +688,6 @@
         });
 
         // Dark Mode Logic
-        const themeToggleDesktop = document.getElementById('theme-toggle-desktop');
-        const themeToggleMobile = document.getElementById('theme-toggle-mobile');
-
         function toggleTheme() {
             if (document.documentElement.classList.contains('dark')) {
                 document.documentElement.classList.remove('dark');
@@ -666,9 +698,33 @@
             }
         }
 
-        if (themeToggleDesktop) themeToggleDesktop.addEventListener('click', toggleTheme);
-        if (themeToggleMobile) themeToggleMobile.addEventListener('click', toggleTheme);
+        // Initialize theme toggles
+        function initThemeToggles() {
+            const themeToggleDesktop = document.getElementById('theme-toggle-desktop');
+            const themeToggleMobile = document.getElementById('theme-toggle-mobile');
+            
+            if (themeToggleDesktop) {
+                themeToggleDesktop.removeEventListener('click', toggleTheme);
+                themeToggleDesktop.addEventListener('click', toggleTheme);
+            }
+            
+            if (themeToggleMobile) {
+                themeToggleMobile.removeEventListener('click', toggleTheme);
+                themeToggleMobile.addEventListener('click', toggleTheme);
+            }
+            
+            // Re-bind sidebar close logic for mobile overlay
+            const overlay = document.getElementById('overlay');
+            if (overlay) {
+                overlay.onclick = toggleSidebar;
+            }
+        }
 
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', initThemeToggles);
+        
+        // Re-initialize on Turbo navigation
+        document.addEventListener('turbo:load', initThemeToggles);
     </script>
     {% block scripts %}{% endblock %}
 </body>

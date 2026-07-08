@@ -1,727 +1,386 @@
 {% extends "admin/base.html" %}
 
-{% block title %}Payments Management - Tragene Admin{% endblock %}
+{% block title %}Payments Analytics - Tragene Admin{% endblock %}
 
-{% block header_title %}Payments Management{% endblock %}
-{% block header_subtitle %}View and manage all payment transactions{% endblock %}
+{% block header_title %}💰 Payments Analytics{% endblock %}
+{% block header_subtitle %}Complete payment intelligence dashboard{% endblock %}
+
+{% block head %}
+<style>
+    .stat-card { transition: all 0.3s ease; }
+    .stat-card:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(0,0,0,0.12); }
+    .user-row { cursor: pointer; transition: background 0.2s; }
+    .user-row:hover { background: rgba(59, 130, 246, 0.05); }
+    .badge-success { background: #10b98120; color: #059669; }
+    .badge-pending { background: #f59e0b20; color: #d97706; }
+    .badge-failed { background: #ef444420; color: #dc2626; }
+    .chart-container { position: relative; width: 100%; min-height: 300px; }
+    @keyframes shimmer { 0% { background-position: -200px 0; } 100% { background-position: calc(200px + 100%) 0; } }
+    .loading-shimmer { background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%); background-size: 200px 100%; animation: shimmer 1.5s infinite; }
+</style>
+{% endblock %}
 
 {% block content %}
-<!-- Page Header Stats/Controls -->
-<div class="glass-card p-6 mb-8" data-aos="fade-up">
-    <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-        <div class="text-center sm:text-left">
-            <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Transaction Overview</h1>
-            <p class="text-gray-600 dark:text-gray-400 mt-2">Real-time payment monitoring</p>
-        </div>
-        <div class="flex flex-col sm:flex-row items-center gap-3">
-            <div class="flex items-center space-x-2">
-                <span class="text-sm text-gray-600 dark:text-gray-400">Last Updated:</span>
-                <span class="text-sm font-medium text-gray-900 dark:text-white" id="lastUpdated">Just now</span>
-            </div>
-            <button id="refreshBtn"
-                class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold transition flex items-center justify-center">
-                <i class="fas fa-sync-alt mr-2"></i>Refresh
-            </button>
-        </div>
+<!-- Top Stats Row -->
+<div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 mb-6" id="topStats">
+    <div class="stat-card glass-card p-4 text-center rounded-xl">
+        <div class="text-2xl font-bold text-blue-600" id="statTotalRevenue">₹0</div>
+        <div class="text-xs text-gray-500 mt-1">Total Revenue</div>
+    </div>
+    <div class="stat-card glass-card p-4 text-center rounded-xl">
+        <div class="text-2xl font-bold text-green-600" id="statSuccessful">0</div>
+        <div class="text-xs text-gray-500 mt-1">Successful</div>
+    </div>
+    <div class="stat-card glass-card p-4 text-center rounded-xl">
+        <div class="text-2xl font-bold text-yellow-600" id="statPending">0</div>
+        <div class="text-xs text-gray-500 mt-1">Pending</div>
+    </div>
+    <div class="stat-card glass-card p-4 text-center rounded-xl">
+        <div class="text-2xl font-bold text-red-600" id="statFailed">0</div>
+        <div class="text-xs text-gray-500 mt-1">Failed</div>
+    </div>
+    <div class="stat-card glass-card p-4 text-center rounded-xl">
+        <div class="text-2xl font-bold text-purple-600" id="statUniqueUsers">0</div>
+        <div class="text-xs text-gray-500 mt-1">Unique Buyers</div>
+    </div>
+    <div class="stat-card glass-card p-4 text-center rounded-xl">
+        <div class="text-2xl font-bold text-indigo-600" id="statRepeatUsers">0</div>
+        <div class="text-xs text-gray-500 mt-1">Repeat Buyers</div>
+    </div>
+    <div class="stat-card glass-card p-4 text-center rounded-xl">
+        <div class="text-2xl font-bold text-teal-600" id="statAvgOrder">₹0</div>
+        <div class="text-xs text-gray-500 mt-1">Avg Order Value</div>
+    </div>
+    <div class="stat-card glass-card p-4 text-center rounded-xl">
+        <div class="text-2xl font-bold text-orange-600" id="statSuccessRate">0%</div>
+        <div class="text-xs text-gray-500 mt-1">Success Rate</div>
     </div>
 </div>
 
-<!-- Payment Stats -->
-<div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6 mb-8">
-    <div class="glass-card p-6 text-center" data-aos="fade-up" data-aos-delay="0">
-        <div class="flex items-center justify-between mb-4">
-            <div class="text-left">
-                <p class="text-sm text-gray-600 dark:text-gray-400">Total Revenue</p>
-                <p id="statTotalRevenue" class="text-2xl font-bold text-gray-900 dark:text-white">₹{{ '{:,.0f}'.format(total_revenue) }}</p>
-            </div>
-            <div class="bg-green-100 dark:bg-green-900/20 p-3 rounded-full">
-                <i class="fas fa-rupee-sign text-green-600 dark:text-green-400 text-xl"></i>
+<!-- Filters Bar -->
+<div class="glass-card p-4 mb-6 rounded-xl">
+    <div class="flex flex-wrap gap-3 items-center">
+        <div class="flex-1 min-w-[200px]">
+            <div class="relative">
+                <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                <input type="text" id="searchInput" placeholder="Search by name, email, order ID..." 
+                    class="w-full pl-10 pr-4 py-2.5 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm">
             </div>
         </div>
-        <div class="text-left">
-            <span class="text-green-600 dark:text-green-400 text-sm font-medium">All successful payments</span>
+        
+        <select id="statusFilter" class="px-3 py-2.5 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg text-sm">
+            <option value="all">All Status</option>
+            <option value="success">✅ Success</option>
+            <option value="pending">⏳ Pending</option>
+            <option value="failed">❌ Failed</option>
+        </select>
+        
+        <select id="dateFilter" class="px-3 py-2.5 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg text-sm">
+            <option value="all">All Time</option>
+            <option value="today">Today</option>
+            <option value="7days">Last 7 Days</option>
+            <option value="30days">Last 30 Days</option>
+            <option value="60days">Last 60 Days</option>
+            <option value="90days">Last 90 Days</option>
+            <option value="thismonth">This Month</option>
+            <option value="lastmonth">Last Month</option>
+            <option value="custom">Custom Range</option>
+        </select>
+        
+        <div id="customDateRange" class="hidden flex gap-2 items-center">
+            <input type="date" id="dateFrom" class="px-3 py-2.5 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg text-sm">
+            <span class="text-gray-400">to</span>
+            <input type="date" id="dateTo" class="px-3 py-2.5 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg text-sm">
         </div>
-    </div>
-
-    <div class="glass-card p-6 text-center" data-aos="fade-up" data-aos-delay="100">
-        <div class="flex items-center justify-between mb-4">
-            <div class="text-left">
-                <p class="text-sm text-gray-600 dark:text-gray-400">Successful</p>
-                <p id="statSuccessful" class="text-2xl font-bold text-gray-900 dark:text-white">{{ successful_payments }}</p>
-            </div>
-            <div class="bg-blue-100 dark:bg-blue-900/20 p-3 rounded-full">
-                <i class="fas fa-check-circle text-blue-600 dark:text-blue-400 text-xl"></i>
-            </div>
-        </div>
-        <div class="text-left">
-            <span class="text-blue-600 dark:text-blue-400 text-sm font-medium">Completed orders</span>
-        </div>
-    </div>
-
-    <div class="glass-card p-6 text-center" data-aos="fade-up" data-aos-delay="200">
-        <div class="flex items-center justify-between mb-4">
-            <div class="text-left">
-                <p class="text-sm text-gray-600 dark:text-gray-400">Pending</p>
-                <p id="statPending" class="text-2xl font-bold text-gray-900 dark:text-white">{{ pending_payments }}</p>
-            </div>
-            <div class="bg-yellow-100 dark:bg-yellow-900/20 p-3 rounded-full">
-                <i class="fas fa-clock text-yellow-600 dark:text-yellow-400 text-xl"></i>
-            </div>
-        </div>
-        <div class="text-left">
-            <span class="text-yellow-600 dark:text-yellow-400 text-sm font-medium">Awaiting response</span>
-        </div>
-    </div>
-
-    <div class="glass-card p-6 text-center" data-aos="fade-up" data-aos-delay="300">
-        <div class="flex items-center justify-between mb-4">
-            <div class="text-left">
-                <p class="text-sm text-gray-600 dark:text-gray-400">Failed</p>
-                <p id="statFailed" class="text-2xl font-bold text-gray-900 dark:text-white">{{ failed_payments }}</p>
-            </div>
-            <div class="bg-red-100 dark:bg-red-900/20 p-3 rounded-full">
-                <i class="fas fa-times-circle text-red-600 dark:text-red-400 text-xl"></i>
-            </div>
-        </div>
-        <div class="text-left">
-            <span class="text-red-600 dark:text-red-400 text-sm font-medium">Requires review</span>
-        </div>
-    </div>
-
-    <div class="glass-card p-6 text-center" data-aos="fade-up" data-aos-delay="400">
-        <div class="flex items-center justify-between mb-4">
-            <div class="text-left">
-                <p class="text-sm text-gray-600 dark:text-gray-400">Refund Review</p>
-                <p id="statRefund" class="text-2xl font-bold text-purple-600 dark:text-purple-400">{{ refund_eligible_count }}</p>
-            </div>
-            <div class="bg-purple-100 dark:bg-purple-900/20 p-3 rounded-full">
-                <i class="fas fa-undo-alt text-purple-600 dark:text-purple-400 text-xl"></i>
-            </div>
-        </div>
-        <div class="text-left">
-            <span class="text-purple-600 dark:text-purple-400 text-sm font-medium">Pending action</span>
-        </div>
+        
+        <button onclick="refreshAll()" class="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition flex items-center gap-2">
+            <i class="fas fa-sync-alt"></i> Refresh
+        </button>
+        
+        <button onclick="exportReport()" class="px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition flex items-center gap-2">
+            <i class="fas fa-download"></i> Export
+        </button>
     </div>
 </div>
 
-<!-- Bulk Actions Form -->
-<form id="bulkActionForm" method="POST" action="/admin/payments/bulk_action">
-    <!-- Bulk Actions Toolbar -->
-    <div class="mb-4 glass-card p-4" id="bulkActionsToolbar" style="display: none;">
-        <div class="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
-            <div class="text-center lg:text-left">
-                <span id="selectedCount" class="font-semibold text-blue-600 dark:text-blue-400 text-lg">0 payments
-                    selected</span>
-            </div>
-
-            <div class="flex flex-col sm:flex-row gap-2 w-full lg:w-auto">
-                <select name="action" id="bulkActionSelect"
-                    class="w-full bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-gray-100">
-                    <option value="">Choose Action...</option>
-                    <option value="refund">Refund Selected Payments</option>
-                    <option value="delete">Delete Payment Records</option>
-                    <option value="mark_success">Mark as Success</option>
-                    <option value="mark_failed">Mark as Failed</option>
-                </select>
-
-                <div class="flex gap-2">
-                    <button type="submit"
-                        class="bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700 transition flex-1">
-                        Apply Action
-                    </button>
-                    <button type="button" onclick="clearSelection()"
-                        class="bg-gray-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-gray-600 transition flex-1">
-                        Clear
-                    </button>
-                </div>
-            </div>
-        </div>
+<!-- Charts Row -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+    <div class="glass-card p-5 rounded-xl">
+        <h3 class="font-semibold text-gray-800 dark:text-white mb-4">📈 Revenue Trend</h3>
+        <div class="chart-container"><canvas id="revenueChart"></canvas></div>
     </div>
-
-    <!-- Filters and Search -->
-    <div class="glass-card p-6 mb-8" data-aos="fade-up">
-        <div class="flex flex-col lg:flex-row gap-4">
-            <!-- Search -->
-            <div class="flex-1">
-                <div class="relative">
-                    <input type="text" id="searchInput" placeholder="Search by user, payment ID, or email..."
-                        class="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400">
-                    <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
-                </div>
-            </div>
-
-            <!-- Status Filter -->
-            <div class="w-full lg:w-48">
-                <select id="statusFilter"
-                    class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 dark:text-gray-100">
-                    <option value="all">All Status</option>
-                    <option value="success">Success</option>
-                    <option value="pending">Pending</option>
-                    <option value="failed">Failed</option>
-                    <option value="refunded">Refunded</option>
-                </select>
-            </div>
-
-            <!-- Payment Method Filter -->
-            <div class="w-full lg:w-48">
-                <select id="methodFilter"
-                    class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 dark:text-gray-100">
-                    <option value="all">All Methods</option>
-                    <option value="upi">UPI</option>
-                    <option value="card">Credit/Debit Card</option>
-                    <option value="netbanking">Net Banking</option>
-                </select>
-            </div>
-
-            <!-- Date Range -->
-            <div class="w-full lg:w-48">
-                <input type="date" id="dateFilter"
-                    class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 dark:text-gray-100">
-            </div>
-        </div>
-
-        <!-- Action Buttons -->
-        <div class="flex flex-wrap gap-2 mt-4">
-            <button id="exportBtn" type="button"
-                class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-semibold text-sm flex items-center transition">
-                <i class="fas fa-file-export mr-2"></i>Export CSV
-            </button>
-            <button id="refreshPaymentsBtn" type="button"
-                class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold text-sm flex items-center transition">
-                <i class="fas fa-sync-alt mr-2"></i>Refresh Payments
-            </button>
-        </div>
+    <div class="glass-card p-5 rounded-xl">
+        <h3 class="font-semibold text-gray-800 dark:text-white mb-4">📊 Payment Status Distribution</h3>
+        <div class="chart-container"><canvas id="statusChart"></canvas></div>
     </div>
+</div>
 
-    <!-- Payments Table -->
-    <div class="glass-card overflow-hidden" data-aos="fade-up">
-        <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                <thead class="bg-gray-50 dark:bg-gray-800/50">
-                    <tr>
-                        <th scope="col"
-                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider w-12">
-                            <input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)"
-                                class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
-                        </th>
-                        <th scope="col"
-                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                            Payment ID</th>
-                        <th scope="col"
-                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                            User</th>
-                        <th scope="col"
-                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                            Challenge</th>
-                        <th scope="col"
-                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                            Amount</th>
-                        <th scope="col"
-                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                            Method</th>
-                        <th scope="col"
-                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                            Status</th>
-                        <th scope="col"
-                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                            Date</th>
-                        <th scope="col"
-                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                            Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="paymentsTableBody"
-                    class="bg-white dark:bg-transparent divide-y divide-gray-200 dark:divide-gray-700">
-                    <!-- Payments will be loaded here dynamically -->
-                </tbody>
+<!-- Top Spenders + Payment Methods -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+    <div class="glass-card p-5 rounded-xl">
+        <h3 class="font-semibold text-gray-800 dark:text-white mb-4">🏆 Top Spenders</h3>
+        <div class="overflow-x-auto max-h-80 overflow-y-auto" id="topSpendersTable">
+            <table class="w-full text-sm">
+                <thead><tr class="border-b text-left text-xs text-gray-500 uppercase"><th>#</th><th>User</th><th>Orders</th><th>Total Spent</th><th>Last Purchase</th></tr></thead>
+                <tbody id="topSpendersBody"><tr><td colspan="5" class="text-center py-8 text-gray-400">Loading...</td></tr></tbody>
             </table>
         </div>
-
-        <!-- Pagination -->
-        <div class="px-4 py-3 flex items-center justify-between border-t border-gray-200 dark:border-gray-700">
-            <div class="flex-1 flex justify-between items-center sm:hidden">
-                <button type="button" id="prevPageMobile"
-                    class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">Previous</button>
-                <button type="button" id="nextPageMobile"
-                    class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">Next</button>
-            </div>
-            <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-                <div>
-                    <p class="text-sm text-gray-700 dark:text-gray-300">
-                        Showing <span id="paginationStart" class="font-medium">1</span> to <span id="paginationEnd"
-                            class="font-medium">10</span> of <span id="paginationTotal" class="font-medium">40</span>
-                        results
-                    </p>
-                </div>
-                <div>
-                    <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
-                        <button type="button" id="prevPage"
-                            class="relative inline-flex items-center px-4 py-2 rounded-l-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium text-gray-500 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600">
-                            Previous
-                        </button>
-                        <button type="button" id="nextPage"
-                            class="relative inline-flex items-center px-4 py-2 rounded-r-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium text-gray-500 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600">
-                            Next
-                        </button>
-                    </nav>
-                </div>
-            </div>
+    </div>
+    <div class="glass-card p-5 rounded-xl">
+        <h3 class="font-semibold text-gray-800 dark:text-white mb-4">🎯 Challenge Performance</h3>
+        <div class="overflow-x-auto max-h-80 overflow-y-auto" id="challengePerformance">
+            <table class="w-full text-sm">
+                <thead><tr class="border-b text-left text-xs text-gray-500 uppercase"><th>Challenge</th><th>Sales</th><th>Revenue</th><th>Conversion</th></tr></thead>
+                <tbody id="challengePerfBody"><tr><td colspan="4" class="text-center py-8 text-gray-400">Loading...</td></tr></tbody>
+            </table>
         </div>
     </div>
-</form>
+</div>
 
-<!-- Payment Details Modal -->
-<div id="paymentModal" class="fixed inset-0 bg-gray-900/50 backdrop-blur-sm overflow-y-auto h-full w-full hidden z-50">
-    <div
-        class="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-xl bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 transition-all">
-        <div class="mt-3">
-            <div class="flex justify-between items-center pb-3 border-b border-gray-200 dark:border-gray-700">
-                <h3 class="text-xl font-bold text-gray-900 dark:text-white">Payment Details</h3>
-                <button id="closeModal" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition">
-                    <i class="fas fa-times text-xl"></i>
-                </button>
-            </div>
-
-            <div class="mt-6" id="modalContent">
-                <!-- Payment details will be loaded here -->
-            </div>
-
-            <div class="flex justify-end space-x-3 mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
-                <button id="closeModalBtn"
-                    class="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 px-4 py-2 rounded-lg font-semibold transition">
-                    Close
-                </button>
-                <button id="refundBtn"
-                    class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-semibold flex items-center transition">
-                    <i class="fas fa-undo mr-2"></i>Process Refund
-                </button>
-            </div>
+<!-- Payments Table -->
+<div class="glass-card rounded-xl overflow-hidden mb-6">
+    <div class="p-5 border-b flex justify-between items-center">
+        <h3 class="font-semibold text-gray-800 dark:text-white">📋 Transaction Log</h3>
+        <span class="text-xs text-gray-400" id="resultCount">0 results</span>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead class="bg-gray-50 dark:bg-gray-800/50">
+                <tr class="text-left text-xs text-gray-500 uppercase">
+                    <th class="px-4 py-3">Order ID</th>
+                    <th class="px-4 py-3">User</th>
+                    <th class="px-4 py-3">Challenge</th>
+                    <th class="px-4 py-3">Amount</th>
+                    <th class="px-4 py-3">Coupon</th>
+                    <th class="px-4 py-3">Status</th>
+                    <th class="px-4 py-3">Date</th>
+                </tr>
+            </thead>
+            <tbody id="paymentsTableBody">
+                <tr><td colspan="7" class="text-center py-12 text-gray-400"><i class="fas fa-spinner fa-spin mr-2"></i> Loading transactions...</td></tr>
+            </tbody>
+        </table>
+    </div>
+    <div class="p-4 border-t flex justify-between items-center" id="pagination">
+        <span class="text-sm text-gray-500" id="paginationInfo">Page 1 of 1</span>
+        <div class="flex gap-2">
+            <button id="prevBtn" onclick="changePage(-1)" class="px-3 py-1.5 border rounded-lg text-sm hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50" disabled>← Prev</button>
+            <button id="nextBtn" onclick="changePage(1)" class="px-3 py-1.5 border rounded-lg text-sm hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50" disabled>Next →</button>
         </div>
     </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
-    // DOM Elements
-    const paymentsTableBody = document.getElementById('paymentsTableBody');
-    const searchInput = document.getElementById('searchInput');
-    const statusFilter = document.getElementById('statusFilter');
-    const methodFilter = document.getElementById('methodFilter');
-    const dateFilter = document.getElementById('dateFilter');
-    const refreshBtn = document.getElementById('refreshBtn');
-    const refreshPaymentsBtn = document.getElementById('refreshPaymentsBtn');
-    const exportBtn = document.getElementById('exportBtn');
-    const paymentModal = document.getElementById('paymentModal');
-    const closeModal = document.getElementById('closeModal');
-    const closeModalBtn = document.getElementById('closeModalBtn');
-    const modalContent = document.getElementById('modalContent');
-    const refundBtn = document.getElementById('refundBtn'); // in modal
-    const prevPage = document.getElementById('prevPage');
-    const nextPage = document.getElementById('nextPage');
-    const paginationStart = document.getElementById('paginationStart');
-    const paginationEnd = document.getElementById('paginationEnd');
-    const paginationTotal = document.getElementById('paginationTotal');
-    const bulkActionsToolbar = document.getElementById('bulkActionsToolbar');
-    const bulkActionSelect = document.getElementById('bulkActionSelect');
-    const selectedCount = document.getElementById('selectedCount');
-    const bulkActionForm = document.getElementById('bulkActionForm');
+let currentPage = 1;
+let totalPages = 1;
+let revenueChart, statusChart;
+let allPayments = [];
 
-    let currentPage = 1;
-    let itemsPerPage = 20;
-    let currentPayments = []; 
-    let currentModalPayment = null; 
+document.addEventListener('DOMContentLoaded', () => {
+    refreshAll();
+    document.getElementById('dateFilter').addEventListener('change', toggleCustomDate);
+    document.getElementById('searchInput').addEventListener('input', debounce(refreshAll, 400));
+    document.getElementById('statusFilter').addEventListener('change', refreshAll);
+    document.getElementById('dateFrom').addEventListener('change', refreshAll);
+    document.getElementById('dateTo').addEventListener('change', refreshAll);
+});
 
-    document.addEventListener('DOMContentLoaded', function () {
-        loadPaymentsTable();
-        setupEventListeners();
+function toggleCustomDate() {
+    const val = document.getElementById('dateFilter').value;
+    document.getElementById('customDateRange').classList.toggle('hidden', val !== 'custom');
+    if (val !== 'custom') refreshAll();
+}
+
+function getDateRange() {
+    const filter = document.getElementById('dateFilter').value;
+    const now = new Date();
+    let from = null, to = null;
+    
+    switch(filter) {
+        case 'today': from = new Date(now.getFullYear(), now.getMonth(), now.getDate()); to = now; break;
+        case '7days': from = new Date(now - 7*86400000); to = now; break;
+        case '30days': from = new Date(now - 30*86400000); to = now; break;
+        case '60days': from = new Date(now - 60*86400000); to = now; break;
+        case '90days': from = new Date(now - 90*86400000); to = now; break;
+        case 'thismonth': from = new Date(now.getFullYear(), now.getMonth(), 1); to = now; break;
+        case 'lastmonth': from = new Date(now.getFullYear(), now.getMonth()-1, 1); to = new Date(now.getFullYear(), now.getMonth(), 0); break;
+        case 'custom':
+            from = document.getElementById('dateFrom').value ? new Date(document.getElementById('dateFrom').value) : null;
+            to = document.getElementById('dateTo').value ? new Date(document.getElementById('dateTo').value + 'T23:59:59') : null;
+            break;
+    }
+    return { from, to };
+}
+
+async function refreshAll() {
+    const { from, to } = getDateRange();
+    const status = document.getElementById('statusFilter').value;
+    const search = document.getElementById('searchInput').value;
+    
+    try {
+        const resp = await fetch('/admin/api/payments/analytics', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ search, status, date_from: from?.toISOString(), date_to: to?.toISOString(), page: currentPage, per_page: 50 })
+        });
+        const data = await resp.json();
+        if (data.success) {
+            allPayments = data.payments;
+            totalPages = data.pages || 1;
+            updateStats(data.stats);
+            updateCharts(data);
+            updateTopSpenders(data.top_spenders);
+            updateChallengePerf(data.challenge_performance);
+            renderTable(data.payments);
+            updatePagination(data);
+        }
+    } catch(e) { console.error('Error:', e); }
+}
+
+function updateStats(stats) {
+    document.getElementById('statTotalRevenue').textContent = '₹' + (stats?.total_revenue || 0).toLocaleString('en-IN');
+    document.getElementById('statSuccessful').textContent = stats?.successful || 0;
+    document.getElementById('statPending').textContent = stats?.pending || 0;
+    document.getElementById('statFailed').textContent = stats?.failed || 0;
+    document.getElementById('statUniqueUsers').textContent = stats?.unique_buyers || 0;
+    document.getElementById('statRepeatUsers').textContent = stats?.repeat_buyers || 0;
+    document.getElementById('statAvgOrder').textContent = '₹' + (stats?.avg_order_value || 0).toLocaleString('en-IN');
+    document.getElementById('statSuccessRate').textContent = (stats?.success_rate || 0) + '%';
+}
+
+function updateCharts(data) {
+    const revCtx = document.getElementById('revenueChart').getContext('2d');
+    const statusCtx = document.getElementById('statusChart').getContext('2d');
+    
+    if (revenueChart) revenueChart.destroy();
+    if (statusChart) statusChart.destroy();
+    
+    revenueChart = new Chart(revCtx, {
+        type: 'line',
+        data: {
+            labels: data.revenue_trend?.labels || [],
+            datasets: [{
+                label: 'Revenue (₹)',
+                data: data.revenue_trend?.values || [],
+                borderColor: '#3b82f6',
+                backgroundColor: 'rgba(59,130,246,0.1)',
+                fill: true,
+                tension: 0.4,
+                pointRadius: 2,
+                pointHoverRadius: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { ticks: { callback: v => '₹' + v.toLocaleString('en-IN') } }
+            }
+        }
     });
-
-    function setupEventListeners() {
-        let searchTimeout;
-        searchInput.addEventListener('input', () => {
-            clearTimeout(searchTimeout);
-            searchTimeout = setTimeout(() => { currentPage = 1; loadPaymentsTable(); }, 500);
-        });
-        
-        statusFilter.addEventListener('change', () => { currentPage = 1; loadPaymentsTable(); });
-        methodFilter.addEventListener('change', () => { currentPage = 1; loadPaymentsTable(); });
-        dateFilter.addEventListener('change', () => { currentPage = 1; loadPaymentsTable(); });
-        
-        refreshBtn.addEventListener('click', refreshData);
-        refreshPaymentsBtn.addEventListener('click', refreshData);
-        exportBtn.addEventListener('click', exportToCSV);
-        closeModal.addEventListener('click', closePaymentModal);
-        closeModalBtn.addEventListener('click', closePaymentModal);
-        refundBtn.addEventListener('click', () => processRefundModal(currentModalPayment));
-        prevPage.addEventListener('click', goToPrevPage);
-        nextPage.addEventListener('click', goToNextPage);
-
-        bulkActionForm.addEventListener('submit', function (e) {
-            const action = bulkActionSelect.value;
-            const selectedCount = document.querySelectorAll('.payment-checkbox:checked').length;
-            if (!action) {
-                e.preventDefault();
-                alert('Please select an action to perform.');
-                return;
+    
+    statusChart = new Chart(statusCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Success', 'Pending', 'Failed'],
+            datasets: [{
+                data: [data.stats?.successful || 0, data.stats?.pending || 0, data.stats?.failed || 0],
+                backgroundColor: ['#10b981', '#f59e0b', '#ef4444'],
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom' }
             }
-            if (!confirm(`Are you sure you want to apply ${action} to ${selectedCount} selected payment(s)?`)) {
-                e.preventDefault();
-            }
-        });
-
-        window.addEventListener('click', function (event) {
-            if (event.target === paymentModal) {
-                closePaymentModal();
-            }
-        });
-    }
-
-    async function loadPaymentsTable() {
-        paymentsTableBody.innerHTML = '<tr><td colspan="9" class="px-6 py-8 text-center text-gray-500"><i class="fas fa-spinner fa-spin mr-2 text-xl"></i> Loading payments...</td></tr>';
-        
-        const payload = {
-            search: searchInput.value,
-            status: statusFilter.value,
-            method: methodFilter.value,
-            date: dateFilter.value,
-            page: currentPage,
-            per_page: itemsPerPage
-        };
-
-        try {
-            const response = await fetch('/admin/api/payments', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(payload)
-            });
-            const data = await response.json();
-            
-            if (data.success) {
-                currentPayments = data.payments;
-                renderTable(data.payments);
-                updatePaginationInfo(data.total, data.pages);
-                
-                // Update top stats dynamically
-                if (data.stats) {
-                    document.getElementById('statTotalRevenue').innerText = '₹' + data.stats.total_revenue.toLocaleString('en-IN', { maximumFractionDigits: 0 });
-                    document.getElementById('statSuccessful').innerText = data.stats.successful_payments;
-                    document.getElementById('statPending').innerText = data.stats.pending_payments;
-                    document.getElementById('statFailed').innerText = data.stats.failed_payments;
-                    document.getElementById('statRefund').innerText = data.stats.refund_eligible_count;
-                }
-                
-                // Update Last Updated timestamp
-                const now = new Date();
-                document.getElementById('lastUpdated').innerText = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            } else {
-                paymentsTableBody.innerHTML = '<tr><td colspan="9" class="text-center text-red-500 py-8">Failed to load payments.</td></tr>';
-            }
-        } catch (error) {
-            console.error('Error fetching payments:', error);
-            paymentsTableBody.innerHTML = '<tr><td colspan="9" class="text-center text-red-500 py-8">Network error. Please try again.</td></tr>';
         }
+    });
+}
+
+function updateTopSpenders(spenders) {
+    const tbody = document.getElementById('topSpendersBody');
+    if (!spenders?.length) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center py-8 text-gray-400">No data</td></tr>';
+        return;
     }
+    tbody.innerHTML = spenders.map((s, i) => `
+        <tr class="user-row border-b">
+            <td class="py-2 font-bold">${i+1}</td>
+            <td class="py-2"><div class="font-medium">${s.name}</div><div class="text-xs text-gray-400">${s.email}</div></td>
+            <td class="py-2">${s.order_count}</td>
+            <td class="py-2 font-semibold">₹${(s.total_spent || 0).toLocaleString('en-IN')}</td>
+            <td class="py-2 text-xs text-gray-400">${s.last_purchase || '--'}</td>
+        </tr>
+    `).join('');
+}
 
-    function renderTable(payments) {
-        paymentsTableBody.innerHTML = '';
-        
-        if (payments.length === 0) {
-            paymentsTableBody.innerHTML = `
-                <tr>
-                    <td colspan="9" class="px-6 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
-                        <div class="flex flex-col items-center justify-center">
-                            <i class="fas fa-search text-gray-300 dark:text-gray-600 text-4xl mb-3"></i>
-                            <p>No payments found matching your criteria.</p>
-                        </div>
-                    </td>
-                </tr>`;
-            return;
-        }
-
-        payments.forEach(payment => {
-            const row = document.createElement('tr');
-            row.className = 'hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors';
-
-            let statusClass, statusText;
-            switch (payment.status.toLowerCase()) {
-                case 'success': statusClass = 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400'; statusText = 'Success'; break;
-                case 'pending': statusClass = 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400'; statusText = 'Pending'; break;
-                case 'failed': statusClass = 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400'; statusText = 'Failed'; break;
-                case 'refunded': statusClass = 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-400'; statusText = 'Refunded'; break;
-                default: statusClass = 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300'; statusText = payment.status;
-            }
-
-            let methodIcon = 'fa-money-bill-wave';
-            let methodStr = payment.method ? payment.method.toLowerCase() : '';
-            if (methodStr.includes('upi')) methodIcon = 'fa-mobile-alt';
-            else if (methodStr.includes('card')) methodIcon = 'fa-credit-card';
-            else if (methodStr.includes('netbanking')) methodIcon = 'fa-university';
-
-            let actionBtnHtml = '';
-            if (payment.status.toLowerCase() === 'success' && payment.refund_status !== 'refunded') {
-                if (payment.refund_eligible) {
-                    actionBtnHtml = `<a href="javascript:void(0)" class="text-purple-600 hover:text-purple-900 dark:text-purple-400 dark:hover:text-purple-300 mr-3 execute-refund" data-id="${payment.db_id}">Execute Refund</a>`;
-                } else {
-                    actionBtnHtml = `<a href="javascript:void(0)" class="text-yellow-600 hover:text-yellow-900 dark:text-yellow-400 dark:hover:text-yellow-300 mr-3 mark-refund" data-id="${payment.db_id}">Mark Refund</a>`;
-                }
-            }
-
-            row.innerHTML = `
-                <td class="px-6 py-4 whitespace-nowrap">
-                    <input type="checkbox" name="payment_ids" value="${payment.db_id}" 
-                           class="payment-checkbox rounded border-gray-300 text-blue-600 focus:ring-blue-500" onchange="updateBulkActions()">
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">${payment.id}</td>
-                <td class="px-6 py-4 whitespace-nowrap">
-                    <div class="text-sm font-medium text-gray-900 dark:text-gray-100">${payment.user.name}</div>
-                    <div class="text-sm text-gray-500 dark:text-gray-400">${payment.user.email}</div>
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">${payment.challenge}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">₹${payment.amount}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                    <i class="fas ${methodIcon} mr-1 text-blue-500"></i> ${payment.method}
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap">
-                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusClass}">
-                        ${statusText}
-                    </span>
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">${payment.date}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <a href="javascript:void(0)" class="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 mr-3 view-payment" data-id="${payment.db_id}">View</a>
-                    <a href="/admin/user/${payment.user_id}" class="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300 mr-3">User</a>
-                    ${actionBtnHtml}
-                </td>
-            `;
-
-            paymentsTableBody.appendChild(row);
-        });
-
-        document.querySelectorAll('.view-payment').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.preventDefault(); e.stopPropagation();
-                const pId = parseInt(btn.getAttribute('data-id'));
-                const p = currentPayments.find(x => x.db_id === pId);
-                if (p) openPaymentModal(p);
-            });
-        });
-        document.querySelectorAll('.mark-refund').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.preventDefault(); e.stopPropagation();
-                markRefundEligible(btn.getAttribute('data-id'));
-            });
-        });
-        document.querySelectorAll('.execute-refund').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.preventDefault(); e.stopPropagation();
-                executeRefund(btn.getAttribute('data-id'));
-            });
-        });
-
-        updateBulkActions();
+function updateChallengePerf(challenges) {
+    const tbody = document.getElementById('challengePerfBody');
+    if (!challenges?.length) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center py-8 text-gray-400">No data</td></tr>';
+        return;
     }
+    tbody.innerHTML = challenges.map(c => `
+        <tr class="border-b">
+            <td class="py-2 font-medium">${c.name}</td>
+            <td class="py-2">${c.sales}</td>
+            <td class="py-2">₹${(c.revenue || 0).toLocaleString('en-IN')}</td>
+            <td class="py-2"><span class="px-2 py-0.5 rounded-full text-xs font-medium ${c.conversion > 50 ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}">${c.conversion}%</span></td>
+        </tr>
+    `).join('');
+}
 
-    async function markRefundEligible(dbId) {
-        if(!confirm('Are you sure you want to mark this payment as eligible for a refund?')) return;
-        try {
-            const res = await fetch(`/admin/payment/${dbId}/mark-refund`, {
-                method: 'POST'
-            });
-            const data = await res.json();
-            if(data.success) {
-                alert('Marked as refund eligible.');
-                loadPaymentsTable();
-            } else {
-                alert('Error: ' + data.message);
-            }
-        } catch(e) { console.error(e); alert('Network error'); }
+function renderTable(payments) {
+    const tbody = document.getElementById('paymentsTableBody');
+    if (!payments?.length) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center py-12 text-gray-400">No transactions found</td></tr>';
+        return;
     }
-
-    async function executeRefund(dbId) {
-        if(!confirm('DANGER: This will execute the refund and send money back to the user. Are you sure?')) return;
-        try {
-            const res = await fetch(`/admin/payments/${dbId}/refund`, {
-                method: 'POST'
-            });
-            const data = await res.json();
-            if(data.success) {
-                alert('Refund executed successfully.');
-                loadPaymentsTable();
-            } else {
-                alert('Error: ' + data.message);
-            }
-        } catch(e) { console.error(e); alert('Network error'); }
-    }
-
-    function updatePaginationInfo(totalItems, totalPages) {
-        const start = totalItems === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1;
-        const end = Math.min(currentPage * itemsPerPage, totalItems);
-
-        if (paginationStart) paginationStart.textContent = start;
-        if (paginationEnd) paginationEnd.textContent = end;
-        if (paginationTotal) paginationTotal.textContent = totalItems;
-
-        if (prevPage) {
-            prevPage.disabled = currentPage === 1;
-            prevPage.className = `relative inline-flex items-center px-4 py-2 rounded-l-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium ${currentPage === 1 ? 'text-gray-300 dark:text-gray-600 cursor-not-allowed' : 'text-gray-500 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600'}`;
-        }
-        if (nextPage) {
-            nextPage.disabled = currentPage >= totalPages || totalItems === 0;
-            nextPage.className = `relative inline-flex items-center px-4 py-2 rounded-r-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium ${nextPage.disabled ? 'text-gray-300 dark:text-gray-600 cursor-not-allowed' : 'text-gray-500 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600'}`;
-        }
-    }
-
-    function goToPrevPage() {
-        if (currentPage > 1) {
-            currentPage--;
-            loadPaymentsTable();
-        }
-    }
-
-    function goToNextPage() {
-        if (!nextPage.disabled) {
-            currentPage++;
-            loadPaymentsTable();
-        }
-    }
-
-    function refreshData() {
-        loadPaymentsTable();
-        const lastUpdated = document.getElementById('lastUpdated');
-        if (lastUpdated) lastUpdated.textContent = new Date().toLocaleTimeString();
-        
-        const btn = document.getElementById('refreshBtn');
-        const originalContent = btn.innerHTML;
-        btn.innerHTML = '<i class="fas fa-check mr-2"></i>Refreshed';
-        btn.classList.replace('bg-blue-600', 'bg-green-600');
-        setTimeout(() => {
-            btn.innerHTML = originalContent;
-            btn.classList.replace('bg-green-600', 'bg-blue-600');
-        }, 1500);
-    }
-
-    function exportToCSV() {
-        window.location.href = '/admin/payments/export';
-    }
-
-    function openPaymentModal(payment) {
-        currentModalPayment = payment;
-        
-        if (payment.status.toLowerCase() === 'success' && payment.refund_status !== 'refunded') {
-            refundBtn.style.display = 'flex';
-            if (payment.refund_eligible) {
-                refundBtn.innerHTML = '<i class="fas fa-exclamation-triangle mr-2"></i>Execute Refund';
-                refundBtn.className = 'bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-semibold flex items-center transition';
-            } else {
-                refundBtn.innerHTML = '<i class="fas fa-undo mr-2"></i>Mark Refund Eligible';
-                refundBtn.className = 'bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg font-semibold flex items-center transition';
-            }
-        } else {
-            refundBtn.style.display = 'none';
-        }
-
-        modalContent.innerHTML = `
-            <div class="space-y-6">
-                <!-- User Section -->
-                <div>
-                    <h3 class="text-lg font-bold border-b border-gray-200 dark:border-gray-700 pb-2 mb-3 text-gray-800 dark:text-gray-200">User Information</h3>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div><p class="text-sm text-gray-500 dark:text-gray-400">Name</p><p class="font-medium text-gray-900 dark:text-white">${payment.user.name}</p></div>
-                        <div><p class="text-sm text-gray-500 dark:text-gray-400">Email</p><p class="font-medium text-gray-900 dark:text-white">${payment.user.email}</p></div>
-                        <div><p class="text-sm text-gray-500 dark:text-gray-400">User ID</p><p class="font-medium text-gray-900 dark:text-white">#${payment.user.id}</p></div>
-                    </div>
-                </div>
-                
-                <!-- Challenge Section -->
-                <div>
-                    <h3 class="text-lg font-bold border-b border-gray-200 dark:border-gray-700 pb-2 mb-3 text-gray-800 dark:text-gray-200">Challenge Details</h3>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div><p class="text-sm text-gray-500 dark:text-gray-400">Challenge Type</p><p class="font-medium text-gray-900 dark:text-white">${payment.challenge}</p></div>
-                        <div><p class="text-sm text-gray-500 dark:text-gray-400">MT5 Login</p><p class="font-medium text-gray-900 dark:text-white">${payment.mt5Account}</p></div>
-                        <div><p class="text-sm text-gray-500 dark:text-gray-400">Expected Amount</p><p class="font-medium text-gray-900 dark:text-white">₹${payment.expected_amount}</p></div>
-                        <div><p class="text-sm text-gray-500 dark:text-gray-400">Actual Amount</p><p class="font-medium text-gray-900 dark:text-white">₹${payment.amount}</p></div>
-                    </div>
-                </div>
-
-                <!-- Gateway Section -->
-                <div>
-                    <h3 class="text-lg font-bold border-b border-gray-200 dark:border-gray-700 pb-2 mb-3 text-gray-800 dark:text-gray-200">Gateway Data</h3>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div><p class="text-sm text-gray-500 dark:text-gray-400">Order ID</p><p class="font-medium text-gray-900 dark:text-white font-mono break-all">${payment.cf_order_id}</p></div>
-                        <div><p class="text-sm text-gray-500 dark:text-gray-400">Payment ID</p><p class="font-medium text-gray-900 dark:text-white font-mono break-all">${payment.cf_payment_id}</p></div>
-                        <div><p class="text-sm text-gray-500 dark:text-gray-400">Gateway Status</p><p class="font-medium text-gray-900 dark:text-white">${payment.gateway_status}</p></div>
-                        <div><p class="text-sm text-gray-500 dark:text-gray-400">Method</p><p class="font-medium text-gray-900 dark:text-white">${payment.method}</p></div>
-                        <div class="col-span-2"><p class="text-sm text-gray-500 dark:text-gray-400">Response Message</p><p class="font-medium text-gray-900 dark:text-white text-sm">${payment.gateway_message}</p></div>
-                    </div>
-                </div>
-
-                <!-- Device Section -->
-                <div>
-                    <h3 class="text-lg font-bold border-b border-gray-200 dark:border-gray-700 pb-2 mb-3 text-gray-800 dark:text-gray-200">Device & Security</h3>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div><p class="text-sm text-gray-500 dark:text-gray-400">IP Address</p><p class="font-medium text-gray-900 dark:text-white">${payment.ip_address}</p></div>
-                        <div class="col-span-2"><p class="text-sm text-gray-500 dark:text-gray-400">User Agent</p><p class="font-medium text-gray-900 dark:text-white text-xs">${payment.user_agent}</p></div>
-                    </div>
-                </div>
-
-                <!-- Timing Section -->
-                <div>
-                    <h3 class="text-lg font-bold border-b border-gray-200 dark:border-gray-700 pb-2 mb-3 text-gray-800 dark:text-gray-200">Timing</h3>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div><p class="text-sm text-gray-500 dark:text-gray-400">Created At</p><p class="font-medium text-gray-900 dark:text-white">${payment.date}</p></div>
-                        <div><p class="text-sm text-gray-500 dark:text-gray-400">Updated At</p><p class="font-medium text-gray-900 dark:text-white">${payment.updated_at}</p></div>
-                    </div>
-                </div>
-                
-                <!-- Refund Section -->
-                <div>
-                    <h3 class="text-lg font-bold border-b border-gray-200 dark:border-gray-700 pb-2 mb-3 text-gray-800 dark:text-gray-200">Refund Status</h3>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div><p class="text-sm text-gray-500 dark:text-gray-400">Status</p><p class="font-medium text-gray-900 dark:text-white uppercase">${payment.refund_status}</p></div>
-                        <div><p class="text-sm text-gray-500 dark:text-gray-400">Eligible</p><p class="font-medium text-gray-900 dark:text-white">${payment.refund_eligible ? 'Yes' : 'No'}</p></div>
-                        <div><p class="text-sm text-gray-500 dark:text-gray-400">Verified By (Admin ID)</p><p class="font-medium text-gray-900 dark:text-white">${payment.refund_verified_by || 'N/A'}</p></div>
-                        <div><p class="text-sm text-gray-500 dark:text-gray-400">Processed Time</p><p class="font-medium text-gray-900 dark:text-white">${payment.refund_processed_at || 'N/A'}</p></div>
-                    </div>
-                </div>
-            </div>
+    tbody.innerHTML = payments.map(p => {
+        const statusColors = { success: 'badge-success', pending: 'badge-pending', failed: 'badge-failed' };
+        const statusClass = statusColors[p.status?.toLowerCase()] || 'bg-gray-100 text-gray-600';
+        const couponInfo = p.coupon_code ? `<span class="text-xs text-purple-600 font-medium">${p.coupon_code}</span><br><span class="text-xs text-gray-400">-₹${p.coupon_discount || 0}</span>` : '<span class="text-xs text-gray-400">--</span>';
+        return `
+            <tr class="border-b hover:bg-gray-50 dark:hover:bg-gray-800/30 transition">
+                <td class="px-4 py-3 font-mono text-xs">${p.order_id?.substring(0, 20) || '--'}</td>
+                <td class="px-4 py-3"><div class="font-medium">${p.user_name || '--'}</div><div class="text-xs text-gray-400">${p.user_email || ''}</div></td>
+                <td class="px-4 py-3 text-sm">${p.challenge_name || '--'}<br><span class="text-xs text-gray-400">₹${p.challenge_price || 0}</span></td>
+                <td class="px-4 py-3 font-semibold">₹${(p.final_amount || 0).toLocaleString('en-IN')}</td>
+                <td class="px-4 py-3">${couponInfo}</td>
+                <td class="px-4 py-3"><span class="px-2.5 py-1 rounded-full text-xs font-semibold ${statusClass}">${p.status || '--'}</span></td>
+                <td class="px-4 py-3 text-xs text-gray-400">${p.date || '--'}</td>
+            </tr>
         `;
-        paymentModal.classList.remove('hidden');
-    }
+    }).join('');
+    document.getElementById('resultCount').textContent = `${payments.length} results`;
+}
 
-    function closePaymentModal() {
-        paymentModal.classList.add('hidden');
-        currentModalPayment = null;
-    }
+function updatePagination(data) {
+    document.getElementById('paginationInfo').textContent = `Page ${data.current_page || 1} of ${data.pages || 1} (${data.total || 0} total)`;
+    document.getElementById('prevBtn').disabled = currentPage <= 1;
+    document.getElementById('nextBtn').disabled = currentPage >= totalPages;
+}
 
-    function processRefundModal(payment) {
-        if (!payment) return;
-        if (payment.refund_eligible) {
-            executeRefund(payment.db_id).then(() => closePaymentModal());
-        } else {
-            markRefundEligible(payment.db_id).then(() => closePaymentModal());
-        }
-    }
+function changePage(delta) {
+    currentPage = Math.max(1, Math.min(totalPages, currentPage + delta));
+    refreshAll();
+}
 
-    function toggleSelectAll(checkbox) {
-        document.querySelectorAll('.payment-checkbox').forEach(cb => { cb.checked = checkbox.checked; });
-        updateBulkActions();
-    }
-    function updateBulkActions() {
-        const checkboxes = document.querySelectorAll('.payment-checkbox');
-        const selectedCountValue = Array.from(checkboxes).filter(cb => cb.checked).length;
-        if (selectedCountValue > 0) {
-            bulkActionsToolbar.style.display = 'block';
-            selectedCount.textContent = `${selectedCountValue} payment${selectedCountValue !== 1 ? 's' : ''} selected`;
-        } else {
-            bulkActionsToolbar.style.display = 'none';
-        }
-    }
-    function clearSelection() {
-        document.querySelectorAll('.payment-checkbox').forEach(cb => { cb.checked = false; });
-        updateBulkActions();
-    }
+function exportReport() {
+    const { from, to } = getDateRange();
+    const status = document.getElementById('statusFilter').value;
+    const search = document.getElementById('searchInput').value;
+    const params = new URLSearchParams({ search, status, date_from: from?.toISOString() || '', date_to: to?.toISOString() || '', export: 'csv' });
+    window.open('/admin/api/payments/analytics/export?' + params.toString(), '_blank');
+}
+
+function debounce(fn, ms) { let t; return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); }; }
 </script>
 {% endblock %}

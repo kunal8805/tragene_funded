@@ -346,8 +346,8 @@
             {% endif %}
         </div>
 
-        <!-- 🛡️ SAFETY RULES SECTION (NEW) -->
-        {% if challenge.sl_mandatory_enabled or challenge.activity_rule_enabled %}
+        <!-- 🛡️ SAFETY RULES SECTION -->
+        {% if challenge.sl_mandatory_enabled or challenge.activity_rule_enabled or challenge.max_lot_size_enabled %}
         <div class="glass-card p-6 border dark:border-dark-border" data-aos="fade-up" data-aos-delay="150">
             <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
                 <i class="fas fa-shield-alt text-amber-500 mr-2"></i>
@@ -371,7 +371,7 @@
             {% endif %}
             
             {% if challenge.activity_rule_enabled %}
-            <div class="bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 rounded-xl p-4">
+            <div class="bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 rounded-xl p-4 mb-3">
                 <div class="flex items-start">
                     <span class="text-2xl mr-3">⏱️</span>
                     <div class="flex-1">
@@ -379,6 +379,21 @@
                         <p class="text-sm text-blue-700 dark:text-blue-400 mt-1">Trader must place at least <strong>1 trade every {{ challenge.max_inactive_days }} days</strong>. No {{ challenge.max_inactive_days }}+ day gaps allowed.</p>
                         <div class="bg-red-100 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 mt-3">
                             <p class="text-xs text-red-700 dark:text-red-400 font-semibold">⚠️ Breach: {{ challenge.max_inactive_days }}+ consecutive days without trading = HARD BREACH → Account frozen, no payout.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if challenge.max_lot_size_enabled %}
+            <div class="bg-purple-50 dark:bg-purple-900/10 border border-purple-200 dark:border-purple-800 rounded-xl p-4">
+                <div class="flex items-start">
+                    <span class="text-2xl mr-3">⚖️</span>
+                    <div class="flex-1">
+                        <h4 class="font-bold text-purple-800 dark:text-purple-300">Maximum Lot Size Rule</h4>
+                        <p class="text-sm text-purple-700 dark:text-purple-400 mt-1">Maximum lot size allowed per trade: <strong>{{ challenge.max_lot_size }} lots</strong>. Any trade exceeding this limit will trigger a violation.</p>
+                        <div class="bg-red-100 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 mt-3">
+                            <p class="text-xs text-red-700 dark:text-red-400 font-semibold">⚠️ Breach: Trading with lot size above {{ challenge.max_lot_size }} = {{ 'HARD BREACH → Immediate disqualification, account frozen, no payout.' if challenge.lot_size_violation_action == 'hard_breach' else 'Account flagged for admin review.' }}</p>
                         </div>
                     </div>
                 </div>

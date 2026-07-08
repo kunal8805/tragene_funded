@@ -1,0 +1,59 @@
+{% extends "admin/base.html" %}
+{% block title %}Email Templates - Admin{% endblock %}
+{% block header_title %}Email Templates{% endblock %}
+{% block header_subtitle %}Create, edit, preview, duplicate and test reusable email HTML{% endblock %}
+
+{% block content %}
+{% include "admin/email/_nav.html" %}
+<div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+    <form method="POST" action="{{ url_for('admin.email_template_edit', template_id=edit_template.id) if edit_template else url_for('admin.email_templates') }}" class="xl:col-span-1 bg-white dark:bg-dark-card rounded-xl border border-gray-100 dark:border-gray-800 p-5 space-y-4">
+        <h3 class="font-bold text-gray-900 dark:text-white">{{ 'Edit Template' if edit_template else 'Create Template' }}</h3>
+        <input name="name" required placeholder="Template name" value="{{ edit_template.name if edit_template else '' }}" class="w-full px-3 py-2 rounded-lg border dark:bg-gray-900 dark:border-gray-700">
+        <input name="slug" placeholder="template-slug" value="{{ edit_template.slug if edit_template else '' }}" class="w-full px-3 py-2 rounded-lg border dark:bg-gray-900 dark:border-gray-700">
+        <select name="category" class="w-full px-3 py-2 rounded-lg border dark:bg-gray-900 dark:border-gray-700">
+            {% for cat in categories %}<option value="{{ cat }}" {% if edit_template and edit_template.category == cat %}selected{% endif %}>{{ cat|title }}</option>{% endfor %}
+        </select>
+        <input name="subject" required placeholder="Subject" value="{{ edit_template.subject if edit_template else '' }}" class="w-full px-3 py-2 rounded-lg border dark:bg-gray-900 dark:border-gray-700">
+        <input name="variables" placeholder="name,email,challenge" value="{{ (edit_template.variables or [])|join(',') if edit_template else 'name,email,challenge,account_size,order_id,dashboard_url,evidence_url,date,company_name' }}" class="w-full px-3 py-2 rounded-lg border dark:bg-gray-900 dark:border-gray-700">
+        <textarea name="html_body" rows="16" required placeholder="HTML body with {{name}} placeholders" class="w-full px-3 py-2 rounded-lg border font-mono text-xs dark:bg-gray-900 dark:border-gray-700">{{ edit_template.html_body if edit_template else '' }}</textarea>
+        <textarea name="text_body" rows="4" placeholder="Optional plain text body" class="w-full px-3 py-2 rounded-lg border dark:bg-gray-900 dark:border-gray-700">{{ edit_template.text_body if edit_template else '' }}</textarea>
+        <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="is_active" {% if not edit_template or edit_template.is_active %}checked{% endif %}> Active</label>
+        <button class="w-full px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold">{{ 'Update Template' if edit_template else 'Create Template' }}</button>
+        {% if edit_template %}<a href="{{ url_for('admin.email_templates') }}" class="block text-center text-sm text-gray-500">Cancel edit</a>{% endif %}
+    </form>
+
+    <div class="xl:col-span-2 bg-white dark:bg-dark-card rounded-xl border border-gray-100 dark:border-gray-800 overflow-hidden">
+        <div class="p-5 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+            <h3 class="font-bold">Templates</h3>
+            <a href="{{ url_for('admin.email_center_dashboard') }}" class="text-sm text-blue-600">Dashboard</a>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-gray-50 dark:bg-gray-900"><tr><th class="p-3 text-left">Name</th><th class="p-3">Category</th><th class="p-3">Status</th><th class="p-3 text-right">Actions</th></tr></thead>
+                <tbody>
+                    {% for t in templates %}
+                    <tr class="border-t border-gray-100 dark:border-gray-800 align-top">
+                        <td class="p-3"><div class="font-semibold">{{ t.name }}</div><div class="text-xs text-gray-500">{{ t.slug }}</div><div class="text-xs mt-1">{{ t.subject }}</div></td>
+                        <td class="p-3 text-center">{{ t.category|title }}</td>
+                        <td class="p-3 text-center">{{ 'Active' if t.is_active else 'Inactive' }}</td>
+                        <td class="p-3">
+                            <div class="flex flex-wrap justify-end gap-2">
+                                <a href="{{ url_for('admin.email_template_edit', template_id=t.id) }}" class="px-3 py-1 rounded bg-blue-100 text-blue-700">Edit</a>
+                                <form method="POST" action="{{ url_for('admin.email_template_action', template_id=t.id, action='duplicate') }}"><button class="px-3 py-1 rounded bg-gray-100 dark:bg-gray-800">Duplicate</button></form>
+                                <form method="POST" action="{{ url_for('admin.email_template_action', template_id=t.id, action='toggle') }}"><button class="px-3 py-1 rounded bg-yellow-100 text-yellow-700">{{ 'Deactivate' if t.is_active else 'Activate' }}</button></form>
+                                <form method="POST" action="{{ url_for('admin.email_template_test', template_id=t.id) }}" class="flex gap-1"><input name="test_email" placeholder="test@email" class="w-32 px-2 py-1 rounded border dark:bg-gray-900 dark:border-gray-700"><button class="px-3 py-1 rounded bg-green-100 text-green-700">Test</button></form>
+                                <form method="POST" action="{{ url_for('admin.email_template_action', template_id=t.id, action='delete') }}" onsubmit="return confirm('Delete template?')"><button class="px-3 py-1 rounded bg-red-100 text-red-700">Delete</button></form>
+                            </div>
+                            <details class="mt-3">
+                                <summary class="cursor-pointer text-xs text-gray-500">Preview</summary>
+                                <div class="mt-2 p-3 border rounded bg-white text-gray-900 max-h-80 overflow-auto">{{ t.html_body|safe }}</div>
+                            </details>
+                        </td>
+                    </tr>
+                    {% else %}<tr><td colspan="4" class="p-6 text-center text-gray-500">No templates yet.</td></tr>{% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

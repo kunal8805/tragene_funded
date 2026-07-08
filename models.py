@@ -230,6 +230,11 @@ class ChallengeTemplate(db.Model):
     activity_rule_enabled = db.Column(db.Boolean, default=False)
     max_inactive_days = db.Column(db.Integer, default=4)
 
+    # ⚖️ LOT SIZE RULES (NEW)
+    max_lot_size_enabled = db.Column(db.Boolean, default=False)
+    max_lot_size = db.Column(db.Float, default=0.02)
+    lot_size_violation_action = db.Column(db.String(20), default='flag')
+
     user_profit_share = db.Column(db.Integer, nullable=False)
     payout_cycle = db.Column(db.String(20), default='biweekly')
     weekend_trading = db.Column(db.Boolean, default=True)
@@ -341,6 +346,9 @@ class ChallengeTemplate(db.Model):
             'max_risk_per_trade_percent': self.max_risk_per_trade_percent,
             'activity_rule_enabled': self.activity_rule_enabled,
             'max_inactive_days': self.max_inactive_days,
+            'max_lot_size_enabled': self.max_lot_size_enabled,
+            'max_lot_size': self.max_lot_size,
+            'lot_size_violation_action': self.lot_size_violation_action,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }
 
@@ -446,6 +454,7 @@ class TradingJourney(db.Model):
     # 🛡️ SAFETY RULE VIOLATION COUNTERS (NEW)
     sl_violation_count = db.Column(db.Integer, default=0)
     activity_violation_count = db.Column(db.Integer, default=0)
+    lot_size_violation_count = db.Column(db.Integer, default=0)
     
     # Tracker for balance manipulation detection
     last_verified_balance = db.Column(db.Float, default=0.0)
@@ -589,7 +598,8 @@ class TradingJourney(db.Model):
             'violation_reviewed': self.violation_reviewed,
             # 🛡️ Safety counters
             'sl_violation_count': self.sl_violation_count,
-            'activity_violation_count': self.activity_violation_count
+            'activity_violation_count': self.activity_violation_count,
+            'lot_size_violation_count': self.lot_size_violation_count
         }
     
     def __repr__(self):
@@ -691,6 +701,190 @@ class ViolationEvidence(db.Model):
     
     def __repr__(self):
         return f'<ViolationEvidence {self.id} - {self.violation_type} - Challenge {self.challenge_purchase_id}>'
+
+
+# ========================================================================
+# NOTIFICATION CENTER / EMAIL PLATFORM MODELS
+# ========================================================================
+
+class EmailTemplate(db.Model):
+    __tablename__ = 'email_template'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(120), nullable=False, index=True)
+    slug = db.Column(db.String(140), unique=True, nullable=False, index=True)
+    category = db.Column(db.String(40), default='transactional', index=True)
+    subject = db.Column(db.String(255), nullable=False)
+    html_body = db.Column(db.Text, nullable=False)
+    text_body = db.Column(db.Text, nullable=True)
+    variables = db.Column(db.JSON, nullable=True)
+    channel = db.Column(db.String(30), default='email', index=True)
+    is_active = db.Column(db.Boolean, default=True, index=True)
+    created_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    updated_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
+    updated_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+    creator = db.relationship('User', foreign_keys=[created_by])
+    updater = db.relationship('User', foreign_keys=[updated_by])
+
+    def __repr__(self):
+        return f'<EmailTemplate {self.slug}>'
+
+
+class EmailAutomationRule(db.Model):
+    __tablename__ = 'email_automation_rule'
+    id = db.Column(db.Integer, primary_key=True)
+    key = db.Column(db.String(80), unique=True, nullable=False, index=True)
+    name = db.Column(db.String(120), nullable=False)
+    event = db.Column(db.String(80), nullable=False, index=True)
+    template_id = db.Column(db.Integer, db.ForeignKey('email_template.id'), nullable=True)
+    subject_override = db.Column(db.String(255), nullable=True)
+    html_override = db.Column(db.Text, nullable=True)
+    channel = db.Column(db.String(30), default='email', index=True)
+    is_enabled = db.Column(db.Boolean, default=True, index=True)
+    is_paused = db.Column(db.Boolean, default=False, index=True)
+    is_system = db.Column(db.Boolean, default=False)
+    once_scope = db.Column(db.String(40), default='none')  # none, user, challenge
+    description = db.Column(db.Text, default='')
+    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
+    updated_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+    template = db.relationship('EmailTemplate', backref=db.backref('automations', lazy=True))
+
+    def __repr__(self):
+        return f'<EmailAutomationRule {self.key}>'
+
+
+class EmailCampaign(db.Model):
+    __tablename__ = 'email_campaign'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(160), nullable=False, index=True)
+    campaign_type = db.Column(db.String(50), default='general', index=True)
+    subject = db.Column(db.String(255), nullable=False)
+    template_id = db.Column(db.Integer, db.ForeignKey('email_template.id'), nullable=True)
+    audience_type = db.Column(db.String(80), default='all_users', index=True)
+    audience_filters = db.Column(db.JSON, nullable=True)
+    status = db.Column(db.String(30), default='draft', index=True)
+    scheduled_at = db.Column(db.DateTime(timezone=True), nullable=True, index=True)
+    recurring_rule = db.Column(db.String(30), nullable=True)
+    created_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True, index=True)
+    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
+    updated_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    archived_at = db.Column(db.DateTime(timezone=True), nullable=True)
+
+    template = db.relationship('EmailTemplate', backref=db.backref('campaigns', lazy=True))
+    creator = db.relationship('User', foreign_keys=[created_by])
+
+    def __repr__(self):
+        return f'<EmailCampaign {self.name}>'
+
+
+class EmailCampaignRecipient(db.Model):
+    __tablename__ = 'email_campaign_recipient'
+    id = db.Column(db.Integer, primary_key=True)
+    campaign_id = db.Column(db.Integer, db.ForeignKey('email_campaign.id'), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True, index=True)
+    email = db.Column(db.String(160), nullable=False, index=True)
+    status = db.Column(db.String(30), default='pending', index=True)
+    sent_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    skipped_reason = db.Column(db.String(255), nullable=True)
+    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
+
+    campaign = db.relationship('EmailCampaign', backref=db.backref('recipients', lazy=True, cascade='all, delete-orphan'))
+    user = db.relationship('User', foreign_keys=[user_id])
+
+
+class EmailLog(db.Model):
+    __tablename__ = 'email_log'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True, index=True)
+    to_email = db.Column(db.String(160), nullable=False, index=True)
+    subject = db.Column(db.String(255), nullable=False)
+    template_id = db.Column(db.Integer, db.ForeignKey('email_template.id'), nullable=True, index=True)
+    campaign_id = db.Column(db.Integer, db.ForeignKey('email_campaign.id'), nullable=True, index=True)
+    automation_id = db.Column(db.Integer, db.ForeignKey('email_automation_rule.id'), nullable=True, index=True)
+    channel = db.Column(db.String(30), default='email', index=True)
+    status = db.Column(db.String(30), default='pending', index=True)
+    provider = db.Column(db.String(50), default='resend')
+    provider_message_id = db.Column(db.String(160), nullable=True, index=True)
+    dedupe_key = db.Column(db.String(220), nullable=True, index=True)
+    failed_reason = db.Column(db.Text, nullable=True)
+    sent_at = db.Column(db.DateTime(timezone=True), nullable=True, index=True)
+    delivered_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    opened_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    clicked_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    bounced_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
+
+    user = db.relationship('User', foreign_keys=[user_id])
+    template = db.relationship('EmailTemplate')
+    campaign = db.relationship('EmailCampaign')
+    automation = db.relationship('EmailAutomationRule')
+
+    __table_args__ = (
+        Index('idx_email_log_status_created', 'status', 'created_at'),
+        Index('idx_email_log_dedupe', 'dedupe_key', 'status'),
+    )
+
+
+class EmailPreference(db.Model):
+    __tablename__ = 'email_preference'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), unique=True, nullable=False, index=True)
+    allow_emails = db.Column(db.Boolean, default=True)
+    disable_marketing = db.Column(db.Boolean, default=False)
+    disable_campaigns = db.Column(db.Boolean, default=False)
+    disable_all = db.Column(db.Boolean, default=False)
+    admin_override = db.Column(db.Boolean, default=False)
+    blocked = db.Column(db.Boolean, default=False, index=True)
+    blocked_reason = db.Column(db.String(255), default='')
+    notes = db.Column(db.Text, default='')
+    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+    user = db.relationship('User', backref=db.backref('email_preference', uselist=False))
+
+
+class ScheduledEmail(db.Model):
+    __tablename__ = 'scheduled_email'
+    id = db.Column(db.Integer, primary_key=True)
+    campaign_id = db.Column(db.Integer, db.ForeignKey('email_campaign.id'), nullable=True, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True, index=True)
+    to_email = db.Column(db.String(160), nullable=True)
+    subject = db.Column(db.String(255), nullable=False)
+    template_id = db.Column(db.Integer, db.ForeignKey('email_template.id'), nullable=True)
+    html_body = db.Column(db.Text, nullable=True)
+    variables = db.Column(db.JSON, nullable=True)
+    scheduled_at = db.Column(db.DateTime(timezone=True), nullable=False, index=True)
+    recurring_rule = db.Column(db.String(30), nullable=True)
+    status = db.Column(db.String(30), default='pending', index=True)
+    created_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
+    sent_at = db.Column(db.DateTime(timezone=True), nullable=True)
+
+    campaign = db.relationship('EmailCampaign')
+    user = db.relationship('User', foreign_keys=[user_id])
+    template = db.relationship('EmailTemplate')
+
+
+class EmailCampaignAnalytics(db.Model):
+    __tablename__ = 'email_campaign_analytics'
+    id = db.Column(db.Integer, primary_key=True)
+    campaign_id = db.Column(db.Integer, db.ForeignKey('email_campaign.id'), nullable=True, index=True)
+    template_id = db.Column(db.Integer, db.ForeignKey('email_template.id'), nullable=True, index=True)
+    automation_id = db.Column(db.Integer, db.ForeignKey('email_automation_rule.id'), nullable=True, index=True)
+    metric_date = db.Column(db.Date, nullable=False, index=True)
+    sent = db.Column(db.Integer, default=0)
+    delivered = db.Column(db.Integer, default=0)
+    failed = db.Column(db.Integer, default=0)
+    bounced = db.Column(db.Integer, default=0)
+    opened = db.Column(db.Integer, default=0)
+    clicked = db.Column(db.Integer, default=0)
+    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+    campaign = db.relationship('EmailCampaign')
+    template = db.relationship('EmailTemplate')
+    automation = db.relationship('EmailAutomationRule')
 
 
 # ========================================================================

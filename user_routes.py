@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify
 from functools import wraps
-from models import db, User, ChallengeTemplate, ChallengePurchase, Payment, Payout, PayoutAuditLog, SupportTicket, TicketMessage, FAQ, RuleLog, TradeHistory, Notification, UserNotification, Coupon, CouponUsage, CouponAssignment, ProgressionRequest, RulebookSection, AffiliateSettings, Wallet, WalletTransaction, ReferralReward, WithdrawalRequest, SurveyAssignment, SurveyResponse, AffiliateViolation
+from models import db, User, ChallengeTemplate, ChallengePurchase, Payment, Payout, PayoutAuditLog, SupportTicket, TicketMessage, FAQ, TradeHistory, Notification, UserNotification, Coupon, CouponUsage, CouponAssignment, ProgressionRequest, RulebookSection, AffiliateSettings, Wallet, WalletTransaction, ReferralReward, WithdrawalRequest, SurveyAssignment, SurveyResponse, AffiliateViolation, ViolationEvidence
 from datetime import datetime, timezone, timedelta
 import os
 import secrets
@@ -46,7 +46,80 @@ user_bp = Blueprint('user', __name__, url_prefix='/user')
 
 ACTIVE_PAYOUT_STATUSES = ['pending', 'under_review', 'approved']
 ACTIVE_CHALLENGE_STATUSES = ['active', 'funded', 'phase1_active', 'phase2_active', 'funded_active']
-HISTORY_CHALLENGE_STATUSES = ['passed', 'failed', 'inactive']
+HISTORY_CHALLENGE_STATUSES = ['passed', 'failed', 'inactive', 'under_review']
+COMPLIANCE_REVIEW_MESSAGE = 'Your account is currently under compliance review. You will be notified once the review is complete.'
+_INTERNAL_MESSAGE_TERMS = (
+    'admin',
+    'audit',
+    'database',
+    'evidence generated',
+    'internal log',
+    'rule engine',
+    'system message',
+)
+
+def _is_under_compliance_review(challenge):
+    return (
+        challenge.status == 'under_review'
+        or challenge.monitoring_status == 'under_review'
+        or bool(challenge.review_required)
+    )
+
+def _safe_public_text(text, fallback='A compliance rule was not met for this challenge.'):
+    value = (text or '').strip()
+    if not value:
+        return fallback
+    lowered = value.lower()
+    if any(term in lowered for term in _INTERNAL_MESSAGE_TERMS):
+        return fallback
+    return value
+
+def _public_trade_rows(rows):
+    public_rows = []
+    for row in rows or []:
+        public_rows.append({
+            'ticket': row.get('ticket'),
+            'symbol': row.get('symbol'),
+            'type': row.get('type'),
+            'lots': row.get('lots'),
+            'open_price': row.get('open_price'),
+            'close_price': row.get('close_price'),
+            'current_price': row.get('current_price'),
+            'sl': row.get('sl'),
+            'tp': row.get('tp'),
+            'profit': row.get('profit'),
+            'floating_pnl': row.get('floating_pnl'),
+            'open_time': row.get('open_time'),
+            'close_time': row.get('close_time'),
+        })
+    return public_rows
+
+def _confirmed_user_evidence(challenge_id):
+    return ViolationEvidence.query.filter_by(
+        challenge_purchase_id=challenge_id,
+        is_reviewed=True,
+        review_decision='confirmed_fail'
+    ).order_by(ViolationEvidence.reviewed_at.desc(), ViolationEvidence.created_at.desc()).all()
+
+def _user_evidence_report(evidence):
+    return {
+        'failure_reason': _safe_public_text(evidence.reason),
+        'rule_broken': _safe_public_text(evidence.rule_name, 'Trading rule'),
+        'violation_time': evidence.violation_timestamp.isoformat() if evidence.violation_timestamp else None,
+        'violation_time_display': evidence.violation_timestamp.strftime('%d %b %Y %H:%M') if evidence.violation_timestamp else 'N/A',
+        'rule_limit': evidence.rule_limit,
+        'actual_value': evidence.actual_value,
+        'drawdown_model': evidence.drawdown_model,
+        'balance': evidence.balance,
+        'equity': evidence.equity,
+        'floating_pnl': evidence.floating_pnl,
+        'daily_drawdown': evidence.daily_drawdown,
+        'overall_drawdown': evidence.overall_drawdown,
+        'trading_days': evidence.trading_days,
+        'open_positions': _public_trade_rows(evidence.open_positions_snapshot),
+        'recent_trades': _public_trade_rows(evidence.recent_trades_snapshot),
+        'review_notes': _safe_public_text(evidence.review_notes, 'Reviewed and confirmed by the compliance team.'),
+    }
 
 def _cycle_days(cycle):
     cycle = (cycle or '').lower()
@@ -245,7 +318,7 @@ def dashboard():
         used = CouponUsage.query.filter_by(coupon_id=coupon.id, user_id=user.id).first()
         if used:
             continue
-        if coupon.coupon_type in ['universal', 'influencer']:
+        if coupon.coupon_type == 'universal':
             if coupon.max_uses is None or coupon.used_count < coupon.max_uses:
                 active_coupons_count += 1
         elif coupon.coupon_type == 'specific':
@@ -839,6 +912,15 @@ def api_challenge_progress(challenge_id):
         id=challenge_id,
         user_id=session['user_id']
     ).first_or_404()
+
+    if _is_under_compliance_review(challenge):
+        return jsonify({
+            'success': True,
+            'data': {
+                'status': 'under_review',
+                'review_message': COMPLIANCE_REVIEW_MESSAGE
+            }
+        })
     
     progress_data = {
         'profit_target_percentage': challenge.progress_percentage or 0,
@@ -1110,13 +1192,16 @@ def history_details(challenge_id):
     user = User.query.get(session['user_id'])
     challenge = ChallengePurchase.query.filter_by(id=challenge_id, user_id=user.id).first_or_404()
     
-    violations = RuleLog.query.filter_by(challenge_id=challenge_id).order_by(RuleLog.created_at.desc()).all()
+    evidence_reports = []
+    if challenge.status == 'failed':
+        evidence_reports = [_user_evidence_report(e) for e in _confirmed_user_evidence(challenge_id)]
     trades = TradeHistory.query.filter_by(challenge_id=challenge_id).order_by(TradeHistory.close_time.desc()).limit(50).all()
     
     return render_template('user/history_details.html',
                          user=user,
                          challenge=challenge,
-                         violations=violations,
+                         evidence_reports=evidence_reports,
+                         review_message=COMPLIANCE_REVIEW_MESSAGE if _is_under_compliance_review(challenge) else None,
                          trades=trades)
 
 @user_bp.route('/api/challenge/<int:challenge_id>/history')
@@ -1128,13 +1213,28 @@ def api_challenge_history(challenge_id):
     if not challenge:
         return jsonify({'error': 'Challenge not found'}), 404
     
-    violations = RuleLog.query.filter_by(challenge_id=challenge_id).order_by(RuleLog.created_at.desc()).all()
+    evidence_reports = []
+    if challenge.status == 'failed':
+        evidence_reports = [_user_evidence_report(e) for e in _confirmed_user_evidence(challenge_id)]
+    under_review = _is_under_compliance_review(challenge)
+    if under_review:
+        return jsonify({
+            'success': True,
+            'challenge': {
+                'challenge_name': challenge.challenge_template.name if challenge.challenge_template else 'Challenge',
+                'status': 'under_review',
+                'review_message': COMPLIANCE_REVIEW_MESSAGE,
+            },
+            'violations': [],
+            'evidence': [],
+            'trades': []
+        })
+
     trades = TradeHistory.query.filter_by(challenge_id=challenge_id).order_by(TradeHistory.close_time.desc()).limit(200).all()
     
     return jsonify({
         'success': True,
         'challenge': {
-            'id': challenge.id,
             'challenge_name': challenge.challenge_template.name if challenge.challenge_template else 'Challenge',
             'status': challenge.status,
             'profit_percent': challenge.profit_percent,
@@ -1144,17 +1244,12 @@ def api_challenge_history(challenge_id):
             'start_date': challenge.start_date.isoformat() if challenge.start_date else None,
             'end_date': challenge.end_date.isoformat() if challenge.end_date else None,
             'completed_at': challenge.completed_at.isoformat() if challenge.completed_at else None,
-            'violation_reason': challenge.violation_reason,
+            'violation_reason': None if under_review else _safe_public_text(challenge.violation_reason, ''),
             'pass_reason': challenge.pass_reason,
+            'review_message': COMPLIANCE_REVIEW_MESSAGE if under_review else None,
         },
-        'violations': [{
-            'rule_name': v.rule_name,
-            'severity': v.severity,
-            'message': v.message,
-            'current_value': v.current_value,
-            'threshold_value': v.threshold_value,
-            'created_at': v.created_at.isoformat() if v.created_at else None
-        } for v in violations],
+        'violations': [],
+        'evidence': evidence_reports,
         'trades': [{
             'ticket': t.ticket,
             'symbol': t.symbol,
@@ -1329,7 +1424,7 @@ def user_coupons():
         if used:
             continue
             
-        if coupon.coupon_type in ['universal', 'influencer']:
+        if coupon.coupon_type == 'universal':
             if coupon.max_uses is not None and coupon.used_count >= coupon.max_uses:
                 continue
             available_coupons.append(coupon)
@@ -1522,7 +1617,10 @@ def api_trading_calendar():
             year, month = datetime.now(timezone.utc).year, datetime.now(timezone.utc).month
 
         # Get all challenges for this user (all time, not just active)
-        all_challenges = ChallengePurchase.query.filter_by(user_id=user_id).all()
+        all_challenges = [
+            c for c in ChallengePurchase.query.filter_by(user_id=user_id).all()
+            if not _is_under_compliance_review(c)
+        ]
         challenge_map = {c.id: c for c in all_challenges}
 
         if not all_challenges:

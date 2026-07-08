@@ -1,0 +1,53 @@
+{% extends "admin/base.html" %}
+{% block title %}Email Logs - Admin{% endblock %}
+{% block header_title %}Email Logs{% endblock %}
+{% block header_subtitle %}Search, filter, export and clean delivery records{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    {% include "admin/email/_nav.html" %}
+    <form method="GET" class="bg-white dark:bg-dark-card rounded-xl border border-gray-100 dark:border-gray-800 p-5 flex flex-col md:flex-row gap-3">
+        <input name="search" value="{{ search }}" placeholder="Search email, subject, Resend ID" class="flex-1 px-3 py-2 rounded-lg border dark:bg-gray-900 dark:border-gray-700">
+        <select name="status" class="px-3 py-2 rounded-lg border dark:bg-gray-900 dark:border-gray-700">
+            <option value="">All statuses</option>
+            {% for s in ['pending','sent','delivered','failed','skipped'] %}<option value="{{ s }}" {% if status == s %}selected{% endif %}>{{ s|title }}</option>{% endfor %}
+        </select>
+        <button class="px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold">Filter</button>
+        <a href="{{ url_for('admin.email_logs', search=search, status=status, export='csv') }}" class="px-4 py-2 rounded-lg bg-green-600 text-white font-semibold text-center">Export CSV</a>
+    </form>
+
+    <div class="bg-white dark:bg-dark-card rounded-xl border border-gray-100 dark:border-gray-800 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-gray-50 dark:bg-gray-900"><tr><th class="p-3">ID</th><th class="p-3 text-left">User/Email</th><th class="p-3 text-left">Subject</th><th class="p-3">Status</th><th class="p-3">Sent</th><th class="p-3">Opened</th><th class="p-3">Clicked</th><th class="p-3 text-left">Failure / Resend ID</th></tr></thead>
+                <tbody>
+                    {% for log in logs.items %}
+                    <tr class="border-t border-gray-100 dark:border-gray-800 align-top">
+                        <td class="p-3 text-center">{{ log.id }}</td>
+                        <td class="p-3"><div>{{ log.to_email }}</div><div class="text-xs text-gray-500">{{ log.user.get_full_name() if log.user else '' }}</div></td>
+                        <td class="p-3">{{ log.subject }}<div class="text-xs text-gray-500">{{ log.template.name if log.template else '' }}</div></td>
+                        <td class="p-3 text-center">{{ log.status|title }}</td>
+                        <td class="p-3 text-center">{{ log.sent_at.strftime('%d %b %H:%M') if log.sent_at else '-' }}</td>
+                        <td class="p-3 text-center">{{ log.opened_at.strftime('%d %b %H:%M') if log.opened_at else '-' }}</td>
+                        <td class="p-3 text-center">{{ log.clicked_at.strftime('%d %b %H:%M') if log.clicked_at else '-' }}</td>
+                        <td class="p-3"><div class="text-xs text-red-500">{{ log.failed_reason or '' }}</div><div class="text-xs text-gray-500">{{ log.provider_message_id or '' }}</div></td>
+                    </tr>
+                    {% else %}<tr><td colspan="8" class="p-6 text-center text-gray-500">No logs found.</td></tr>{% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="p-4 flex justify-between">
+            {% if logs.has_prev %}<a href="{{ url_for('admin.email_logs', page=logs.prev_num, search=search, status=status) }}" class="text-blue-600">Previous</a>{% else %}<span></span>{% endif %}
+            <span class="text-sm text-gray-500">Page {{ logs.page }} / {{ logs.pages or 1 }}</span>
+            {% if logs.has_next %}<a href="{{ url_for('admin.email_logs', page=logs.next_num, search=search, status=status) }}" class="text-blue-600">Next</a>{% else %}<span></span>{% endif %}
+        </div>
+    </div>
+
+    <form method="POST" action="{{ url_for('admin.email_logs_delete') }}" onsubmit="return confirm('Delete old email logs?')" class="bg-white dark:bg-dark-card rounded-xl border border-gray-100 dark:border-gray-800 p-5 flex gap-3 items-center">
+        <span class="text-sm">Delete logs older than</span>
+        <input type="number" name="days" value="90" min="1" class="w-24 px-3 py-2 rounded-lg border dark:bg-gray-900 dark:border-gray-700">
+        <span class="text-sm">days</span>
+        <button class="px-4 py-2 rounded-lg bg-red-600 text-white font-semibold">Delete Logs</button>
+    </form>
+</div>
+{% endblock %}

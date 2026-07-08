@@ -1,0 +1,62 @@
+{% extends "admin/base.html" %}
+{% block title %}Email Center - Admin{% endblock %}
+{% block header_title %}Email Center{% endblock %}
+{% block header_subtitle %}Manage email templates, automations, campaigns, audiences and logs{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    {% include "admin/email/_nav.html" %}
+
+    <div class="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-4">
+        {% for label, value in [('Total Sent', stats.sent), ('Emails Today', stats.today), ('This Month', stats.month), ('Failed', stats.failed), ('Pending', stats.pending), ('Delivery Rate', stats.delivery_rate ~ '%'), ('Success Rate', stats.success_rate ~ '%'), ('Bounce Rate', stats.bounce_rate ~ '%'), ('Open Rate', stats.open_rate ~ '%'), ('Click Rate', stats.click_rate ~ '%'), ('Active Automations', stats.active_automations), ('Active Campaigns', stats.active_campaigns)] %}
+        <div class="bg-white dark:bg-dark-card rounded-xl border border-gray-100 dark:border-gray-800 p-4">
+            <div class="text-xs uppercase tracking-wide text-gray-500">{{ label }}</div>
+            <div class="text-2xl font-bold text-gray-900 dark:text-white mt-2">{{ value }}</div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        <div class="xl:col-span-2 bg-white dark:bg-dark-card rounded-xl border border-gray-100 dark:border-gray-800 p-5">
+            <h3 class="font-bold text-gray-900 dark:text-white mb-4">Daily Emails</h3>
+            <div class="h-64 flex items-end gap-1">
+                {% set max_count = daily|map(attribute='count')|max or 1 %}
+                {% for row in daily %}
+                <div class="flex-1 flex flex-col items-center gap-1">
+                    <div title="{{ row.label }}: {{ row.count }}" class="w-full rounded-t bg-blue-500/80" style="height: {{ (row.count / max_count * 220)|round(0) }}px; min-height: 2px;"></div>
+                    {% if loop.index0 % 5 == 0 %}<span class="text-[10px] text-gray-400 rotate-45">{{ row.label }}</span>{% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="bg-white dark:bg-dark-card rounded-xl border border-gray-100 dark:border-gray-800 p-5">
+            <h3 class="font-bold text-gray-900 dark:text-white mb-4">Most Used Templates</h3>
+            <div class="space-y-3">
+                {% for name, total in top_templates %}
+                <div class="flex justify-between text-sm"><span>{{ name }}</span><strong>{{ total }}</strong></div>
+                {% else %}<p class="text-sm text-gray-500">No template activity yet.</p>{% endfor %}
+            </div>
+            <h3 class="font-bold text-gray-900 dark:text-white mt-6 mb-4">Top Email Types</h3>
+            <div class="space-y-3">
+                {% for category, total in top_types %}
+                <div class="flex justify-between text-sm"><span>{{ category|title }}</span><strong>{{ total }}</strong></div>
+                {% else %}<p class="text-sm text-gray-500">No email types yet.</p>{% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-white dark:bg-dark-card rounded-xl border border-gray-100 dark:border-gray-800 overflow-hidden">
+        <div class="p-5 border-b border-gray-100 dark:border-gray-800 font-bold">Recent Email Activity</div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-gray-50 dark:bg-gray-900"><tr><th class="p-3 text-left">Email</th><th class="p-3 text-left">Subject</th><th class="p-3">Status</th><th class="p-3 text-left">Created</th></tr></thead>
+                <tbody>
+                    {% for log in recent_logs %}
+                    <tr class="border-t border-gray-100 dark:border-gray-800"><td class="p-3">{{ log.to_email }}</td><td class="p-3">{{ log.subject }}</td><td class="p-3 text-center">{{ log.status|title }}</td><td class="p-3">{{ log.created_at.strftime('%d %b %Y %H:%M') }}</td></tr>
+                    {% else %}<tr><td colspan="4" class="p-6 text-center text-gray-500">No email activity yet.</td></tr>{% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

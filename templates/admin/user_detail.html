@@ -90,6 +90,40 @@
                 </div>
             </div>
 
+            <div class="glass-card p-6" data-aos="fade-up" data-aos-delay="80">
+                <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Send Email</h3>
+                <form method="POST" action="{{ url_for('admin.email_send_user', user_id=user.id) }}" class="space-y-3">
+                    <select name="template_id" class="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 dark:bg-gray-900 text-sm">
+                        <option value="">No template</option>
+                        {% for template in email_templates or [] %}
+                        <option value="{{ template.id }}">{{ template.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <input name="subject" placeholder="Subject" class="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 dark:bg-gray-900 text-sm">
+                    <textarea name="message" rows="5" placeholder="Message or HTML" class="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 dark:bg-gray-900 text-sm"></textarea>
+                    <label class="flex items-center gap-2 text-xs text-gray-500"><input type="checkbox" name="ignore_preferences"> Admin override preferences</label>
+                    <button class="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-semibold transition">
+                        <i class="fas fa-envelope mr-2"></i>Send Email
+                    </button>
+                </form>
+            </div>
+
+            <div class="glass-card p-6" data-aos="fade-up" data-aos-delay="90">
+                <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Email Preferences</h3>
+                <form method="POST" action="{{ url_for('admin.email_preferences_update', user_id=user.id) }}" class="space-y-3 text-sm">
+                    {% set pref = email_preference %}
+                    <label class="flex items-center justify-between gap-3"><span>Allow Emails</span><input type="checkbox" name="allow_emails" {% if pref.allow_emails %}checked{% endif %}></label>
+                    <label class="flex items-center justify-between gap-3"><span>Disable Marketing Emails</span><input type="checkbox" name="disable_marketing" {% if pref.disable_marketing %}checked{% endif %}></label>
+                    <label class="flex items-center justify-between gap-3"><span>Disable Campaign Emails</span><input type="checkbox" name="disable_campaigns" {% if pref.disable_campaigns %}checked{% endif %}></label>
+                    <label class="flex items-center justify-between gap-3"><span>Disable All Emails</span><input type="checkbox" name="disable_all" {% if pref.disable_all %}checked{% endif %}></label>
+                    <label class="flex items-center justify-between gap-3"><span>Admin Override</span><input type="checkbox" name="admin_override" {% if pref.admin_override %}checked{% endif %}></label>
+                    <label class="flex items-center justify-between gap-3"><span>Blocked</span><input type="checkbox" name="blocked" {% if pref.blocked %}checked{% endif %}></label>
+                    <input name="blocked_reason" value="{{ pref.blocked_reason or '' }}" placeholder="Blocked reason" class="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 dark:bg-gray-900 text-sm">
+                    <textarea name="notes" rows="3" placeholder="Notes" class="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 dark:bg-gray-900 text-sm">{{ pref.notes or '' }}</textarea>
+                    <button class="w-full bg-gray-900 dark:bg-gray-700 text-white px-4 py-2 rounded-xl text-sm font-semibold">Save Preferences</button>
+                </form>
+            </div>
+
             <!-- KYC Verification Card -->
             <div class="glass-card p-6" data-aos="fade-up" data-aos-delay="100">
                 <div class="flex justify-between items-center mb-6">

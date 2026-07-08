@@ -197,15 +197,8 @@ def admin_dashboard():
 @admin_bp.route('/users')
 @admin_required
 def admin_users():
-    search_query = request.args.get('search', '')
-    if search_query:
-        users = User.query.filter(
-            (User.first_name.ilike(f'%{search_query}%')) |
-            (User.last_name.ilike(f'%{search_query}%')) |
-            (User.email.ilike(f'%{search_query}%'))
-        ).all()
-    else:
-        users = User.query.all()
+    # Frontend handles data loading asynchronously via API, so we skip bulk query here for performance.
+    users = []
     
     admin_count = User.query.filter_by(is_admin=True).count()
     return render_template('admin/users.html', users=users, admin_count=admin_count)
@@ -1200,9 +1193,9 @@ def api_users():
         page = 1
     
     try:
-        per_page = min(max(int(request.args.get('per_page', 20)), 10), 100)
+        per_page = min(max(int(request.args.get('per_page', 25)), 10), 100)
     except (ValueError, TypeError):
-        per_page = 20
+        per_page = 25
         
     search = request.args.get('search', '').strip()
     query = User.query
