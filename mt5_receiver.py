@@ -9,7 +9,7 @@ import traceback
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 try:
-    from models import db, ChallengePurchase, AccountSnapshot, EATrade
+    from models import db, ChallengePurchase, AccountSnapshot, EATrade, SYNC_ELIGIBLE_STATUSES
     from rule_engine import process_sync
     HAS_APP_CONTEXT = True
 except ImportError as e:
@@ -121,7 +121,7 @@ def mt5_sync():
                 if journey.is_terminated:
                     return jsonify({"status": "error", "message": "Challenge has been breached/terminated"}), 403
                 
-                if journey.status not in ['active', 'funded', 'under_review']:
+                if journey.status not in SYNC_ELIGIBLE_STATUSES:
                     return jsonify({
                         "status": "ignored",
                         "message": f"Challenge status {journey.status} is not eligible for MT5 sync"
