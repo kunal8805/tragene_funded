@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify
 from functools import wraps
-from models import db, User, ChallengeTemplate, ChallengePurchase, Payment, Payout, PayoutAuditLog, SupportTicket, TicketMessage, FAQ, TradeHistory, Notification, UserNotification, Coupon, CouponUsage, CouponAssignment, ProgressionRequest, RulebookSection, AffiliateSettings, Wallet, WalletTransaction, ReferralReward, WithdrawalRequest, SurveyAssignment, SurveyResponse, AffiliateViolation, ViolationEvidence
+from models import db, User, ChallengeTemplate, ChallengePurchase, Payment, Payout, PayoutAuditLog, SupportTicket, TicketMessage, FAQ, TradeHistory, Notification, UserNotification, Coupon, CouponUsage, CouponAssignment, ProgressionRequest, RulebookSection, AffiliateSettings, Wallet, WalletTransaction, ReferralReward, WithdrawalRequest, SurveyAssignment, SurveyResponse, AffiliateViolation, ViolationEvidence, SiteSettings
 from datetime import datetime, timezone, timedelta
 import os
 import secrets
@@ -551,6 +551,12 @@ def buy_challenge(challenge_id):
     user = User.query.get_or_404(session['user_id'])
     challenge = ChallengeTemplate.query.get_or_404(challenge_id)
 
+    # 🔒 CHECK MARKETPLACE LOCKDOWN
+    settings = SiteSettings.get_settings()
+    if settings.marketplace_locked:
+        flash('🔒 Purchases are temporarily disabled. ' + (settings.marketplace_lock_reason or 'Please check back later.'), 'error')
+        return redirect(url_for('user.challenges'))
+
     if not challenge.is_active:
         flash('This challenge is currently unavailable.', 'error')
         return redirect(url_for('user.challenges'))
@@ -938,13 +944,15 @@ def api_challenge_progress(challenge_id):
 @login_required
 def challenges():
     user = User.query.get(session['user_id'])
+    settings = SiteSettings.get_settings()
     available_challenges = ChallengeTemplate.query.filter_by(is_active=True).all()
     user_purchases = ChallengePurchase.query.filter_by(user_id=user.id).all()
     
     return render_template('user/user_challenges.html',
                          user=user, 
                          challenges=available_challenges,
-                         purchases=user_purchases)
+                         purchases=user_purchases,
+                         settings=settings)
 
 @user_bp.route('/api/challenge/<int:challenge_id>/credentials')
 @login_required

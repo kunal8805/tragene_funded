@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify, abort, Response
 from functools import wraps
-from models import db, User, ChallengeTemplate, ChallengePurchase, Payout, PayoutAuditLog, FAQ, SupportTicket, TicketMessage, Payment, AdminLog, Notification, UserNotification, NotificationTemplate, Coupon, CouponUsage, CouponAssignment, ProgressionRequest, RulebookSection
+from models import db, User, ChallengeTemplate, ChallengePurchase, Payout, PayoutAuditLog, FAQ, SupportTicket, TicketMessage, Payment, AdminLog, Notification, UserNotification, NotificationTemplate, Coupon, CouponUsage, CouponAssignment, ProgressionRequest, RulebookSection, SiteSettings
 from datetime import datetime, timedelta, timezone
 import secrets
 import csv
@@ -201,6 +201,9 @@ def admin_dashboard():
     else:
         revenue_change = 0.0
     
+    # 🔒 GET MARKETPLACE LOCKDOWN SETTINGS
+    settings = SiteSettings.get_settings()
+    
     return render_template('admin/admin_dashboard.html', 
                          total_users=total_users,
                          pending_kyc=pending_kyc,
@@ -208,7 +211,8 @@ def admin_dashboard():
                          recent_users=recent_users,
                          total_revenue=total_revenue,
                          revenue_change=revenue_change,
-                         open_tickets=open_tickets)
+                         open_tickets=open_tickets,
+                         settings=settings)
 
 
 @admin_bp.errorhandler(404)

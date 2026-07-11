@@ -91,6 +91,58 @@
             </a>
         </div>
 
+        <!-- ===== MARKETPLACE LOCKDOWN BUTTON ===== -->
+        <div class="mt-4 p-5 bg-gray-50 dark:bg-gray-800/50 rounded-xl border-2 border-gray-200 dark:border-gray-700" data-aos="fade-up">
+            <form action="{{ url_for('admin.toggle_marketplace_lockdown') }}" method="POST" id="lockdownForm">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div class="flex-1">
+                        <h3 class="font-bold text-gray-900 dark:text-white flex items-center text-lg">
+                            <i class="fas fa-store-alt mr-2 text-blue-600 dark:text-blue-400"></i>
+                            Marketplace Control
+                        </h3>
+                        <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                            Toggle to prevent users from purchasing new challenges
+                        </p>
+                        <div class="mt-2 flex items-center gap-2">
+                            {% if settings.marketplace_locked %}
+                            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800">
+                                <i class="fas fa-lock mr-1.5"></i> LOCKED
+                            </span>
+                            {% if settings.locked_by_admin %}
+                            <span class="text-xs text-gray-500 dark:text-gray-400">
+                                by {{ settings.locked_by_admin.get_full_name() }} 
+                                {% if settings.marketplace_locked_at %}
+                                on {{ settings.marketplace_locked_at.strftime('%d %b %Y, %I:%M %p') }}
+                                {% endif %}
+                            </span>
+                            {% endif %}
+                            {% else %}
+                            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800">
+                                <i class="fas fa-unlock mr-1.5"></i> UNLOCKED
+                            </span>
+                            <span class="text-xs text-gray-500 dark:text-gray-400">Users can purchase freely</span>
+                            {% endif %}
+                        </div>
+                        {% if settings.marketplace_locked and settings.marketplace_lock_reason %}
+                        <div class="mt-2 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/10 px-3 py-1.5 rounded-lg border border-red-100 dark:border-red-800/50">
+                            <i class="fas fa-info-circle mr-1"></i> {{ settings.marketplace_lock_reason }}
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <input type="text" name="reason" id="lockReason" 
+                            placeholder="Reason (optional)" 
+                            class="bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            style="min-width: 180px;">
+                        <button type="submit" id="lockdownBtn"
+                            class="{% if settings.marketplace_locked %}bg-green-600 hover:bg-green-700{% else %}bg-red-600 hover:bg-red-700{% endif %} text-white px-5 py-2.5 rounded-xl font-bold transition flex items-center gap-2 shadow-lg hover:shadow-xl whitespace-nowrap">
+                            <i class="fas {% if settings.marketplace_locked %}fa-unlock{% else %}fa-lock{% endif %}"></i>
+                            {{ 'UNLOCK Marketplace' if settings.marketplace_locked else 'LOCK Marketplace' }}
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
 
     </div>
 
@@ -103,6 +155,18 @@
 
         <!-- Alerts -->
         <div class="space-y-3 mb-6">
+            <!-- MARKETPLACE LOCKDOWN ALERT -->
+            {% if settings.marketplace_locked %}
+            <div class="flex items-start p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+                <i class="fas fa-lock text-red-600 dark:text-red-400 mr-3 mt-1"></i>
+                <div class="flex-1">
+                    <div class="font-semibold text-red-800 dark:text-red-300">⚠️ Marketplace Locked</div>
+                    <div class="text-sm text-red-600 dark:text-red-400">Users cannot make new purchases</div>
+                </div>
+                <span class="text-xs text-red-600 dark:text-red-400 ml-2 font-bold">ACTIVE</span>
+            </div>
+            {% endif %}
+
             <!-- KYC ALERT -->
             {% if pending_kyc > 0 %}
             <div

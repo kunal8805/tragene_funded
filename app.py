@@ -870,6 +870,15 @@ def create_cashfree_order():
         if not user:
             return jsonify({'success': False, 'error': 'User not found'})
         
+        # 🔒 CHECK MARKETPLACE LOCKDOWN
+        from models import SiteSettings
+        settings = SiteSettings.get_settings()
+        if settings.marketplace_locked:
+            return jsonify({
+                'success': False, 
+                'error': settings.marketplace_lock_reason or 'Purchases are temporarily disabled. Please try again later.'
+            })
+        
         challenge_id = request.form.get('challenge_id')
         if not challenge_id:
             return jsonify({'success': False, 'error': 'Challenge ID required'})
