@@ -349,6 +349,72 @@
             50% { opacity: 1; transform: scale(1.2); }
         }
 
+        /* Region Disabled Alert */
+        .region-disabled-alert {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border: 2px solid #f59e0b;
+            border-radius: 16px;
+            padding: 1.25rem 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            box-shadow: 0 4px 20px rgba(245, 158, 11, 0.2);
+            margin-bottom: 1.5rem;
+        }
+
+        .dark .region-disabled-alert {
+            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+            border-color: #f59e0b;
+            box-shadow: 0 4px 20px rgba(245, 158, 11, 0.1);
+        }
+
+        .region-disabled-alert i {
+            color: #d97706;
+            font-size: 1.5rem;
+        }
+
+        .dark .region-disabled-alert i {
+            color: #fbbf24;
+        }
+
+        .region-disabled-alert .alert-content {
+            flex: 1;
+        }
+
+        .region-disabled-alert .alert-title {
+            font-weight: 700;
+            color: #92400e;
+            font-size: 1rem;
+        }
+
+        .dark .region-disabled-alert .alert-title {
+            color: #fbbf24;
+        }
+
+        .region-disabled-alert .alert-message {
+            color: #78350f;
+            font-size: 0.9rem;
+        }
+
+        .dark .region-disabled-alert .alert-message {
+            color: #d4a373;
+        }
+
+        .region-disabled-alert .alert-icon-wrapper {
+            background: rgba(245, 158, 11, 0.2);
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .dark .region-disabled-alert .alert-icon-wrapper {
+            background: rgba(245, 158, 11, 0.1);
+        }
+
         /* (Coupon styles removed completely) */
     </style>
     {% block head %}{% endblock %}
@@ -659,6 +725,28 @@
         </div>
         {% endif %}
         {% endwith %}
+
+        <!-- REGION DISABLED ALERT - Added this line -->
+        <div class="p-4 lg:p-6 pb-0">
+            <div class="region-disabled-alert">
+                <div class="alert-icon-wrapper">
+                    <i class="fas fa-exclamation-triangle"></i>
+                </div>
+                <div class="alert-content">
+                    <div class="alert-title">
+                        <i class="fas fa-globe-asia mr-2"></i>Region Restricted
+                    </div>
+                    <div class="alert-message">
+                        Challenge purchase is disabled in your region for now. We're working on expanding availability. Please check back later or contact support for assistance.
+                    </div>
+                </div>
+                <div class="flex-shrink-0">
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-yellow-200 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">
+                        <i class="fas fa-clock mr-1"></i>Coming Soon
+                    </span>
+                </div>
+            </div>
+        </div>
 
         <main class="p-4 lg:p-6">
             {% block content %}{% endblock %}

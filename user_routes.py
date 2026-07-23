@@ -7,11 +7,63 @@ import secrets
 import random
 import json
 from werkzeug.utils import secure_filename
-from PIL import Image
+
+# ===== FIX: Handle PIL import gracefully =====
+try:
+    from PIL import Image
+    HAS_PIL = True
+    # Check for Resampling attribute (PIL 9.0+)
+    try:
+        RESAMPLING_METHOD = Image.Resampling.LANCZOS
+    except AttributeError:
+        RESAMPLING_METHOD = Image.LANCZOS
+except ImportError:
+    HAS_PIL = False
+    print("[WARNING] PIL/Pillow not installed. Image processing will be disabled.")
+    # Create a dummy Image class to prevent errors
+    class DummyImage:
+        @staticmethod
+        def open(*args, **kwargs):
+            raise NotImplementedError("PIL/Pillow is not installed. Please install it with: pip install Pillow")
+        class Resampling:
+            LANCZOS = 1
+    Image = DummyImage
+    RESAMPLING_METHOD = 1
+
 import time
 from notification_service import create_notification
 
+user_bp = Blueprint('user', __name__, url_prefix='/user')
+
+ACTIVE_PAYOUT_STATUSES = ['pending', 'under_review', 'approved']
+ACTIVE_CHALLENGE_STATUSES = ['active', 'funded', 'phase1_active', 'phase2_active', 'funded_active']
+HISTORY_CHALLENGE_STATUSES = ['passed', 'failed', 'inactive', 'under_review']
+COMPLIANCE_REVIEW_MESSAGE = 'Your account is currently under compliance review. You will be notified once the review is complete.'
+_INTERNAL_MESSAGE_TERMS = (
+    'admin',
+    'audit',
+    'database',
+    'evidence generated',
+    'internal log',
+    'rule engine',
+    'system message',
+)
+
 def compress_and_save_ticket_attachment(attachment, ticket_number, prefix=""):
+    if not HAS_PIL:
+        # If PIL is not available, save without compression
+        ext = attachment.filename.rsplit('.', 1)[1].lower() if '.' in attachment.filename else ''
+        if ext not in {'png', 'jpg', 'jpeg', 'pdf'}:
+            return None
+            
+        upload_dir = os.path.join('static', 'uploads', 'tickets')
+        os.makedirs(upload_dir, exist_ok=True)
+        
+        filename = secure_filename(f"{prefix}{ticket_number}_{int(time.time())}_{attachment.filename}")
+        target_path = os.path.join(upload_dir, filename)
+        attachment.save(target_path)
+        return f"uploads/tickets/{filename}"
+    
     ext = attachment.filename.rsplit('.', 1)[1].lower() if '.' in attachment.filename else ''
     if ext not in {'png', 'jpg', 'jpeg', 'pdf'}:
         return None
@@ -31,7 +83,7 @@ def compress_and_save_ticket_attachment(attachment, ticket_number, prefix=""):
         if img.width > max_width:
             ratio = max_width / float(img.width)
             height = int(float(img.height) * ratio)
-            img = img.resize((max_width, height), Image.Resampling.LANCZOS)
+            img = img.resize((max_width, height), RESAMPLING_METHOD)
         
         img.save(target_path, "JPEG", quality=65, optimize=True)
         return f"uploads/tickets/{filename}"
@@ -41,22 +93,6 @@ def compress_and_save_ticket_attachment(attachment, ticket_number, prefix=""):
         attachment.save(target_path)
         return f"uploads/tickets/{filename}"
     return None
-
-user_bp = Blueprint('user', __name__, url_prefix='/user')
-
-ACTIVE_PAYOUT_STATUSES = ['pending', 'under_review', 'approved']
-ACTIVE_CHALLENGE_STATUSES = ['active', 'funded', 'phase1_active', 'phase2_active', 'funded_active']
-HISTORY_CHALLENGE_STATUSES = ['passed', 'failed', 'inactive', 'under_review']
-COMPLIANCE_REVIEW_MESSAGE = 'Your account is currently under compliance review. You will be notified once the review is complete.'
-_INTERNAL_MESSAGE_TERMS = (
-    'admin',
-    'audit',
-    'database',
-    'evidence generated',
-    'internal log',
-    'rule engine',
-    'system message',
-)
 
 def _is_under_compliance_review(challenge):
     return (
@@ -398,7 +434,6 @@ def kyc_verification():
             return redirect(url_for('user.kyc_verification'))
         
         if not document_number:
-
             flash('Please enter your document number.', 'error')
             return redirect(url_for('user.kyc_verification'))
         
@@ -449,18 +484,22 @@ def kyc_verification():
                 target_filename = f"{base_filename}.jpg"
                 target_path = os.path.join(kyc_dir, target_filename)
                 
-                img = Image.open(file_storage)
-                
-                if img.mode in ("RGBA", "P"):
-                    img = img.convert("RGB")
-                
-                max_width = 1200
-                if img.width > max_width:
-                    ratio = max_width / float(img.width)
-                    height = int(float(img.height) * ratio)
-                    img = img.resize((max_width, height), Image.Resampling.LANCZOS)
-                
-                img.save(target_path, "JPEG", quality=65, optimize=True)
+                if HAS_PIL:
+                    img = Image.open(file_storage)
+                    
+                    if img.mode in ("RGBA", "P"):
+                        img = img.convert("RGB")
+                    
+                    max_width = 1200
+                    if img.width > max_width:
+                        ratio = max_width / float(img.width)
+                        height = int(float(img.height) * ratio)
+                        img = img.resize((max_width, height), RESAMPLING_METHOD)
+                    
+                    img.save(target_path, "JPEG", quality=65, optimize=True)
+                else:
+                    # If PIL not available, save as is
+                    file_storage.save(target_path)
                 return f"uploads/kyc/{target_filename}"
             
             elif ext == 'pdf':

@@ -641,7 +641,7 @@ def grant_call_survey_reward(assignment_id):
         source='survey_reward',
         status='completed',
         notes=f'Reward for survey: {assignment.survey.title}',
-        admin_id=session.get('user_id')
+        admin_id=session.get('user_id') or session.get('moderator_id')
     )
     db.session.add(txn)
     

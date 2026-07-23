@@ -1,0 +1,133 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Moderator Dashboard - Tragene Admin{% endblock %}
+
+{% block header_title %}Moderator Dashboard{% endblock %}
+{% block header_subtitle %}Welcome back, {{ moderator.full_name }}{% endblock %}
+
+{% block content %}
+
+<!-- Welcome Card -->
+<div class="glass-card p-6 mb-6">
+    <div class="flex items-center justify-between">
+        <div>
+            <h2 class="text-2xl font-bold">Hello, {{ moderator.full_name }} 👋</h2>
+            <p class="text-gray-600 dark:text-gray-400 mt-1">
+                You have access to <strong>{{ stats.assigned_modules }}</strong> modules
+            </p>
+            <p class="text-sm text-gray-500 mt-1">
+                Last login: {{ moderator.last_login.strftime('%d %b %Y, %H:%M') if moderator.last_login else 'First login' }}
+            </p>
+        </div>
+        <div class="w-16 h-16 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
+            <span class="text-blue-600 dark:text-blue-400 font-bold text-2xl">
+                {{ moderator.full_name[:2].upper() }}
+            </span>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Stats Grid -->
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    {% if moderator.has_permission('can_access_kyc') %}
+    <a href="/admin/kyc" class="glass-card p-4 hover:shadow-lg transition cursor-pointer">
+        <div class="flex items-center justify-between">
+            <div>
+                <div class="text-2xl font-bold text-orange-600">{{ stats.pending_kyc }}</div>
+                <div class="text-sm text-gray-600">Pending KYC</div>
+            </div>
+            <i class="fas fa-id-card text-3xl text-orange-400"></i>
+        </div>
+    </a>
+    {% endif %}
+    
+    {% if moderator.has_permission('can_access_support') %}
+    <a href="/admin/support" class="glass-card p-4 hover:shadow-lg transition cursor-pointer">
+        <div class="flex items-center justify-between">
+            <div>
+                <div class="text-2xl font-bold text-red-600">{{ stats.open_tickets }}</div>
+                <div class="text-sm text-gray-600">Open Tickets</div>
+            </div>
+            <i class="fas fa-headset text-3xl text-red-400"></i>
+        </div>
+    </a>
+    {% endif %}
+    
+    {% if moderator.has_permission('can_access_challenges') %}
+    <a href="/admin/challenges" class="glass-card p-4 hover:shadow-lg transition cursor-pointer">
+        <div class="flex items-center justify-between">
+            <div>
+                <div class="text-2xl font-bold text-green-600">{{ stats.active_challenges }}</div>
+                <div class="text-sm text-gray-600">Active Challenges</div>
+            </div>
+            <i class="fas fa-trophy text-3xl text-green-400"></i>
+        </div>
+    </a>
+    {% endif %}
+    
+    {% if moderator.has_permission('can_access_blog') %}
+    <a href="{{ url_for('admin_blog.list_posts') }}" class="glass-card p-4 hover:shadow-lg transition cursor-pointer">
+        <div class="flex items-center justify-between">
+            <div>
+                <div class="text-2xl font-bold text-purple-600">{{ stats.blog_posts }}</div>
+                <div class="text-sm text-gray-600">Blog Posts</div>
+            </div>
+            <i class="fas fa-blog text-3xl text-purple-400"></i>
+        </div>
+    </a>
+    {% endif %}
+</div>
+
+<!-- Assigned Modules -->
+<div class="glass-card p-6 mb-6">
+    <h3 class="text-lg font-semibold mb-4">Your Assigned Modules</h3>
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+        {% for perm_key, perm_label in permissions_list.items() %}
+            {% if moderator.has_permission(perm_key) %}
+            <div class="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg text-center">
+                <i class="fas fa-check-circle text-green-600 dark:text-green-400 mb-1"></i>
+                <p class="text-sm font-medium">{{ perm_label }}</p>
+            </div>
+            {% endif %}
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Recent Activity -->
+<div class="glass-card p-6">
+    <h3 class="text-lg font-semibold mb-4">Your Recent Activity</h3>
+    {% if recent_activity %}
+    <div class="space-y-3">
+        {% for activity in recent_activity %}
+        <div class="flex items-start gap-3 p-3 border-b border-gray-100 dark:border-gray-700 last:border-0">
+            <div class="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center shrink-0 mt-1">
+                <i class="fas fa-history text-blue-600 dark:text-blue-400 text-xs"></i>
+            </div>
+            <div class="flex-1">
+                <p class="text-sm font-medium">
+                    {{ activity.action | replace('_', ' ') | title }}
+                    <span class="text-xs text-gray-500 ml-2">in {{ activity.module | replace('_', ' ') | title }}</span>
+                </p>
+                {% if activity.description %}
+                <p class="text-xs text-gray-500 mt-1">{{ activity.description }}</p>
+                {% endif %}
+                <p class="text-xs text-gray-400 mt-1">{{ activity.created_at.strftime('%d %b %Y, %H:%M') }}</p>
+            </div>
+            <span class="text-xs px-2 py-1 rounded-full 
+                        {% if activity.status == 'success' %}bg-green-100 text-green-700
+                        {% elif activity.status == 'failed' %}bg-red-100 text-red-700
+                        {% else %}bg-yellow-100 text-yellow-700{% endif %}">
+                {{ activity.status }}
+            </span>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center text-gray-500 py-8">
+        <i class="fas fa-inbox text-3xl mb-2"></i>
+        <p>No activity yet. Start working on your assigned modules!</p>
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}

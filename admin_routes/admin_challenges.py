@@ -1,7 +1,7 @@
 from flask import render_template, request, redirect, url_for, flash, session, jsonify, abort, Response, send_file
 from datetime import datetime, timedelta, timezone
-from sqlalchemy import func, extract
-from models import db, User, ChallengeTemplate, ChallengePurchase, Payout, PayoutAuditLog, FAQ, SupportTicket, TicketMessage, Payment, AdminLog, Notification, UserNotification, NotificationTemplate, Coupon, CouponUsage, CouponAssignment, ProgressionRequest, RulebookSection, PartnerEarnings, SiteSettings
+from sqlalchemy import func, extract, or_
+from models import db, User, ChallengeTemplate, ChallengePurchase, Payout, PayoutAuditLog, FAQ, SupportTicket, TicketMessage, Payment, AdminLog, Notification, UserNotification, NotificationTemplate, Coupon, CouponUsage, CouponAssignment, ProgressionRequest, RulebookSection, PartnerEarnings, SiteSettings, LeadStatus, LeadNote, FollowUp
 from . import admin_bp, admin_required
 from notification_service import notify_all_users
 import secrets
@@ -10,6 +10,67 @@ import io
 import json
 
 from . import _admin_name, _notify_user, _notify_challenge_passed, _notify_challenge_breached, _activate_progression_stage, _payout_audit, _eligible_funded_count, _payout_stats
+
+# ========================================================================
+# HELPER: Challenges Dashboard Stats
+# ========================================================================
+def get_challenges_dashboard_data():
+    """Helper function for challenges dashboard stats"""
+    now_utc = datetime.now(timezone.utc)
+    today_start = now_utc.replace(hour=0, minute=0, second=0, microsecond=0)
+    expiring_threshold = now_utc + timedelta(days=3)
+
+    total_revenue = db.session.query(db.func.sum(ChallengeTemplate.price)).filter(
+        ChallengePurchase.challenge_template_id == ChallengeTemplate.id,
+        ChallengePurchase.status.in_(['active', 'passed', 'failed', 'pending_credentials'])
+    ).scalar() or 0
+    
+    total_purchases = ChallengePurchase.query.count()
+    today_purchases = ChallengePurchase.query.filter(ChallengePurchase.purchase_date >= today_start).count()
+    
+    active_challenges = ChallengePurchase.query.filter(
+        ChallengePurchase.status.in_(['active', 'funded'])
+    ).count()
+    passed_phase1 = ChallengePurchase.query.filter_by(status='passed', current_phase=1).count()
+    passed_phase2 = ChallengePurchase.query.filter_by(status='passed', current_phase=2).count()
+    funded_accounts = ChallengePurchase.query.filter_by(status='funded').count()
+    failed_accounts = ChallengePurchase.query.filter(
+        ChallengePurchase.status.in_(['failed', 'breached'])
+    ).count()
+    pending_phase2_requests = ProgressionRequest.query.filter_by(request_type='phase2', status='pending').count()
+    pending_funded_requests = ProgressionRequest.query.filter_by(request_type='funded', status='pending').count()
+    approved_requests = ProgressionRequest.query.filter_by(status='approved').count()
+    declined_requests = ProgressionRequest.query.filter_by(status='declined').count()
+    expiring_soon = ChallengePurchase.query.filter(
+        ChallengePurchase.status.in_(['active', 'funded']),
+        ChallengePurchase.end_date <= expiring_threshold,
+        ChallengePurchase.end_date >= now_utc
+    ).count()
+    
+    pending_payouts = db.session.query(db.func.sum(Payout.amount)).filter(
+        Payout.status == 'pending'
+    ).scalar() or 0
+    payout_eligible = Payout.query.filter_by(status='pending').count()
+    
+    return {
+        'total_revenue': total_revenue,
+        'total_purchases': total_purchases,
+        'today_purchases': today_purchases,
+        'pending_payouts': pending_payouts,
+        'active_challenges': active_challenges,
+        'passed_phase1': passed_phase1,
+        'passed_phase2': passed_phase2,
+        'funded_accounts': funded_accounts,
+        'failed_accounts': failed_accounts,
+        'pending_phase2_requests': pending_phase2_requests,
+        'pending_funded_requests': pending_funded_requests,
+        'approved_requests': approved_requests,
+        'declined_requests': declined_requests,
+        'expiring_soon': expiring_soon,
+        'payout_eligible': payout_eligible
+    }
+
+
 
 @admin_bp.route('/search-challenges', methods=['POST'])
 @admin_required
@@ -1066,8 +1127,7 @@ def api_challenge_violations_list(challenge_id):
 # ========================================================================
 # LEAD CRM ROUTES
 # ========================================================================
-from models import LeadStatus, LeadNote, FollowUp
-from sqlalchemy import or_
+
 
 
 # ========================================================================

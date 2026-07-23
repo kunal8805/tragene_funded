@@ -1,0 +1,459 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Moderator Activity - Forensic Audit Log{% endblock %}
+
+{% block header_title %}Moderator Activity Monitor{% endblock %}
+{% block header_subtitle %}Complete forensic audit trail with real-time analytics{% endblock %}
+
+{% block header_actions %}
+<a href="{{ url_for('admin.manage_moderators') }}"
+   class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg font-medium transition">
+    <i class="fas fa-arrow-left mr-2"></i>Back to Moderators
+</a>
+<button onclick="exportActivityCSV()"
+        class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg font-medium transition">
+    <i class="fas fa-download mr-2"></i>Export CSV
+</button>
+{% endblock %}
+
+{% block content %}
+
+<!-- ======================================================================== -->
+<!-- TOP STATS ROW -->
+<!-- ======================================================================== -->
+<div class="grid grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
+    <div class="glass-card p-4 text-center">
+        <div class="text-2xl font-bold text-blue-600">{{ stats.today }}</div>
+        <div class="text-xs text-gray-500">Actions Today</div>
+    </div>
+    <div class="glass-card p-4 text-center">
+        <div class="text-2xl font-bold text-green-600">{{ stats.weekly }}</div>
+        <div class="text-xs text-gray-500">This Week</div>
+    </div>
+    <div class="glass-card p-4 text-center">
+        <div class="text-2xl font-bold text-purple-600">{{ stats.monthly }}</div>
+        <div class="text-xs text-gray-500">This Month</div>
+    </div>
+    <div class="glass-card p-4 text-center">
+        <div class="text-2xl font-bold text-indigo-600">{{ stats.total }}</div>
+        <div class="text-xs text-gray-500">Total Logs</div>
+    </div>
+    <div class="glass-card p-4 text-center">
+        <div class="text-lg font-bold text-orange-600 truncate px-1">{{ stats.most_active }}</div>
+        <div class="text-xs text-gray-500">Most Active</div>
+        <div class="text-sm font-semibold text-orange-500">{{ stats.most_active_count }} actions</div>
+    </div>
+    <div class="glass-card p-4 text-center">
+        <div class="text-2xl font-bold text-teal-600">{{ stats.unique_modules }}</div>
+        <div class="text-xs text-gray-500">Modules Touched</div>
+    </div>
+</div>
+
+<!-- ======================================================================== -->
+<!-- ACTION BREAKDOWN CARDS -->
+<!-- ======================================================================== -->
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <!-- KYC Actions -->
+    <div class="glass-card p-4">
+        <div class="flex items-center justify-between mb-3">
+            <h4 class="font-semibold text-gray-700 dark:text-gray-300">
+                <i class="fas fa-id-card text-blue-500 mr-2"></i>KYC Actions
+            </h4>
+            <span class="text-2xl font-bold text-blue-600">{{ stats.kyc_actions or 0 }}</span>
+        </div>
+        <div class="space-y-1 text-sm">
+            <div class="flex justify-between">
+                <span class="text-gray-500">Approved</span>
+                <span class="font-medium text-green-600">{{ stats.kyc_approved or 0 }}</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-gray-500">Rejected</span>
+                <span class="font-medium text-red-600">{{ stats.kyc_rejected or 0 }}</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-gray-500">Cleared</span>
+                <span class="font-medium text-yellow-600">{{ stats.kyc_cleared or 0 }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lead CRM Actions -->
+    <div class="glass-card p-4">
+        <div class="flex items-center justify-between mb-3">
+            <h4 class="font-semibold text-gray-700 dark:text-gray-300">
+                <i class="fas fa-users-cog text-green-500 mr-2"></i>Lead CRM
+            </h4>
+            <span class="text-2xl font-bold text-green-600">{{ stats.lead_actions or 0 }}</span>
+        </div>
+        <div class="space-y-1 text-sm">
+            <div class="flex justify-between">
+                <span class="text-gray-500">Notes Added</span>
+                <span class="font-medium text-blue-600">{{ stats.lead_notes or 0 }}</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-gray-500">Status Changed</span>
+                <span class="font-medium text-purple-600">{{ stats.lead_status_changes or 0 }}</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-gray-500">Follow-ups</span>
+                <span class="font-medium text-orange-600">{{ stats.lead_followups or 0 }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- User Management -->
+    <div class="glass-card p-4">
+        <div class="flex items-center justify-between mb-3">
+            <h4 class="font-semibold text-gray-700 dark:text-gray-300">
+                <i class="fas fa-users text-purple-500 mr-2"></i>User Management
+            </h4>
+            <span class="text-2xl font-bold text-purple-600">{{ stats.user_actions or 0 }}</span>
+        </div>
+        <div class="space-y-1 text-sm">
+            <div class="flex justify-between">
+                <span class="text-gray-500">Banned</span>
+                <span class="font-medium text-red-600">{{ stats.users_banned or 0 }}</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-gray-500">Unbanned</span>
+                <span class="font-medium text-green-600">{{ stats.users_unbanned or 0 }}</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-gray-500">Passwords Reset</span>
+                <span class="font-medium text-yellow-600">{{ stats.password_resets or 0 }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Other Actions -->
+    <div class="glass-card p-4">
+        <div class="flex items-center justify-between mb-3">
+            <h4 class="font-semibold text-gray-700 dark:text-gray-300">
+                <i class="fas fa-ellipsis-h text-gray-500 mr-2"></i>Other Actions
+            </h4>
+            <span class="text-2xl font-bold text-gray-600">{{ stats.other_actions or 0 }}</span>
+        </div>
+        <div class="space-y-1 text-sm">
+            <div class="flex justify-between">
+                <span class="text-gray-500">Blog Actions</span>
+                <span class="font-medium text-pink-600">{{ stats.blog_actions or 0 }}</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-gray-500">Notifications</span>
+                <span class="font-medium text-indigo-600">{{ stats.notification_actions or 0 }}</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-gray-500">Partner Actions</span>
+                <span class="font-medium text-teal-600">{{ stats.partner_actions or 0 }}</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ======================================================================== -->
+<!-- TIME PERIOD COMPARISON -->
+<!-- ======================================================================== -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+    <!-- Today's Activity -->
+    <div class="glass-card p-4">
+        <h4 class="font-semibold text-gray-700 dark:text-gray-300 mb-3">
+            <i class="fas fa-calendar-day text-blue-500 mr-2"></i>Today's Activity
+        </h4>
+        <div class="space-y-2">
+            {% set today_max = [stats.today, 1]|max %}
+            {% for mod_name, count in stats.today_by_moderator.items() %}
+            <div class="flex justify-between items-center">
+                <span class="text-sm text-gray-600 dark:text-gray-400">{{ mod_name }}</span>
+                <div class="flex items-center gap-2">
+                    <div class="w-24 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                        <div class="bg-blue-500 h-2 rounded-full" style="width: {{ (count / today_max) * 100 }}%"></div>
+                    </div>
+                    <span class="text-sm font-medium">{{ count }}</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Last 7 Days -->
+    <div class="glass-card p-4">
+        <h4 class="font-semibold text-gray-700 dark:text-gray-300 mb-3">
+            <i class="fas fa-calendar-week text-green-500 mr-2"></i>Last 7 Days
+        </h4>
+        <div class="space-y-2">
+            {% set weekly_max = [stats.weekly_peak, 1]|max %}
+            {% for day_name, count in stats.last_7_days.items() %}
+            <div class="flex justify-between items-center">
+                <span class="text-sm text-gray-600 dark:text-gray-400">{{ day_name }}</span>
+                <div class="flex items-center gap-2">
+                    <div class="w-24 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                        <div class="bg-green-500 h-2 rounded-full" style="width: {{ (count / weekly_max) * 100 }}%"></div>
+                    </div>
+                    <span class="text-sm font-medium">{{ count }}</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Monthly Comparison -->
+    <div class="glass-card p-4">
+        <h4 class="font-semibold text-gray-700 dark:text-gray-300 mb-3">
+            <i class="fas fa-calendar-alt text-purple-500 mr-2"></i>Monthly Comparison
+        </h4>
+        <div class="space-y-3">
+            <div>
+                <div class="flex justify-between text-sm mb-1">
+                    <span class="text-gray-500">This Month</span>
+                    <span class="font-bold text-purple-600">{{ stats.monthly }}</span>
+                </div>
+                <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
+                    <div class="bg-purple-500 h-3 rounded-full" style="width: 100%"></div>
+                </div>
+            </div>
+            <div>
+                <div class="flex justify-between text-sm mb-1">
+                    <span class="text-gray-500">Last Month</span>
+                    <span class="font-bold text-gray-600">{{ stats.last_month or 0 }}</span>
+                </div>
+                {% set monthly_max = [stats.monthly, 1]|max %}
+                {% set last_month_val = stats.last_month or 0 %}
+                <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
+                    <div class="bg-gray-400 h-3 rounded-full" style="width: {{ (last_month_val / monthly_max) * 100 }}%"></div>
+                </div>
+            </div>
+            <div class="text-center mt-2">
+                {% set last_m = stats.last_month or 1 %}
+                {% set change = ((stats.monthly - last_m) / ([last_m, 1]|max)) * 100 %}
+                <span class="text-sm font-medium {% if change > 0 %}text-green-600{% elif change < 0 %}text-red-600{% else %}text-gray-500{% endif %}">
+                    {% if change > 0 %}↑ {{ change|round(1) }}%{% elif change < 0 %}↓ {{ (change|abs)|round(1) }}%{% else %}→ No change{% endif %}
+                    vs last month
+                </span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ======================================================================== -->
+<!-- FILTERS -->
+<!-- ======================================================================== -->
+<div class="glass-card p-4 mb-6">
+    <form method="GET" id="filterForm" class="grid grid-cols-1 md:grid-cols-5 lg:grid-cols-7 gap-3 items-end">
+        <div>
+            <label class="block text-xs font-medium mb-1 text-gray-600 dark:text-gray-400">Moderator</label>
+            <select name="moderator_id" class="w-full p-2 border rounded-lg text-sm dark:bg-gray-700 dark:border-gray-600">
+                <option value="all" {% if filters.moderator_id == 'all' %}selected{% endif %}>All Moderators</option>
+                {% for mod in moderators %}
+                <option value="{{ mod.id }}" {% if filters.moderator_id == mod.id|string %}selected{% endif %}>{{ mod.full_name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label class="block text-xs font-medium mb-1 text-gray-600 dark:text-gray-400">Module</label>
+            <select name="module" class="w-full p-2 border rounded-lg text-sm dark:bg-gray-700 dark:border-gray-600">
+                <option value="all" {% if filters.module == 'all' %}selected{% endif %}>All Modules</option>
+                {% for mod_name in modules %}
+                <option value="{{ mod_name }}" {% if filters.module == mod_name %}selected{% endif %}>{{ mod_name | replace('_', ' ') | title }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label class="block text-xs font-medium mb-1 text-gray-600 dark:text-gray-400">Action Type</label>
+            <select name="action" class="w-full p-2 border rounded-lg text-sm dark:bg-gray-700 dark:border-gray-600">
+                <option value="all" {% if filters.action == 'all' %}selected{% endif %}>All Actions</option>
+                <option value="approved" {% if filters.action == 'approved' %}selected{% endif %}>Approved</option>
+                <option value="rejected" {% if filters.action == 'rejected' %}selected{% endif %}>Rejected</option>
+                <option value="created" {% if filters.action == 'created' %}selected{% endif %}>Created</option>
+                <option value="updated" {% if filters.action == 'updated' %}selected{% endif %}>Updated</option>
+                <option value="deleted" {% if filters.action == 'deleted' %}selected{% endif %}>Deleted</option>
+                <option value="login" {% if filters.action == 'login' %}selected{% endif %}>Login/Logout</option>
+            </select>
+        </div>
+        <div>
+            <label class="block text-xs font-medium mb-1 text-gray-600 dark:text-gray-400">Date From</label>
+            <input type="date" name="date_from" value="{{ filters.date_from }}"
+                   class="w-full p-2 border rounded-lg text-sm dark:bg-gray-700 dark:border-gray-600">
+        </div>
+        <div>
+            <label class="block text-xs font-medium mb-1 text-gray-600 dark:text-gray-400">Date To</label>
+            <input type="date" name="date_to" value="{{ filters.date_to }}"
+                   class="w-full p-2 border rounded-lg text-sm dark:bg-gray-700 dark:border-gray-600">
+        </div>
+        <div>
+            <label class="block text-xs font-medium mb-1 text-gray-600 dark:text-gray-400">Status</label>
+            <select name="status" class="w-full p-2 border rounded-lg text-sm dark:bg-gray-700 dark:border-gray-600">
+                <option value="all" {% if filters.status == 'all' %}selected{% endif %}>All</option>
+                <option value="success" {% if filters.status == 'success' %}selected{% endif %}>Success</option>
+                <option value="failed" {% if filters.status == 'failed' %}selected{% endif %}>Failed</option>
+                <option value="blocked" {% if filters.status == 'blocked' %}selected{% endif %}>Blocked</option>
+            </select>
+        </div>
+        <div class="flex gap-2">
+            <button type="submit" class="flex-1 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition">
+                <i class="fas fa-filter mr-1"></i>Apply
+            </button>
+            <a href="{{ url_for('admin.moderator_activity') }}" 
+               class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition text-center">
+                <i class="fas fa-redo mr-1"></i>Reset
+            </a>
+        </div>
+    </form>
+</div>
+
+<!-- ======================================================================== -->
+<!-- ACTIVITY LOG TABLE -->
+<!-- ======================================================================== -->
+<div class="glass-card overflow-hidden mb-6">
+    <div class="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+        <h3 class="text-lg font-semibold">Activity Records</h3>
+        <span class="text-sm text-gray-500">{{ logs.total }} entries found</span>
+    </div>
+    
+    <div class="overflow-x-auto">
+        <table class="w-full">
+            <thead class="bg-gray-50 dark:bg-gray-800 sticky top-0">
+                <tr>
+                    <th class="p-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase">Time</th>
+                    <th class="p-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase">Moderator</th>
+                    <th class="p-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase">Module</th>
+                    <th class="p-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase">Action</th>
+                    <th class="p-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase">Target</th>
+                    <th class="p-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase">IP Address</th>
+                    <th class="p-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase">Status</th>
+                    <th class="p-3 text-center text-xs font-medium text-gray-600 dark:text-gray-400 uppercase">Details</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                {% for log in logs.items %}
+                <tr class="hover:bg-gray-50 dark:hover:bg-gray-800 transition cursor-pointer" onclick="showLogDetail({{ log.id }})">
+                    <td class="p-3 text-sm whitespace-nowrap">
+                        <div class="font-medium">{{ log.created_at.strftime('%H:%M:%S') }}</div>
+                        <div class="text-xs text-gray-500">{{ log.created_at.strftime('%d %b %Y') }}</div>
+                    </td>
+                    <td class="p-3">
+                        <div class="flex items-center gap-2">
+                            <div class="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center shrink-0">
+                                <span class="text-blue-600 dark:text-blue-400 font-bold text-xs">{{ log.moderator.full_name[:2].upper() if log.moderator else '??' }}</span>
+                            </div>
+                            <span class="text-sm font-medium">{{ log.moderator.full_name if log.moderator else 'Unknown' }}</span>
+                        </div>
+                    </td>
+                    <td class="p-3">
+                        <span class="px-2 py-1 text-xs rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300">{{ log.module | replace('_', ' ') | title }}</span>
+                    </td>
+                    <td class="p-3">
+                        <span class="text-sm font-medium 
+                                    {% if 'approved' in log.action.lower() %}text-green-600
+                                    {% elif 'rejected' in log.action.lower() %}text-red-600
+                                    {% elif 'deleted' in log.action.lower() %}text-red-500
+                                    {% elif 'created' in log.action.lower() %}text-blue-600
+                                    {% elif 'updated' in log.action.lower() %}text-yellow-600
+                                    {% elif 'login' in log.action.lower() %}text-purple-600
+                                    {% else %}text-gray-600{% endif %}">
+                            {{ log.action | replace('_', ' ') | title }}
+                        </span>
+                    </td>
+                    <td class="p-3 text-sm text-gray-600 dark:text-gray-400">
+                        {% if log.target_type and log.target_id %}{{ log.target_type | title }} #{{ log.target_id }}
+                        {% elif log.description %}{{ log.description[:50] }}{% if log.description|length > 50 %}...{% endif %}
+                        {% else %}<span class="text-gray-400">--</span>{% endif %}
+                    </td>
+                    <td class="p-3 text-sm font-mono text-gray-500">{{ log.ip_address or 'N/A' }}</td>
+                    <td class="p-3">
+                        {% if log.status == 'success' %}
+                            <span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">✓ Success</span>
+                        {% elif log.status == 'failed' %}
+                            <span class="px-2 py-1 text-xs rounded-full bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300">✗ Failed</span>
+                        {% else %}
+                            <span class="px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300">⚠ {{ log.status | title }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="p-3 text-center">
+                        <button onclick="event.stopPropagation(); showLogDetail({{ log.id }})" class="text-blue-600 hover:text-blue-800">
+                            <i class="fas fa-search-plus"></i>
+                        </button>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="8" class="p-8 text-center text-gray-500">
+                        <i class="fas fa-inbox text-4xl mb-3 block"></i>
+                        <p class="text-lg">No activity records found</p>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    {% if logs.pages > 1 %}
+    <div class="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center">
+        <span class="text-sm text-gray-600">Page {{ logs.page }} of {{ logs.pages }}</span>
+        <div class="flex gap-2">
+            {% if logs.has_prev %}
+            <a href="{{ url_for('admin.moderator_activity', page=logs.prev_num, **filters) }}" class="px-3 py-1 border rounded-lg hover:bg-gray-50 text-sm">Previous</a>
+            {% endif %}
+            {% if logs.has_next %}
+            <a href="{{ url_for('admin.moderator_activity', page=logs.next_num, **filters) }}" class="px-3 py-1 border rounded-lg hover:bg-gray-50 text-sm">Next</a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Log Detail Modal -->
+<div id="logDetailModal" class="hidden fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-3xl max-h-[85vh] overflow-y-auto">
+        <div class="sticky top-0 bg-white dark:bg-gray-800 p-4 border-b flex justify-between items-center">
+            <h3 class="text-xl font-bold">Activity Detail</h3>
+            <button onclick="closeLogDetail()" class="text-gray-500 hover:text-gray-700 text-2xl leading-none">&times;</button>
+        </div>
+        <div id="logDetailContent" class="p-6">
+            <div class="text-center text-gray-500 py-8"><i class="fas fa-spinner fa-spin text-3xl mb-3"></i><p>Loading...</p></div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function showLogDetail(logId) {
+    const modal = document.getElementById('logDetailModal');
+    const content = document.getElementById('logDetailContent');
+    modal.classList.remove('hidden');
+    content.innerHTML = '<div class="text-center py-8"><i class="fas fa-spinner fa-spin text-3xl mb-3"></i><p>Loading...</p></div>';
+    
+    fetch('/admin/api/moderators/activity/' + logId)
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                const log = data.log;
+                content.innerHTML = `
+                    <div class="grid grid-cols-2 gap-4 mb-6">
+                        <div><label class="text-xs text-gray-500 uppercase">Moderator</label><p class="font-semibold text-lg">${log.moderator_name}</p></div>
+                        <div><label class="text-xs text-gray-500 uppercase">Timestamp</label><p class="font-semibold">${new Date(log.created_at).toLocaleString()}</p></div>
+                        <div><label class="text-xs text-gray-500 uppercase">Module</label><p class="font-semibold">${log.module.replace(/_/g, ' ').replace(/\\b\\w/g, l => l.toUpperCase())}</p></div>
+                        <div><label class="text-xs text-gray-500 uppercase">Action</label><p class="font-semibold">${log.action.replace(/_/g, ' ').replace(/\\b\\w/g, l => l.toUpperCase())}</p></div>
+                        <div><label class="text-xs text-gray-500 uppercase">Target</label><p class="font-semibold">${log.target_type ? log.target_type.replace(/\\b\\w/g, l => l.toUpperCase()) + ' #' + log.target_id : 'N/A'}</p></div>
+                        <div><label class="text-xs text-gray-500 uppercase">Status</label><span class="px-2 py-1 text-xs rounded-full ${log.status === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${log.status.toUpperCase()}</span></div>
+                        <div><label class="text-xs text-gray-500 uppercase">IP Address</label><p class="font-mono text-sm">${log.ip_address || 'N/A'}</p></div>
+                        <div><label class="text-xs text-gray-500 uppercase">Device</label><p class="text-sm">${log.device_info || 'N/A'}</p></div>
+                    </div>
+                    ${log.description ? '<div class="mb-6 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg"><label class="text-xs text-gray-500 uppercase block mb-1">Description</label><p class="text-sm">'+log.description+'</p></div>' : ''}
+                    ${log.before_state || log.after_state ? '<div class="mb-6"><h4 class="font-semibold mb-3 text-sm uppercase text-gray-500">State Changes</h4><div class="grid grid-cols-2 gap-4">'+(log.before_state ? '<div class="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200"><h5 class="font-bold text-red-700 mb-2 text-sm">BEFORE</h5><pre class="text-xs overflow-x-auto font-mono">'+JSON.stringify(log.before_state, null, 2)+'</pre></div>' : '')+(log.after_state ? '<div class="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200"><h5 class="font-bold text-green-700 mb-2 text-sm">AFTER</h5><pre class="text-xs overflow-x-auto font-mono">'+JSON.stringify(log.after_state, null, 2)+'</pre></div>' : '')+'</div></div>' : ''}
+                `;
+            }
+        });
+}
+
+function closeLogDetail() { document.getElementById('logDetailModal').classList.add('hidden'); }
+document.getElementById('logDetailModal').addEventListener('click', function(e) { if (e.target === this) closeLogDetail(); });
+document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeLogDetail(); });
+
+function exportActivityCSV() {
+    const params = new URLSearchParams(new FormData(document.getElementById('filterForm')));
+    window.location.href = '/admin/moderators/activity/export?' + params.toString();
+}
+</script>
+{% endblock %}

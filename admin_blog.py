@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, abort
 from functools import wraps
-from models import db, User, BlogPost
+from models import db, User, BlogPost, Moderator
 from datetime import datetime, timezone
 import re
 
@@ -9,14 +9,20 @@ admin_blog_bp = Blueprint('admin_blog', __name__, url_prefix='/admin/blog')
 def admin_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if 'user_id' not in session:
-            flash('Please login to access admin panel.', 'error')
-            return redirect(url_for('auth.login'))
-        user = User.query.get(session['user_id'])
-        if not user or not user.is_admin:
-            flash('Access denied. Admin privileges required.', 'error')
-            return redirect(url_for('user.dashboard'))
-        return f(*args, **kwargs)
+        # Check super admin
+        if 'user_id' in session:
+            user = User.query.get(session['user_id'])
+            if user and user.is_admin:
+                return f(*args, **kwargs)
+        
+        # Check moderator
+        if 'moderator_id' in session:
+            moderator = Moderator.query.get(session['moderator_id'])
+            if moderator and moderator.is_active():
+                return f(*args, **kwargs)
+        
+        flash('Please login to access this page.', 'error')
+        return redirect(url_for('auth.login'))
     return decorated_function
 
 def slugify(text):
@@ -47,7 +53,6 @@ def create():
         if not slug:
             slug = slugify(title)
             
-        # Check uniqueness of slug
         existing = BlogPost.query.filter_by(slug=slug).first()
         if existing:
             flash(f'A post with slug "{slug}" already exists. Please choose a different title or slug.', 'danger')
@@ -90,7 +95,6 @@ def edit(post_id):
         if not slug:
             slug = slugify(title)
             
-        # Check uniqueness of slug (excluding current post)
         existing = BlogPost.query.filter(BlogPost.slug == slug, BlogPost.id != post.id).first()
         if existing:
             flash(f'A post with slug "{slug}" already exists. Please choose a different title or slug.', 'danger')

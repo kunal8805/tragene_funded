@@ -3,7 +3,7 @@ from datetime import datetime, date, timezone, timedelta
 import secrets
 import random
 from functools import wraps
-from models import db, User
+from models import db, User, Moderator, ModeratorActivityLog
 from notification_service import create_notification
 import os
 import json
@@ -26,7 +26,7 @@ redis_client = None
 if USE_REDIS and redis is not None:
     try:
         redis_client = redis.Redis.from_url(REDIS_URL, decode_responses=True)
-        redis_client.ping()  # Test connection
+        redis_client.ping()
         print("[OK] Redis connected for rate limiting")
         USE_REDIS = True
     except Exception as e:
@@ -34,18 +34,16 @@ if USE_REDIS and redis is not None:
         USE_REDIS = False
 
 # Rate limit configuration
-MAX_LOGIN_ATTEMPTS = 5          # Max failed login attempts per email
-MAX_RESET_ATTEMPTS = 3          # Max password reset requests per email
-MAX_IP_ATTEMPTS = 20            # Max total attempts per IP
-LOCKOUT_MINUTES = 15            # Lockout duration in minutes
-RESET_COOLDOWN_MINUTES = 5      # Cooldown between reset requests
+MAX_LOGIN_ATTEMPTS = 5
+MAX_RESET_ATTEMPTS = 3
+MAX_IP_ATTEMPTS = 20
+LOCKOUT_MINUTES = 15
+RESET_COOLDOWN_MINUTES = 5
 
 def get_redis_key(prefix, identifier):
-    """Generate Redis key with expiry"""
     return f"ratelimit:{prefix}:{identifier}"
 
 def get_failed_attempts(email, ip, attempt_type='login'):
-    """Get failed attempts from Redis or memory"""
     if USE_REDIS:
         key = get_redis_key(attempt_type, email)
         data = redis_client.get(key)
@@ -53,26 +51,22 @@ def get_failed_attempts(email, ip, attempt_type='login'):
             return json.loads(data)
         return {'count': 0, 'locked_until': None, 'timestamp': None}
     else:
-        # Fallback to memory storage
         if attempt_type == 'login':
             return failed_login_attempts.get(email, {'count': 0, 'locked_until': None, 'timestamp': None})
         else:
             return failed_reset_attempts.get(email, {'count': 0, 'cooldown_until': None, 'timestamp': None})
 
 def set_failed_attempts(email, data, attempt_type='login', expiry=3600):
-    """Store failed attempts in Redis or memory"""
     if USE_REDIS:
         key = get_redis_key(attempt_type, email)
         redis_client.setex(key, expiry, json.dumps(data))
     else:
-        # Fallback to memory storage
         if attempt_type == 'login':
             failed_login_attempts[email] = data
         else:
             failed_reset_attempts[email] = data
 
 def delete_failed_attempts(email, attempt_type='login'):
-    """Delete failed attempts from Redis or memory"""
     if USE_REDIS:
         key = get_redis_key(attempt_type, email)
         redis_client.delete(key)
@@ -83,7 +77,6 @@ def delete_failed_attempts(email, attempt_type='login'):
             del failed_reset_attempts[email]
 
 def get_ip_attempts(ip):
-    """Get IP attempts from Redis or memory"""
     if USE_REDIS:
         key = get_redis_key('ip', ip)
         data = redis_client.get(key)
@@ -94,7 +87,6 @@ def get_ip_attempts(ip):
         return ip_attempts.get(ip, {'count': 0, 'locked_until': None, 'timestamp': None})
 
 def set_ip_attempts(ip, data, expiry=3600):
-    """Store IP attempts in Redis or memory"""
     if USE_REDIS:
         key = get_redis_key('ip', ip)
         redis_client.setex(key, expiry, json.dumps(data))
@@ -102,20 +94,18 @@ def set_ip_attempts(ip, data, expiry=3600):
         ip_attempts[ip] = data
 
 def delete_ip_attempts(ip):
-    """Delete IP attempts from Redis or memory"""
     if USE_REDIS:
         key = get_redis_key('ip', ip)
         redis_client.delete(key)
     elif ip in ip_attempts:
         del ip_attempts[ip]
 
-# Memory fallback storage (only used if Redis is not available)
+# Memory fallback storage
 failed_login_attempts = {}
 failed_reset_attempts = {}
 ip_attempts = {}
 
 def get_client_ip():
-    """Get client's real IP address behind proxy"""
     if request.headers.get('X-Forwarded-For'):
         return request.headers.get('X-Forwarded-For').split(',')[0]
     if request.headers.get('X-Real-IP'):
@@ -123,10 +113,8 @@ def get_client_ip():
     return request.remote_addr or 'unknown'
 
 def is_login_rate_limited(email, ip):
-    """Check if login attempts are rate limited"""
     now = datetime.now(timezone.utc)
     
-    # Check email lockout
     email_data = get_failed_attempts(email, ip, 'login')
     if email_data.get('locked_until'):
         locked_until = datetime.fromisoformat(email_data['locked_until']) if isinstance(email_data['locked_until'], str) else email_data['locked_until']
@@ -134,7 +122,6 @@ def is_login_rate_limited(email, ip):
             remaining = int((locked_until - now).total_seconds())
             return True, f"Too many failed attempts. Please try again in {remaining} seconds."
     
-    # Check IP lockout
     ip_data = get_ip_attempts(ip)
     if ip_data.get('locked_until'):
         locked_until = datetime.fromisoformat(ip_data['locked_until']) if isinstance(ip_data['locked_until'], str) else ip_data['locked_until']
@@ -145,10 +132,8 @@ def is_login_rate_limited(email, ip):
     return False, None
 
 def is_reset_rate_limited(email, ip):
-    """Check if password reset requests are rate limited"""
     now = datetime.now(timezone.utc)
     
-    # Check email reset cooldown
     reset_data = get_failed_attempts(email, ip, 'reset')
     if reset_data.get('cooldown_until'):
         cooldown_until = datetime.fromisoformat(reset_data['cooldown_until']) if isinstance(reset_data['cooldown_until'], str) else reset_data['cooldown_until']
@@ -159,64 +144,144 @@ def is_reset_rate_limited(email, ip):
     return False, None
 
 def record_failed_login(email, ip):
-    """Record a failed login attempt"""
     now = datetime.now(timezone.utc)
     now_iso = now.isoformat()
     
-    # Get current attempts
     email_data = get_failed_attempts(email, ip, 'login')
     email_data['count'] = email_data.get('count', 0) + 1
     email_data['timestamp'] = now_iso
     
-    # Lock if exceeded max attempts
     if email_data['count'] >= MAX_LOGIN_ATTEMPTS:
         locked_until = now + timedelta(minutes=LOCKOUT_MINUTES)
         email_data['locked_until'] = locked_until.isoformat()
     
-    # Store updated attempts
     set_failed_attempts(email, email_data, 'login', LOCKOUT_MINUTES * 60)
     
-    # Record IP attempt
     ip_data = get_ip_attempts(ip)
     ip_data['count'] = ip_data.get('count', 0) + 1
     ip_data['timestamp'] = now_iso
     
-    # Lock IP if exceeded max attempts
     if ip_data['count'] >= MAX_IP_ATTEMPTS:
         locked_until = now + timedelta(minutes=LOCKOUT_MINUTES)
         ip_data['locked_until'] = locked_until.isoformat()
     
-    # Store IP attempts
     set_ip_attempts(ip, ip_data, LOCKOUT_MINUTES * 60)
 
 def record_reset_request(email, ip):
-    """Record a password reset request"""
     now = datetime.now(timezone.utc)
     now_iso = now.isoformat()
     
-    # Get current reset attempts
     reset_data = get_failed_attempts(email, ip, 'reset')
     reset_data['count'] = reset_data.get('count', 0) + 1
     reset_data['timestamp'] = now_iso
     cooldown_until = now + timedelta(minutes=RESET_COOLDOWN_MINUTES)
     reset_data['cooldown_until'] = cooldown_until.isoformat()
     
-    # Store updated attempts
     set_failed_attempts(email, reset_data, 'reset', 3600)
 
 def reset_failed_attempts(email, ip):
-    """Reset failed attempts after successful login"""
     delete_failed_attempts(email, 'login')
-    # Don't delete IP attempts immediately to prevent rapid cycling
 
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if 'user_id' not in session:
+        if 'user_id' not in session and 'moderator_id' not in session:
             flash('Please login to access this page.', 'error')
             return redirect(url_for('auth.login'))
         return f(*args, **kwargs)
     return decorated_function
+
+# ========================================================================
+# MODERATOR LOGIN HELPER
+# ========================================================================
+def log_moderator_activity(moderator_id, module, action, description=None, 
+                           target_type=None, target_id=None, 
+                           before_state=None, after_state=None, status='success'):
+    """Log moderator activity from auth blueprint"""
+    try:
+        ip = get_client_ip()
+        user_agent = str(request.headers.get('User-Agent', ''))[:500]
+        
+        log = ModeratorActivityLog(
+            moderator_id=moderator_id,
+            module=module,
+            action=action,
+            description=description,
+            target_type=target_type,
+            target_id=target_id,
+            before_state=before_state,
+            after_state=after_state,
+            ip_address=ip,
+            user_agent=user_agent,
+            status=status
+        )
+        db.session.add(log)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        print(f"[AUTH] Failed to log moderator activity: {e}")
+
+def handle_moderator_login(email, password):
+    """Check if credentials belong to a moderator. Returns (success, moderator, error_message)"""
+    moderator = Moderator.query.filter_by(email=email.lower().strip()).first()
+    
+    if not moderator:
+        return False, None, None
+    
+    if not moderator.check_password(password):
+        log_moderator_activity(
+            moderator_id=moderator.id,
+            module='authentication',
+            action='login_failed',
+            description='Invalid password attempt',
+            status='failed'
+        )
+        return False, None, "Invalid credentials"
+    
+    # Check account status
+    if moderator.status == 'inactive':
+        log_moderator_activity(
+            moderator_id=moderator.id,
+            module='authentication',
+            action='login_blocked',
+            description='Account is inactive',
+            status='blocked'
+        )
+        return False, None, "Your moderator account is currently inactive. Contact the super admin."
+    
+    if moderator.status == 'temp_banned':
+        if moderator.ban_until and moderator.ban_until > datetime.now(timezone.utc):
+            remaining_days = (moderator.ban_until - datetime.now(timezone.utc)).days
+            log_moderator_activity(
+                moderator_id=moderator.id,
+                module='authentication',
+                action='login_blocked',
+                description=f'Temporarily banned. {remaining_days} days remaining.',
+                status='blocked'
+            )
+            return False, None, f"Your account is temporarily banned for {remaining_days} more days."
+        else:
+            # Ban expired, auto-activate
+            moderator.status = 'active'
+            moderator.ban_until = None
+            moderator.ban_reason = None
+    
+    # Successful login
+    moderator.last_login = datetime.now(timezone.utc)
+    moderator.last_activity = datetime.now(timezone.utc)
+    moderator.login_count = (moderator.login_count or 0) + 1
+    
+    log_moderator_activity(
+        moderator_id=moderator.id,
+        module='authentication',
+        action='login_success',
+        description=f'Login #{moderator.login_count}',
+        status='success'
+    )
+    
+    db.session.commit()
+    return True, moderator, None
+
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
@@ -231,6 +296,32 @@ def login():
             flash(limit_message, 'error')
             return render_template('login.html')
         
+        # ====================================================================
+        # CHECK MODERATOR LOGIN FIRST
+        # ====================================================================
+        mod_success, moderator, mod_error = handle_moderator_login(email, password)
+        if mod_success:
+            # Reset rate limit attempts
+            reset_failed_attempts(email, client_ip)
+            
+            # Set moderator session
+            session.clear()
+            session['moderator_id'] = moderator.id
+            session['moderator_name'] = moderator.full_name
+            session['moderator_email'] = moderator.email
+            session.permanent = True
+            
+            flash(f'Welcome back, {moderator.full_name}!', 'success')
+            return redirect(url_for('admin.moderator_dashboard'))
+        
+        if mod_error:
+            # Moderator exists but login failed for specific reason
+            flash(mod_error, 'error')
+            return render_template('login.html')
+        
+        # ====================================================================
+        # CHECK REGULAR USER LOGIN
+        # ====================================================================
         user = User.query.filter_by(email=email).first()
         
         if user and user.check_password(password) and not user.is_banned:
@@ -281,7 +372,6 @@ def login():
 
 @auth_bp.route('/secret-registration')
 def secret_registration():
-    """Hidden route to access registration page during pre-launch"""
     return render_template('register.html')
 
 @auth_bp.route('/register', methods=['GET', 'POST'])
@@ -314,6 +404,11 @@ def register():
             return render_template('register.html')
         
         if User.query.filter_by(email=email).first():
+            flash('Email already registered.', 'error')
+            return redirect(url_for('auth.login'))
+        
+        # Also check moderator table
+        if Moderator.query.filter_by(email=email).first():
             flash('Email already registered.', 'error')
             return redirect(url_for('auth.login'))
         
@@ -352,6 +447,19 @@ def register():
 
 @auth_bp.route('/logout')
 def logout():
+    # Log moderator logout if applicable
+    if 'moderator_id' in session:
+        try:
+            log_moderator_activity(
+                moderator_id=session['moderator_id'],
+                module='authentication',
+                action='logout',
+                description='User logged out',
+                status='success'
+            )
+        except:
+            pass
+    
     session.clear()
     flash('Logged out successfully.', 'success')
     return redirect(url_for('home'))
@@ -424,6 +532,12 @@ def forgot_password():
         is_limited, limit_message = is_reset_rate_limited(email, client_ip)
         if is_limited:
             flash(limit_message, 'error')
+            return redirect(url_for('auth.login'))
+        
+        # Check if it's a moderator email
+        moderator = Moderator.query.filter_by(email=email).first()
+        if moderator:
+            flash('Moderator password resets must be done by the Super Admin.', 'info')
             return redirect(url_for('auth.login'))
         
         user = User.query.filter_by(email=email).first()

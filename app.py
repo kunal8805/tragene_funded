@@ -1,4 +1,4 @@
-# ===== COMPLETE WORKING app.py WITH RULE ENGINE, RATE LIMITING & N8N AUTOMATION =====
+# ===== COMPLETE WORKING app.py WITH RULE ENGINE, RATE LIMITING, N8N AUTOMATION & MODERATOR SYSTEM =====
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, g, Response
 from datetime import datetime, date, timedelta, timezone
 import os
@@ -83,6 +83,8 @@ def get_identifier():
     """Get unique identifier for rate limiting (IP + user_id if logged in)"""
     if 'user_id' in session:
         return f"user_{session['user_id']}"
+    if 'moderator_id' in session:
+        return f"mod_{session['moderator_id']}"
     forwarded = request.headers.get('X-Forwarded-For')
     if forwarded:
         return forwarded.split(',')[0].strip()
@@ -184,7 +186,7 @@ def not_found_error(error):
     return render_template('404.html'), 404
 
 # ===== INITIALIZE DATABASE & MIGRATE =====
-from models import db, User, Notification, NotificationTemplate, ChallengeTemplate, Payment, ChallengePurchase, WebhookLog, FAQ, BlogPost, Coupon, CouponUsage, CouponAssignment, AdminLog, ViolationEvidence, PurchaseRuleAcceptance  # Add ViolationEvidence
+from models import db, User, Notification, NotificationTemplate, ChallengeTemplate, Payment, ChallengePurchase, WebhookLog, FAQ, BlogPost, Coupon, CouponUsage, CouponAssignment, AdminLog, ViolationEvidence, PurchaseRuleAcceptance, Moderator, ModeratorActivityLog
 
 db.init_app(app)
 migrate = Migrate(app, db)
@@ -300,6 +302,12 @@ def inject_user():
             context['current_user'] = CurrentUser(user)
             context['user'] = user
     
+    # Add moderator to context if logged in as moderator
+    if 'moderator_id' in session:
+        moderator = Moderator.query.get(session['moderator_id'])
+        if moderator:
+            context['current_moderator'] = moderator
+    
     return context
 
 # ===== EMAIL SENDER COMPATIBILITY WRAPPER =====
@@ -316,7 +324,7 @@ def send_test_email(to_email, subject, html_content):
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if 'user_id' not in session:
+        if 'user_id' not in session and 'moderator_id' not in session:
             flash('Please login first', 'error')
             return redirect(url_for('auth.login'))
         return f(*args, **kwargs)
@@ -849,6 +857,52 @@ with app.app_context():
             traceback.print_exc()
 
 
+# ========================================================================
+# MODERATOR LOGIN HANDLER (called from auth.py login route)
+# ========================================================================
+def handle_moderator_login(email, password):
+    """
+    Check if credentials belong to a moderator.
+    Call this from your auth.py login route before checking regular users.
+    Returns (True, moderator) on success, (False, None) on failure.
+    """
+    moderator = Moderator.query.filter_by(email=email.lower().strip()).first()
+    
+    if not moderator:
+        return False, None
+    
+    if not moderator.check_password(password):
+        return False, None
+    
+    # Check account status
+    if moderator.status == 'inactive':
+        flash('Your moderator account is currently inactive. Contact the super admin.', 'error')
+        return False, None
+    
+    if moderator.status == 'temp_banned':
+        if moderator.ban_until and moderator.ban_until > datetime.now(timezone.utc):
+            remaining_days = (moderator.ban_until - datetime.now(timezone.utc)).days
+            flash(f'Your account is temporarily banned for {remaining_days} more days.', 'error')
+            return False, None
+        else:
+            # Ban expired, auto-activate
+            moderator.status = 'active'
+            moderator.ban_until = None
+    
+    # Update login stats
+    moderator.last_login = datetime.now(timezone.utc)
+    moderator.last_activity = datetime.now(timezone.utc)
+    moderator.login_count = (moderator.login_count or 0) + 1
+    db.session.commit()
+    
+    # Set session
+    session['moderator_id'] = moderator.id
+    session['moderator_name'] = moderator.full_name
+    session['moderator_email'] = moderator.email
+    
+    return True, moderator
+
+
 @app.route('/rulebook')
 @login_required
 def rulebook_redirect():
@@ -1368,11 +1422,6 @@ def get_user_all_challenges_metrics():
 @app.route('/api/challenge/<int:challenge_id>/live')
 @login_required
 def get_live_challenge_data(challenge_id):
-    """
-    Real-time endpoint for dashboard updates.
-    Returns current equity, balance, floating PnL, and open positions.
-    No caching - always returns fresh data.
-    """
     user_id = session.get('user_id')
     user = User.query.get(user_id)
     
@@ -1398,7 +1447,6 @@ def get_live_challenge_data(challenge_id):
             'open_positions_count': 0
         })
     
-    # Get open positions
     from models import EATrade
     open_trades = EATrade.query.filter_by(
         challenge_purchase_id=challenge.id,
@@ -1423,7 +1471,6 @@ def get_live_challenge_data(challenge_id):
             'tp': t.tp
         })
     
-    # Load rules for drawdown limits
     from rule_engine import get_active_rules
     rules = get_active_rules(challenge)
     
@@ -1465,7 +1512,6 @@ def get_live_challenge_data(challenge_id):
         'total_floating_pnl': safe_round(total_floating_pnl, 2)
     })
     
-    # Prevent caching
     response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
     response.headers['Pragma'] = 'no-cache'
     response.headers['Expires'] = '0'
@@ -1526,11 +1572,6 @@ Sitemap: https://www.tragenefunded.com/sitemap.xml
 
 @app.route('/sitemap.xml')
 def sitemap():
-    """
-    Generates a dynamic XML sitemap conforming to Google's standard.
-    Includes static pages (Home, Blog index, FAQ, Contact, Terms, Privacy, Refund Policy)
-    and all public blog posts automatically from the database.
-    """
     try:
         import xml.etree.ElementTree as ET
         from datetime import datetime, timezone
@@ -1611,7 +1652,6 @@ def sitemap():
 N8N_API_KEY = os.getenv("N8N_API_KEY")
 
 def require_n8n_api_key(f):
-    """Decorator to check X-API-KEY header for n8n endpoints"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
         api_key = request.headers.get('X-API-KEY')
@@ -1621,7 +1661,6 @@ def require_n8n_api_key(f):
     return decorated_function
 
 def get_palantir_summary_data():
-    """Returns all data that the Palantir dashboard shows - reused by n8n endpoint"""
     from sqlalchemy import func, extract
     from models import SupportTicket, PartnerEarnings
     
@@ -1719,7 +1758,6 @@ def get_palantir_summary_data():
 @app.route('/api/n8n/summary')
 @require_n8n_api_key
 def n8n_summary():
-    """Returns complete Palantir dashboard summary data"""
     try:
         data = get_palantir_summary_data()
         return jsonify({
@@ -1732,7 +1770,6 @@ def n8n_summary():
 @app.route('/api/n8n/tickets')
 @require_n8n_api_key
 def n8n_tickets():
-    """Returns all open tickets with details"""
     try:
         from models import SupportTicket
         tickets = SupportTicket.query.filter_by(status='open').order_by(SupportTicket.created_at.desc()).all()
@@ -1761,7 +1798,6 @@ def n8n_tickets():
 @app.route('/api/n8n/kyc')
 @require_n8n_api_key
 def n8n_kyc():
-    """Returns all pending KYC users"""
     try:
         pending_users = User.query.filter_by(kyc_status='submitted').order_by(User.kyc_submitted_at.desc()).all()
         
@@ -1787,7 +1823,6 @@ def n8n_kyc():
 @app.route('/api/n8n/newusers')
 @require_n8n_api_key
 def n8n_newusers():
-    """Returns all users registered today"""
     try:
         today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
         
@@ -1814,9 +1849,6 @@ def n8n_newusers():
 @app.route('/api/n8n/blog/titles')
 @require_n8n_api_key
 def n8n_blog_titles():
-    """
-    Returns all blog post titles and basic metadata for AI content generation.
-    """
     try:
         posts = BlogPost.query.with_entities(
             BlogPost.id,
@@ -1849,7 +1881,6 @@ def n8n_blog_titles():
 @app.route('/api/n8n/blog', methods=['POST'])
 @require_n8n_api_key
 def n8n_create_blog():
-    """Creates a new blog post"""
     try:
         data = request.get_json()
         
@@ -1901,7 +1932,6 @@ def n8n_create_blog():
 @app.route('/api/n8n/health')
 @require_n8n_api_key
 def n8n_health():
-    """Health check endpoint for n8n"""
     return jsonify({
         'success': True,
         'status': 'healthy',
@@ -1924,6 +1954,7 @@ if __name__ == '__main__':
         print(f"Redis: {'ENABLED' if REDIS_ENABLED else 'DISABLED'}")
         n8n_status = f"ENABLED (key: {N8N_API_KEY[:10]}...)" if N8N_API_KEY else "DISABLED"
         print(f"N8N API: {n8n_status}")
+        print(f"Moderator System: ENABLED")
         important_templates = ['index.html', 'user/user_dashboard.html', 'login.html', 
                               'user/payment_status.html', 'user/payment_failed.html']
         for template in important_templates:

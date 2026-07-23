@@ -1689,3 +1689,192 @@ class SiteSettings(db.Model):
             db.session.add(settings)
             db.session.flush()
         return settings    
+
+
+
+
+# ========================================================================
+# MODERATOR MANAGEMENT SYSTEM - SECURE RBAC IMPLEMENTATION
+# ========================================================================
+
+# Define all available permissions as constants for type safety
+MODERATOR_PERMISSIONS = {
+    'can_access_analytics': 'Analytics',
+    'can_access_users': 'Users',
+    'can_access_lead_crm': 'Lead CRM',
+    'can_access_partners': 'Partners',
+    'can_access_affiliate_rewards': 'Affiliate & Rewards',
+    'can_access_kyc': 'KYC Applications',
+    'can_access_notifications': 'Notifications',
+    'can_access_challenges': 'Challenges',
+    'can_access_progression': 'Progression Requests',
+    'can_access_manage_challenges': 'Manage Challenges',
+    'can_access_rulebook': 'Rulebook Manager',
+    'can_access_payments': 'Payments',
+    'can_access_payouts': 'Payouts',
+    'can_access_coupons': 'Coupons',
+    'can_access_email_center': 'Email Center',
+    'can_access_email_analytics': 'Email Analytics',
+    'can_access_blog': 'Manage Blog',
+    'can_access_support': 'Support Tickets',
+    'can_access_faqs': 'Manage FAQs',
+    'can_access_settings': 'Settings',
+    'can_access_palantir': 'Palantir',
+}
+
+# Sensitive permissions that are NEVER assignable to moderators
+RESTRICTED_PERMISSIONS = [
+    'can_access_payments',
+    'can_access_payouts', 
+    'can_access_coupons',
+    'can_access_settings',
+    'can_access_palantir',
+    'can_access_partners',
+    'can_access_affiliate_rewards',
+    'can_access_email_center',
+    'can_access_email_analytics',
+    'can_access_manage_challenges',
+]
+
+
+class Moderator(db.Model):
+    """Moderator accounts with PBAC (Permission-Based Access Control)"""
+    __tablename__ = 'moderators'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    full_name = db.Column(db.String(100), nullable=False)
+    email = db.Column(db.String(100), unique=True, nullable=False, index=True)
+    password_hash = db.Column(db.String(255), nullable=False)
+    status = db.Column(db.String(20), default='active', nullable=False, index=True)
+    # active, inactive, temp_banned
+    ban_until = db.Column(db.DateTime(timezone=True), nullable=True)
+    ban_reason = db.Column(db.Text, nullable=True)
+    
+    # Permissions stored as JSON dict {permission_key: boolean}
+    permissions = db.Column(db.JSON, nullable=False, default=dict)
+    
+    # Activity tracking
+    last_login = db.Column(db.DateTime(timezone=True), nullable=True)
+    last_activity = db.Column(db.DateTime(timezone=True), nullable=True)
+    login_count = db.Column(db.Integer, default=0)
+    
+    # Audit fields
+    created_by_admin_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
+    updated_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    
+    # Relationships
+    admin = db.relationship('User', foreign_keys=[created_by_admin_id], backref=db.backref('created_moderators', lazy=True))
+    activity_logs = db.relationship('ModeratorActivityLog', backref='moderator', lazy=True, cascade='all, delete-orphan')
+    
+    def set_password(self, password):
+        """Securely hash password using werkzeug"""
+        self.password_hash = generate_password_hash(password, method='pbkdf2:sha256')
+    
+    def check_password(self, password):
+        """Verify password against hash"""
+        return check_password_hash(self.password_hash, password)
+    
+    def has_permission(self, permission_key):
+        """Check if moderator has specific permission AND is active"""
+        if self.status != 'active':
+            return False
+        if self.status == 'temp_banned' and self.ban_until:
+            if self.ban_until > datetime.now(timezone.utc):
+                return False
+        return self.permissions.get(permission_key, False) if self.permissions else False
+    
+    def get_active_permissions(self):
+        """Return list of active permission keys"""
+        if not self.permissions:
+            return []
+        return [k for k, v in self.permissions.items() if v and k in MODERATOR_PERMISSIONS]
+    
+    def is_active(self):
+        """Check if moderator account is currently active"""
+        if self.status == 'active':
+            return True
+        if self.status == 'temp_banned' and self.ban_until:
+            return self.ban_until <= datetime.now(timezone.utc)
+        return False
+    
+    def to_dict(self):
+        """Safe serialization - NEVER expose password hash"""
+        return {
+            'id': self.id,
+            'full_name': self.full_name,
+            'email': self.email,
+            'status': self.status,
+            'ban_until': self.ban_until.isoformat() if self.ban_until else None,
+            'permissions': self.permissions,
+            'permissions_count': len(self.get_active_permissions()),
+            'last_login': self.last_login.isoformat() if self.last_login else None,
+            'last_activity': self.last_activity.isoformat() if self.last_activity else None,
+            'login_count': self.login_count,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+        }
+    
+    def __repr__(self):
+        return f'<Moderator {self.email}>'
+
+
+class ModeratorActivityLog(db.Model):
+    """Immutable audit trail for all moderator actions with forensic detail"""
+    __tablename__ = 'moderator_activity_logs'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    moderator_id = db.Column(db.Integer, db.ForeignKey('moderators.id'), nullable=False, index=True)
+    
+    # Action classification
+    module = db.Column(db.String(50), nullable=False, index=True)
+    action = db.Column(db.String(100), nullable=False, index=True)
+    description = db.Column(db.Text, nullable=True)
+    
+    # Target tracking
+    target_type = db.Column(db.String(50), nullable=True, index=True)
+    target_id = db.Column(db.Integer, nullable=True, index=True)
+    
+    # Forensic snapshots (JSON - stored as dict)
+    before_state = db.Column(db.JSON, nullable=True)
+    after_state = db.Column(db.JSON, nullable=True)
+    
+    # Security context
+    ip_address = db.Column(db.String(45), nullable=True)  # IPv6 compatible
+    user_agent = db.Column(db.Text, nullable=True)
+    device_info = db.Column(db.String(200), nullable=True)
+    
+    # Status tracking
+    status = db.Column(db.String(20), default='success', index=True)  # success, failed, blocked
+    error_message = db.Column(db.Text, nullable=True)
+    
+    # Timestamps
+    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
+    
+    # Indexes for performance
+    __table_args__ = (
+        Index('idx_modlog_mod_time', 'moderator_id', 'created_at'),
+        Index('idx_modlog_module_time', 'module', 'created_at'),
+        Index('idx_modlog_target', 'target_type', 'target_id'),
+    )
+    
+    def to_dict(self):
+        """Safe serialization"""
+        return {
+            'id': self.id,
+            'moderator_id': self.moderator_id,
+            'moderator_name': self.moderator.full_name if self.moderator else 'Unknown',
+            'module': self.module,
+            'action': self.action,
+            'description': self.description,
+            'target_type': self.target_type,
+            'target_id': self.target_id,
+            'before_state': self.before_state,
+            'after_state': self.after_state,
+            'ip_address': self.ip_address,
+            'device_info': self.device_info,
+            'status': self.status,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+        }
+    
+    def __repr__(self):
+        return f'<ModeratorActivityLog {self.action} by {self.moderator_id}>'        

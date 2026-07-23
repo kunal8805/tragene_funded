@@ -5,6 +5,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Tragene Admin{% endblock %}</title>
+    
+    <!-- ===== FIX: Disable Turbo Caching for Admin ===== -->
+    <meta name="turbo-cache-control" content="no-cache">
 
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -46,7 +49,6 @@
             transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
         }
 
-        /* Fast Page Transition */
         main {
             animation: fadeInFast 150ms ease-out forwards;
         }
@@ -56,13 +58,11 @@
             to { opacity: 1; transform: translateY(0); }
         }
 
-        /* Turbo Progress Bar */
         .turbo-progress-bar {
             height: 3px;
-            background-color: #3b82f6; /* Tailwind blue-500 */
+            background-color: #3b82f6;
         }
 
-        /* Professional White Theme (Default) */
         .bg-professional {
             background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 50%, #e2e8f0 100%);
             min-height: 100vh;
@@ -76,7 +76,6 @@
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
         }
 
-        /* Dark Mode Styles */
         .dark .bg-professional {
             background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
         }
@@ -87,47 +86,17 @@
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
         }
 
-        .dark .text-gray-900 {
-            color: #f1f5f9;
-        }
+        .dark .text-gray-900 { color: #f1f5f9; }
+        .dark .text-gray-800 { color: #e2e8f0; }
+        .dark .text-gray-700 { color: #cbd5e1; }
+        .dark .text-gray-600 { color: #94a3b8; }
+        .dark .text-gray-500 { color: #64748b; }
+        .dark .bg-white { background-color: #1e293b; }
+        .dark .bg-gray-50 { background-color: #0f172a; }
+        .dark .bg-gray-100 { background-color: #334155; }
+        .dark .border-gray-200 { border-color: #334155; }
+        .dark .border-gray-300 { border-color: #475569; }
 
-        .dark .text-gray-800 {
-            color: #e2e8f0;
-        }
-
-        .dark .text-gray-700 {
-            color: #cbd5e1;
-        }
-
-        .dark .text-gray-600 {
-            color: #94a3b8;
-        }
-
-        .dark .text-gray-500 {
-            color: #64748b;
-        }
-
-        .dark .bg-white {
-            background-color: #1e293b;
-        }
-
-        .dark .bg-gray-50 {
-            background-color: #0f172a;
-        }
-
-        .dark .bg-gray-100 {
-            background-color: #334155;
-        }
-
-        .dark .border-gray-200 {
-            border-color: #334155;
-        }
-
-        .dark .border-gray-300 {
-            border-color: #475569;
-        }
-
-        /* Mobile Sidebar */
         .sidebar-mobile {
             transform: translateX(-100%);
             transition: transform 0.3s ease-in-out;
@@ -146,9 +115,7 @@
             box-shadow: 2px 0 10px rgba(0, 0, 0, 0.3);
         }
 
-        .sidebar-mobile.open {
-            transform: translateX(0);
-        }
+        .sidebar-mobile.open { transform: translateX(0); }
 
         .overlay {
             display: none;
@@ -161,11 +128,8 @@
             z-index: 40;
         }
 
-        .overlay.active {
-            display: block;
-        }
+        .overlay.active { display: block; }
 
-        /* Desktop Layout */
         .desktop-sidebar {
             width: 280px;
             min-height: 100vh;
@@ -188,23 +152,23 @@
             width: calc(100% - 280px);
         }
 
-        /* Mobile Layout */
         @media (max-width: 1024px) {
-            .desktop-sidebar {
-                display: none;
-            }
-
-            .desktop-content {
-                margin-left: 0;
-                width: 100%;
-            }
+            .desktop-sidebar { display: none; }
+            .desktop-content { margin-left: 0; width: 100%; }
         }
     </style>
     {% block head %}{% endblock %}
 </head>
 
 <body class="bg-professional text-gray-800 min-h-screen">
-    <!-- Dark Mode Init Script -->
+    <!-- Role detection -->
+    {% set is_super_admin = session.get('is_admin', False) %}
+    {% set is_moderator = session.get('moderator_id') is not none %}
+    {% set moderator = None %}
+    {% if is_moderator %}
+        {% set moderator = current_moderator if current_moderator else None %}
+    {% endif %}
+
     <script>
         if (localStorage.getItem('color-theme') === 'dark' || (!('color-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
             document.documentElement.classList.add('dark');
@@ -213,213 +177,219 @@
         }
     </script>
 
-    <!-- Mobile Overlay -->
     <div id="overlay" class="overlay" onclick="toggleSidebar()"></div>
 
     <!-- Mobile Header -->
-    <header
-        class="bg-white dark:bg-dark-card shadow-sm border-b border-gray-200 dark:border-dark-border sticky top-0 z-30 lg:hidden">
+    <header class="bg-white dark:bg-dark-card shadow-sm border-b border-gray-200 dark:border-dark-border sticky top-0 z-30 lg:hidden">
         <div class="flex items-center justify-between p-4">
-
-            <!-- Left: Menu + Logo -->
             <div class="flex items-center gap-3">
-                <button onclick="toggleSidebar()"
-                    class="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition">
+                <button onclick="toggleSidebar()" class="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition">
                     <i class="fas fa-bars text-gray-700 dark:text-gray-300"></i>
                 </button>
-
-                <!-- Circular Logo -->
-                <div
-                    class="w-10 h-10 rounded-full overflow-hidden border border-gray-300 dark:border-gray-600 bg-white flex items-center justify-center shrink-0">
-                    <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Tragene Admin"
-                        class="w-full h-full object-contain">
+                <div class="w-10 h-10 rounded-full overflow-hidden border border-gray-300 dark:border-gray-600 bg-white flex items-center justify-center shrink-0">
+                    <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Tragene Admin" class="w-full h-full object-contain">
                 </div>
             </div>
-
-            <!-- Right: Dark Mode + User -->
             <div class="flex items-center space-x-3">
                 {% block mobile_header_actions %}{% endblock %}
-                <button id="theme-toggle-mobile"
-                    class="p-2 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
+                <button id="theme-toggle-mobile" class="p-2 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
                     <i class="fas fa-moon hidden dark:block"></i>
                     <i class="fas fa-sun block dark:hidden"></i>
                 </button>
-                <a href="/logout"
-                    class="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg text-sm font-medium transition">
+                <a href="/logout" class="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg text-sm font-medium transition">
                     <i class="fas fa-sign-out-alt"></i>
                 </a>
             </div>
         </div>
     </header>
 
-
-    <!-- Desktop Sidebar -->
+    <!-- ======================================================================== -->
+    <!-- DESKTOP SIDEBAR -->
+    <!-- ======================================================================== -->
     <div class="desktop-sidebar hidden lg:flex lg:flex-col lg:h-screen">
         <div class="p-6 border-b border-gray-200 dark:border-dark-border">
-            <a href="/admin" class="flex items-center gap-3">
-
-                <!-- Circular Logo -->
-                <div
-                    class="w-14 h-14 rounded-full overflow-hidden border-2 border-gray-300 dark:border-gray-600 bg-white flex items-center justify-center shrink-0">
-                    <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Tragene Admin"
-                        class="w-full h-full object-contain">
+            <a href="{{ '/admin/moderator/dashboard' if is_moderator else '/admin' }}" class="flex items-center gap-3">
+                <div class="w-14 h-14 rounded-full overflow-hidden border-2 border-gray-300 dark:border-gray-600 bg-white flex items-center justify-center shrink-0">
+                    <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Tragene Admin" class="w-full h-full object-contain">
                 </div>
-
-                <!-- Brand Text -->
                 <div class="leading-tight">
                     <h1 class="font-bold text-gray-800 dark:text-white text-lg">TRAGENE</h1>
-                    <p class="text-gray-500 dark:text-gray-400 text-xs tracking-wide">ADMIN PANEL</p>
+                    <p class="text-gray-500 dark:text-gray-400 text-xs tracking-wide">{% if is_moderator %}MODERATOR{% else %}ADMIN PANEL{% endif %}</p>
                 </div>
-
             </a>
         </div>
 
         <nav class="p-4 space-y-2 flex-1 overflow-y-auto pb-6">
+            
+            {% if is_super_admin %}
+            <!-- ==================== SUPER ADMIN SIDEBAR ==================== -->
             <div class="px-3 py-2 text-xs font-bold text-gray-400 uppercase tracking-wider">Platform</div>
             
-            <!-- ===== PALANTIR LINK ===== -->
-            <a href="/admin/palantir"
-                class="flex items-center space-x-3 p-3 {% if request.endpoint == 'admin.admin_palantir' %}bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 border border-purple-100 dark:border-purple-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
-                <i class="fas fa-eye w-5"></i>
-                <span class="font-medium">Palantir</span>
+            <a href="/admin/palantir" class="flex items-center space-x-3 p-3 {% if request.endpoint == 'admin.admin_palantir' %}bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 border border-purple-100 dark:border-purple-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
+                <i class="fas fa-eye w-5"></i><span class="font-medium">Palantir</span>
             </a>
-            
-            <a href="/admin"
-                class="flex items-center space-x-3 p-3 {% if request.endpoint == 'admin.admin_dashboard' %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
-                <i class="fas fa-tachometer-alt w-5"></i>
-                <span class="font-medium">Dashboard</span>
+            <a href="/admin" class="flex items-center space-x-3 p-3 {% if request.endpoint == 'admin.admin_dashboard' %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
+                <i class="fas fa-tachometer-alt w-5"></i><span class="font-medium">Dashboard</span>
             </a>
-
-            <a href="/admin/analytics"
-                class="flex items-center space-x-3 p-3 {% if request.endpoint == 'admin.admin_analytics' %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
-                <i class="fas fa-chart-pie w-5"></i>
-                <span>Analytics</span>
+            <a href="/admin/analytics" class="flex items-center space-x-3 p-3 {% if request.endpoint == 'admin.admin_analytics' %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
+                <i class="fas fa-chart-pie w-5"></i><span>Analytics</span>
             </a>
-
-            <a href="/admin/users"
-                class="flex items-center space-x-3 p-3 {% if 'admin.users' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
-                <i class="fas fa-users w-5"></i>
-                <span>Users</span>
+            <a href="/admin/users" class="flex items-center space-x-3 p-3 {% if 'admin.users' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
+                <i class="fas fa-users w-5"></i><span>Users</span>
             </a>
-
-            <!-- ===== LEAD CRM LINK (DESKTOP) ===== -->
-            <a href="/admin/leads"
-                class="flex items-center space-x-3 p-3 {% if 'admin.leads' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
-                <i class="fas fa-users-cog w-5"></i>
-                <span>Lead CRM</span>
+            <a href="/admin/leads" class="flex items-center space-x-3 p-3 {% if 'admin.leads' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
+                <i class="fas fa-users-cog w-5"></i><span>Lead CRM</span>
             </a>
-
-            <a href="/admin/partners"
-                class="flex items-center space-x-3 p-3 {% if 'admin.partners' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
-                <i class="fas fa-handshake w-5"></i>
-                <span>Partners</span>
+            <a href="/admin/partners" class="flex items-center space-x-3 p-3 {% if 'admin.partners' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
+                <i class="fas fa-handshake w-5"></i><span>Partners</span>
             </a>
-
-            <a href="/admin/affiliate-rewards"
-                class="flex items-center space-x-3 p-3 {% if request.endpoint in ['admin.affiliate_rewards', 'admin.admin_surveys'] %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
-                <i class="fas fa-coins w-5"></i>
-                <span>Affiliate & Rewards</span>
+            <a href="/admin/affiliate-rewards" class="flex items-center space-x-3 p-3 {% if request.endpoint in ['admin.affiliate_rewards', 'admin.admin_surveys'] %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
+                <i class="fas fa-coins w-5"></i><span>Affiliate & Rewards</span>
             </a>
 
             <div class="px-3 py-2 mt-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Operations</div>
-            <a href="/admin/kyc"
-                class="flex items-center space-x-3 p-3 {% if 'admin.kyc' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
-                <i class="fas fa-id-card w-5"></i>
-                <span>KYC Applications</span>
+            <a href="/admin/kyc" class="flex items-center space-x-3 p-3 {% if 'admin.kyc' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
+                <i class="fas fa-id-card w-5"></i><span>KYC Applications</span>
+            </a>
+            <a href="/admin/notifications" class="flex items-center space-x-3 p-3 {% if 'admin.admin_notifications' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
+                <i class="fas fa-bell w-5"></i><span>Notifications</span>
+            </a>
+            <a href="/admin/challenges" class="flex items-center space-x-3 p-3 {% if 'admin.challenges' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
+                <i class="fas fa-trophy w-5"></i><span>Challenges</span>
+            </a>
+            <a href="/admin/progression-requests" class="flex items-center space-x-3 p-3 {% if 'admin.admin_progression_requests' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
+                <i class="fas fa-route w-5"></i><span>Progression Requests</span>
+            </a>
+            <a href="/admin/manage-challenges" class="flex items-center space-x-3 p-3 {% if 'admin.admin_manage_challenges' in request.endpoint or 'admin.admin_edit_challenge' in request.endpoint or 'admin.admin_add_challenge' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
+                <i class="fas fa-tasks w-5"></i><span>Manage Challenges</span>
+            </a>
+            <a href="/admin/rulebook" class="flex items-center space-x-3 p-3 {% if 'admin.admin_rulebook' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
+                <i class="fas fa-book-open w-5"></i><span>Rulebook Manager</span>
+            </a>
+            <a href="/admin/payments" class="flex items-center space-x-3 p-3 {% if 'admin.payments' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
+                <i class="fas fa-money-bill-wave w-5"></i><span>Payments</span>
+            </a>
+            <a href="/admin/payouts" class="flex items-center space-x-3 p-3 {% if 'admin_payout' in request.endpoint or 'export_payouts' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
+                <i class="fas fa-wallet w-5"></i><span>Payouts</span>
+            </a>
+            <a href="/admin/coupons" class="flex items-center space-x-3 p-3 {% if 'admin.admin_coupons' in request.endpoint or 'admin.admin_coupon_detail' in request.endpoint or 'admin.admin_coupon_analytics' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
+                <i class="fas fa-ticket-alt w-5"></i><span>Coupons</span>
+            </a>
+            <a href="{{ url_for('admin.email_center_dashboard') }}" class="flex items-center space-x-3 p-3 {% if request.endpoint and request.endpoint.startswith('admin.email_') and request.endpoint != 'admin.email_analytics' %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
+                <i class="fas fa-envelope-open-text w-5"></i><span>Email Center</span>
+            </a>
+            <a href="{{ url_for('admin.email_analytics') }}" class="flex items-center space-x-3 p-3 {% if request.endpoint == 'admin.email_analytics' %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition ml-4">
+                <i class="fas fa-chart-pie w-5 text-sm"></i><span class="text-sm">Email Analytics</span>
+            </a>
+            <a href="{{ url_for('admin_blog.list_posts') }}" class="flex items-center space-x-3 p-3 {% if 'admin_blog' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
+                <i class="fas fa-blog w-5"></i><span>Manage Blog</span>
             </a>
 
-            <a href="/admin/notifications"
-                class="flex items-center space-x-3 p-3 {% if 'admin.admin_notifications' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
-                <i class="fas fa-bell w-5"></i>
-                <span>Notifications</span>
+            <div class="px-3 py-2 mt-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Administration</div>
+            <a href="/admin/moderators" class="flex items-center space-x-3 p-3 {% if 'admin.manage_moderators' in request.endpoint or 'admin.add_moderator' in request.endpoint or 'admin.edit_moderator' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
+                <i class="fas fa-user-shield w-5"></i><span>Manage Moderators</span>
             </a>
-
-            <a href="/admin/challenges"
-                class="flex items-center space-x-3 p-3 {% if 'admin.challenges' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
-                <i class="fas fa-trophy w-5"></i>
-                <span>Challenges</span>
+            <a href="/admin/moderators/activity" class="flex items-center space-x-3 p-3 {% if 'admin.moderator_activity' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
+                <i class="fas fa-history w-5"></i><span>Moderator Activity</span>
             </a>
-
-            <a href="/admin/progression-requests"
-                class="flex items-center space-x-3 p-3 {% if 'admin.admin_progression_requests' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
-                <i class="fas fa-route w-5"></i>
-                <span>Progression Requests</span>
-            </a>
-
-            <a href="/admin/manage-challenges"
-                class="flex items-center space-x-3 p-3 {% if 'admin.admin_manage_challenges' in request.endpoint or 'admin.admin_edit_challenge' in request.endpoint or 'admin.admin_add_challenge' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
-                <i class="fas fa-tasks w-5"></i>
-                <span>Manage Challenges</span>
-            </a>
-
-            <a href="/admin/rulebook"
-                class="flex items-center space-x-3 p-3 {% if 'admin.admin_rulebook' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
-                <i class="fas fa-book-open w-5"></i>
-                <span>Rulebook Manager</span>
-            </a>
-
-            <a href="/admin/payments"
-                class="flex items-center space-x-3 p-3 {% if 'admin.payments' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
-                <i class="fas fa-money-bill-wave w-5"></i>
-                <span>Payments</span>
-            </a>
-
-            <a href="/admin/payouts"
-                class="flex items-center space-x-3 p-3 {% if 'admin_payout' in request.endpoint or 'export_payouts' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
-                <i class="fas fa-wallet w-5"></i>
-                <span>Payouts</span>
-            </a>
-
-            <a href="/admin/coupons"
-                class="flex items-center space-x-3 p-3 {% if 'admin.admin_coupons' in request.endpoint or 'admin.admin_coupon_detail' in request.endpoint or 'admin.admin_coupon_analytics' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
-                <i class="fas fa-ticket-alt w-5"></i>
-                <span>Coupons</span>
-            </a>
-
-            <!-- ===== EMAIL CENTER LINK (DESKTOP) ===== -->
-            <a href="{{ url_for('admin.email_center_dashboard') }}"
-                class="flex items-center space-x-3 p-3 {% if request.endpoint and request.endpoint.startswith('admin.email_') and request.endpoint != 'admin.email_analytics' %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
-                <i class="fas fa-envelope-open-text w-5"></i>
-                <span>Email Center</span>
-            </a>
-
-            <!-- ===== EMAIL ANALYTICS LINK (DESKTOP) ===== -->
-            <a href="{{ url_for('admin.email_analytics') }}"
-                class="flex items-center space-x-3 p-3 {% if request.endpoint == 'admin.email_analytics' %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition ml-4">
-                <i class="fas fa-chart-pie w-5 text-sm"></i>
-                <span class="text-sm">Email Analytics</span>
-            </a>
-
-            <a href="{{ url_for('admin_blog.list_posts') }}"
-                class="flex items-center space-x-3 p-3 {% if 'admin_blog' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
-                <i class="fas fa-blog w-5"></i>
-                <span>Manage Blog</span>
-            </a>
-
 
             <div class="px-3 py-2 mt-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Support System</div>
-            <a href="/admin/support"
-                class="flex items-center space-x-3 p-3 {% if 'admin.admin_support' in request.endpoint or 'admin.admin_ticket_detail' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
-                <i class="fas fa-headset w-5"></i>
-                <span>Support Tickets</span>
+            <a href="/admin/support" class="flex items-center space-x-3 p-3 {% if 'admin.admin_support' in request.endpoint or 'admin.admin_ticket_detail' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
+                <i class="fas fa-headset w-5"></i><span>Support Tickets</span>
             </a>
-            <a href="/admin/faq"
-                class="flex items-center space-x-3 p-3 {% if 'admin.admin_faq' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
-                <i class="fas fa-question-circle w-5"></i>
-                <span>Manage FAQs</span>
+            <a href="/admin/faq" class="flex items-center space-x-3 p-3 {% if 'admin.admin_faq' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
+                <i class="fas fa-question-circle w-5"></i><span>Manage FAQs</span>
+            </a>
+            <a href="/admin/settings" class="flex items-center space-x-3 p-3 {% if request.endpoint == 'admin.settings' %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
+                <i class="fas fa-cog w-5"></i><span>Settings</span>
             </a>
 
-            <a href="/admin/settings"
-                class="flex items-center space-x-3 p-3 {% if request.endpoint == 'admin.settings' %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
-                <i class="fas fa-cog w-5"></i>
-                <span>Settings</span>
+            {% elif is_moderator and moderator %}
+            <!-- ==================== MODERATOR SIDEBAR ==================== -->
+            <div class="px-3 py-2 text-xs font-bold text-gray-400 uppercase tracking-wider">Menu</div>
+            
+            <a href="/admin/moderator/dashboard" class="flex items-center space-x-3 p-3 {% if request.endpoint == 'admin.moderator_dashboard' %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
+                <i class="fas fa-tachometer-alt w-5"></i><span class="font-medium">Dashboard</span>
             </a>
+
+            <div class="px-3 py-2 mt-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Assigned Modules</div>
+            
+            {% if moderator.has_permission('can_access_analytics') %}
+            <a href="/admin/analytics" class="flex items-center space-x-3 p-3 {% if request.endpoint == 'admin.admin_analytics' %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
+                <i class="fas fa-chart-pie w-5"></i><span>Analytics</span>
+            </a>
+            {% endif %}
+            
+            {% if moderator.has_permission('can_access_users') %}
+            <a href="/admin/users" class="flex items-center space-x-3 p-3 {% if 'admin.users' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
+                <i class="fas fa-users w-5"></i><span>Users</span>
+            </a>
+            {% endif %}
+            
+            {% if moderator.has_permission('can_access_lead_crm') %}
+            <a href="/admin/leads" class="flex items-center space-x-3 p-3 {% if 'admin.leads' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
+                <i class="fas fa-users-cog w-5"></i><span>Lead CRM</span>
+            </a>
+            {% endif %}
+            
+            {% if moderator.has_permission('can_access_kyc') %}
+            <a href="/admin/kyc" class="flex items-center space-x-3 p-3 {% if 'admin.kyc' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
+                <i class="fas fa-id-card w-5"></i><span>KYC Applications</span>
+            </a>
+            {% endif %}
+            
+            {% if moderator.has_permission('can_access_notifications') %}
+            <a href="/admin/notifications" class="flex items-center space-x-3 p-3 {% if 'admin.admin_notifications' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
+                <i class="fas fa-bell w-5"></i><span>Notifications</span>
+            </a>
+            {% endif %}
+            
+            {% if moderator.has_permission('can_access_challenges') %}
+            <a href="/admin/challenges" class="flex items-center space-x-3 p-3 {% if 'admin.challenges' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
+                <i class="fas fa-trophy w-5"></i><span>Challenges</span>
+            </a>
+            {% endif %}
+            
+            {% if moderator.has_permission('can_access_progression') %}
+            <a href="/admin/progression-requests" class="flex items-center space-x-3 p-3 {% if 'admin.admin_progression_requests' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
+                <i class="fas fa-route w-5"></i><span>Progression Requests</span>
+            </a>
+            {% endif %}
+            
+            {% if moderator.has_permission('can_access_rulebook') %}
+            <a href="/admin/rulebook" class="flex items-center space-x-3 p-3 {% if 'admin.admin_rulebook' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
+                <i class="fas fa-book-open w-5"></i><span>Rulebook Manager</span>
+            </a>
+            {% endif %}
+            
+            {% if moderator.has_permission('can_access_blog') %}
+            <a href="{{ url_for('admin_blog.list_posts') }}" class="flex items-center space-x-3 p-3 {% if 'admin_blog' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
+                <i class="fas fa-blog w-5"></i><span>Manage Blog</span>
+            </a>
+            {% endif %}
+            
+            {% if moderator.has_permission('can_access_support') %}
+            <a href="/admin/support" class="flex items-center space-x-3 p-3 {% if 'admin.admin_support' in request.endpoint or 'admin.admin_ticket_detail' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
+                <i class="fas fa-headset w-5"></i><span>Support Tickets</span>
+            </a>
+            {% endif %}
+            
+            {% if moderator.has_permission('can_access_faqs') %}
+            <a href="/admin/faq" class="flex items-center space-x-3 p-3 {% if 'admin.admin_faq' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition">
+                <i class="fas fa-question-circle w-5"></i><span>Manage FAQs</span>
+            </a>
+            {% endif %}
+
+            <div class="px-3 py-2 mt-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Account</div>
+            <a href="/logout" class="flex items-center space-x-3 p-3 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-xl transition">
+                <i class="fas fa-sign-out-alt w-5"></i><span>Logout</span>
+            </a>
+            {% endif %}
+
         </nav>
 
-        <!-- Dark Mode Toggle Desktop -->
         <div class="mt-auto w-full p-4 border-t border-gray-200 dark:border-dark-border shrink-0">
-            <button id="theme-toggle-desktop"
-                class="w-full flex items-center justify-center space-x-2 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition">
+            <button id="theme-toggle-desktop" class="w-full flex items-center justify-center space-x-2 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition">
                 <i class="fas fa-moon hidden dark:block"></i>
                 <i class="fas fa-sun block dark:hidden"></i>
                 <span class="hidden dark:block">Switch to Light</span>
@@ -428,224 +398,96 @@
         </div>
     </div>
 
-
-    <!-- Mobile Sidebar -->
+    <!-- ======================================================================== -->
+    <!-- MOBILE SIDEBAR (Same logic, shorter) -->
+    <!-- ======================================================================== -->
     <div id="mobileSidebar" class="sidebar-mobile lg:hidden flex flex-col h-screen">
-
-        <!-- Header -->
         <div class="p-6 border-b border-gray-200 dark:border-dark-border">
             <div class="flex items-center justify-between">
-
-                <!-- Logo -->
                 <div class="flex items-center gap-3">
-                    <div
-                        class="w-16 h-16 rounded-full overflow-hidden border-2 border-gray-300 dark:border-gray-600 bg-white flex items-center justify-center shrink-0">
-                        <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Tragene Admin"
-                            class="w-full h-full object-contain">
+                    <div class="w-16 h-16 rounded-full overflow-hidden border-2 border-gray-300 dark:border-gray-600 bg-white flex items-center justify-center shrink-0">
+                        <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Tragene Admin" class="w-full h-full object-contain">
                     </div>
-
                     <div class="leading-tight">
                         <h1 class="font-bold text-gray-800 dark:text-white">TRAGENE</h1>
-                        <p class="text-gray-500 dark:text-gray-400 text-xs tracking-wide">ADMIN</p>
+                        <p class="text-gray-500 dark:text-gray-400 text-xs tracking-wide">{% if is_moderator %}MODERATOR{% else %}ADMIN{% endif %}</p>
                     </div>
                 </div>
-
-                <!-- Close Button -->
-                <button onclick="toggleSidebar()"
-                    class="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition">
+                <button onclick="toggleSidebar()" class="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition">
                     <i class="fas fa-times text-gray-700 dark:text-gray-300"></i>
                 </button>
             </div>
         </div>
 
-        <!-- Navigation -->
         <nav class="p-4 space-y-2 flex-1 overflow-y-auto pb-6">
+            {% if is_super_admin %}
+            <!-- Super Admin Mobile Links (same as desktop, with onclick="toggleSidebar()") -->
             <div class="px-3 py-2 text-xs font-bold text-gray-400 uppercase tracking-wider">Platform</div>
-            
-            <!-- ===== PALANTIR LINK (MOBILE) ===== -->
-            <a href="/admin/palantir"
-                class="flex items-center space-x-3 p-3 {% if request.endpoint == 'admin.admin_palantir' %}bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 border border-purple-100 dark:border-purple-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition"
-                onclick="toggleSidebar()">
-                <i class="fas fa-eye w-5"></i>
-                <span class="font-medium">Palantir</span>
-            </a>
-            
-            <a href="/admin"
-                class="flex items-center space-x-3 p-3 {% if request.endpoint == 'admin.admin_dashboard' %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition"
-                onclick="toggleSidebar()">
-                <i class="fas fa-tachometer-alt w-5"></i>
-                <span class="font-medium">Dashboard</span>
-            </a>
-
-            <a href="/admin/analytics"
-                class="flex items-center space-x-3 p-3 {% if request.endpoint == 'admin.admin_analytics' %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition"
-                onclick="toggleSidebar()">
-                <i class="fas fa-chart-pie w-5"></i>
-                <span>Analytics</span>
-            </a>
-
-            <a href="/admin/users"
-                class="flex items-center space-x-3 p-3 {% if 'admin.users' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition"
-                onclick="toggleSidebar()">
-                <i class="fas fa-users w-5"></i>
-                <span>Users</span>
-            </a>
-
-            <!-- ===== LEAD CRM LINK (MOBILE) ===== -->
-            <a href="/admin/leads"
-                class="flex items-center space-x-3 p-3 {% if 'admin.leads' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition"
-                onclick="toggleSidebar()">
-                <i class="fas fa-users-cog w-5"></i>
-                <span>Lead CRM</span>
-            </a>
-
-            <a href="/admin/partners"
-                class="flex items-center space-x-3 p-3 {% if 'admin.partners' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition"
-                onclick="toggleSidebar()">
-                <i class="fas fa-handshake w-5"></i>
-                <span>Partners</span>
-            </a>
-
-            <a href="/admin/affiliate-rewards"
-                class="flex items-center space-x-3 p-3 {% if request.endpoint in ['admin.affiliate_rewards', 'admin.admin_surveys'] %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition"
-                onclick="toggleSidebar()">
-                <i class="fas fa-coins w-5"></i>
-                <span>Affiliate & Rewards</span>
-            </a>
-
+            <a href="/admin/palantir" class="flex items-center space-x-3 p-3 rounded-xl transition text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800" onclick="toggleSidebar()"><i class="fas fa-eye w-5"></i><span>Palantir</span></a>
+            <a href="/admin" class="flex items-center space-x-3 p-3 rounded-xl transition text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800" onclick="toggleSidebar()"><i class="fas fa-tachometer-alt w-5"></i><span>Dashboard</span></a>
+            <a href="/admin/analytics" class="flex items-center space-x-3 p-3 rounded-xl transition text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800" onclick="toggleSidebar()"><i class="fas fa-chart-pie w-5"></i><span>Analytics</span></a>
+            <a href="/admin/users" class="flex items-center space-x-3 p-3 rounded-xl transition text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800" onclick="toggleSidebar()"><i class="fas fa-users w-5"></i><span>Users</span></a>
+            <a href="/admin/leads" class="flex items-center space-x-3 p-3 rounded-xl transition text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800" onclick="toggleSidebar()"><i class="fas fa-users-cog w-5"></i><span>Lead CRM</span></a>
+            <a href="/admin/partners" class="flex items-center space-x-3 p-3 rounded-xl transition text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800" onclick="toggleSidebar()"><i class="fas fa-handshake w-5"></i><span>Partners</span></a>
+            <a href="/admin/affiliate-rewards" class="flex items-center space-x-3 p-3 rounded-xl transition text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800" onclick="toggleSidebar()"><i class="fas fa-coins w-5"></i><span>Affiliate & Rewards</span></a>
             <div class="px-3 py-2 mt-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Operations</div>
-            <a href="/admin/kyc"
-                class="flex items-center space-x-3 p-3 {% if 'admin.kyc' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition"
-                onclick="toggleSidebar()">
-                <i class="fas fa-id-card w-5"></i>
-                <span>KYC Applications</span>
-            </a>
-
-            <a href="/admin/notifications"
-                class="flex items-center space-x-3 p-3 {% if 'admin.admin_notifications' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition"
-                onclick="toggleSidebar()">
-                <i class="fas fa-bell w-5"></i>
-                <span>Notifications</span>
-            </a>
-
-            <a href="/admin/challenges"
-                class="flex items-center space-x-3 p-3 {% if 'admin.challenges' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition"
-                onclick="toggleSidebar()">
-                <i class="fas fa-trophy w-5"></i>
-                <span>Challenges</span>
-            </a>
-
-            <a href="/admin/progression-requests"
-                class="flex items-center space-x-3 p-3 {% if 'admin.admin_progression_requests' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition"
-                onclick="toggleSidebar()">
-                <i class="fas fa-route w-5"></i>
-                <span>Progression Requests</span>
-            </a>
-
-            <a href="/admin/manage-challenges"
-                class="flex items-center space-x-3 p-3 {% if 'admin.admin_manage_challenges' in request.endpoint or 'admin.admin_edit_challenge' in request.endpoint or 'admin.admin_add_challenge' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition"
-                onclick="toggleSidebar()">
-                <i class="fas fa-tasks w-5"></i>
-                <span>Manage Challenges</span>
-            </a>
-
-            <a href="/admin/rulebook"
-                class="flex items-center space-x-3 p-3 {% if 'admin.admin_rulebook' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition"
-                onclick="toggleSidebar()">
-                <i class="fas fa-book-open w-5"></i>
-                <span>Rulebook Manager</span>
-            </a>
-
-            <a href="/admin/payments"
-                class="flex items-center space-x-3 p-3 {% if 'admin.payments' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition"
-                onclick="toggleSidebar()">
-                <i class="fas fa-money-bill-wave w-5"></i>
-                <span>Payments</span>
-            </a>
-
-            <a href="/admin/payouts"
-                class="flex items-center space-x-3 p-3 {% if 'admin_payout' in request.endpoint or 'export_payouts' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition"
-                onclick="toggleSidebar()">
-                <i class="fas fa-wallet w-5"></i>
-                <span>Payouts</span>
-            </a>
-
-            <a href="/admin/coupons"
-                class="flex items-center space-x-3 p-3 {% if 'admin.admin_coupons' in request.endpoint or 'admin.admin_coupon_detail' in request.endpoint or 'admin.admin_coupon_analytics' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition"
-                onclick="toggleSidebar()">
-                <i class="fas fa-ticket-alt w-5"></i>
-                <span>Coupons</span>
-            </a>
-
-            <!-- ===== EMAIL CENTER LINK (MOBILE) ===== -->
-            <a href="{{ url_for('admin.email_center_dashboard') }}"
-                class="flex items-center space-x-3 p-3 {% if request.endpoint and request.endpoint.startswith('admin.email_') and request.endpoint != 'admin.email_analytics' %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition"
-                onclick="toggleSidebar()">
-                <i class="fas fa-envelope-open-text w-5"></i>
-                <span>Email Center</span>
-            </a>
-
-            <!-- ===== EMAIL ANALYTICS LINK (MOBILE) ===== -->
-            <a href="{{ url_for('admin.email_analytics') }}"
-                class="flex items-center space-x-3 p-3 {% if request.endpoint == 'admin.email_analytics' %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition ml-4"
-                onclick="toggleSidebar()">
-                <i class="fas fa-chart-pie w-5 text-sm"></i>
-                <span class="text-sm">Email Analytics</span>
-            </a>
-
-            <a href="{{ url_for('admin_blog.list_posts') }}"
-                class="flex items-center space-x-3 p-3 {% if 'admin_blog' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition"
-                onclick="toggleSidebar()">
-                <i class="fas fa-blog w-5"></i>
-                <span>Manage Blog</span>
-            </a>
-
-
-            <div class="px-3 py-2 mt-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Support System</div>
-            <a href="/admin/support"
-                class="flex items-center space-x-3 p-3 {% if 'admin.admin_support' in request.endpoint or 'admin.admin_ticket_detail' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition"
-                onclick="toggleSidebar()">
-                <i class="fas fa-headset w-5"></i>
-                <span>Support Tickets</span>
-            </a>
-            <a href="/admin/faq"
-                class="flex items-center space-x-3 p-3 {% if 'admin.admin_faq' in request.endpoint %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition"
-                onclick="toggleSidebar()">
-                <i class="fas fa-question-circle w-5"></i>
-                <span>Manage FAQs</span>
-            </a>
-
-            <a href="/admin/settings"
-                class="flex items-center space-x-3 p-3 {% if request.endpoint == 'admin.settings' %}bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800{% endif %} rounded-xl transition"
-                onclick="toggleSidebar()">
-                <i class="fas fa-cog w-5"></i>
-                <span>Settings</span>
-            </a>
+            <a href="/admin/kyc" class="flex items-center space-x-3 p-3 rounded-xl transition text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800" onclick="toggleSidebar()"><i class="fas fa-id-card w-5"></i><span>KYC</span></a>
+            <a href="/admin/notifications" class="flex items-center space-x-3 p-3 rounded-xl transition text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800" onclick="toggleSidebar()"><i class="fas fa-bell w-5"></i><span>Notifications</span></a>
+            <a href="/admin/challenges" class="flex items-center space-x-3 p-3 rounded-xl transition text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800" onclick="toggleSidebar()"><i class="fas fa-trophy w-5"></i><span>Challenges</span></a>
+            <a href="/admin/progression-requests" class="flex items-center space-x-3 p-3 rounded-xl transition text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800" onclick="toggleSidebar()"><i class="fas fa-route w-5"></i><span>Progression</span></a>
+            <a href="/admin/manage-challenges" class="flex items-center space-x-3 p-3 rounded-xl transition text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800" onclick="toggleSidebar()"><i class="fas fa-tasks w-5"></i><span>Manage Challenges</span></a>
+            <a href="/admin/rulebook" class="flex items-center space-x-3 p-3 rounded-xl transition text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800" onclick="toggleSidebar()"><i class="fas fa-book-open w-5"></i><span>Rulebook</span></a>
+            <a href="/admin/payments" class="flex items-center space-x-3 p-3 rounded-xl transition text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800" onclick="toggleSidebar()"><i class="fas fa-money-bill-wave w-5"></i><span>Payments</span></a>
+            <a href="/admin/payouts" class="flex items-center space-x-3 p-3 rounded-xl transition text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800" onclick="toggleSidebar()"><i class="fas fa-wallet w-5"></i><span>Payouts</span></a>
+            <a href="/admin/coupons" class="flex items-center space-x-3 p-3 rounded-xl transition text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800" onclick="toggleSidebar()"><i class="fas fa-ticket-alt w-5"></i><span>Coupons</span></a>
+            <a href="{{ url_for('admin.email_center_dashboard') }}" class="flex items-center space-x-3 p-3 rounded-xl transition text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800" onclick="toggleSidebar()"><i class="fas fa-envelope-open-text w-5"></i><span>Email Center</span></a>
+            <a href="{{ url_for('admin.email_analytics') }}" class="flex items-center space-x-3 p-3 rounded-xl transition text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 ml-4" onclick="toggleSidebar()"><i class="fas fa-chart-pie w-5 text-sm"></i><span class="text-sm">Email Analytics</span></a>
+            <a href="{{ url_for('admin_blog.list_posts') }}" class="flex items-center space-x-3 p-3 rounded-xl transition text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800" onclick="toggleSidebar()"><i class="fas fa-blog w-5"></i><span>Manage Blog</span></a>
+            <div class="px-3 py-2 mt-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Administration</div>
+            <a href="/admin/moderators" class="flex items-center space-x-3 p-3 rounded-xl transition text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800" onclick="toggleSidebar()"><i class="fas fa-user-shield w-5"></i><span>Manage Moderators</span></a>
+            <a href="/admin/moderators/activity" class="flex items-center space-x-3 p-3 rounded-xl transition text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800" onclick="toggleSidebar()"><i class="fas fa-history w-5"></i><span>Moderator Activity</span></a>
+            <div class="px-3 py-2 mt-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Support</div>
+            <a href="/admin/support" class="flex items-center space-x-3 p-3 rounded-xl transition text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800" onclick="toggleSidebar()"><i class="fas fa-headset w-5"></i><span>Support Tickets</span></a>
+            <a href="/admin/faq" class="flex items-center space-x-3 p-3 rounded-xl transition text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800" onclick="toggleSidebar()"><i class="fas fa-question-circle w-5"></i><span>Manage FAQs</span></a>
+            <a href="/admin/settings" class="flex items-center space-x-3 p-3 rounded-xl transition text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800" onclick="toggleSidebar()"><i class="fas fa-cog w-5"></i><span>Settings</span></a>
+            
+            {% elif is_moderator and moderator %}
+            <!-- Moderator Mobile Links -->
+            <div class="px-3 py-2 text-xs font-bold text-gray-400 uppercase tracking-wider">Menu</div>
+            <a href="/admin/moderator/dashboard" class="flex items-center space-x-3 p-3 rounded-xl transition text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800" onclick="toggleSidebar()"><i class="fas fa-tachometer-alt w-5"></i><span>Dashboard</span></a>
+            <div class="px-3 py-2 mt-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Assigned Modules</div>
+            {% if moderator.has_permission('can_access_analytics') %}<a href="/admin/analytics" class="flex items-center space-x-3 p-3 rounded-xl transition text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800" onclick="toggleSidebar()"><i class="fas fa-chart-pie w-5"></i><span>Analytics</span></a>{% endif %}
+            {% if moderator.has_permission('can_access_users') %}<a href="/admin/users" class="flex items-center space-x-3 p-3 rounded-xl transition text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800" onclick="toggleSidebar()"><i class="fas fa-users w-5"></i><span>Users</span></a>{% endif %}
+            {% if moderator.has_permission('can_access_lead_crm') %}<a href="/admin/leads" class="flex items-center space-x-3 p-3 rounded-xl transition text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800" onclick="toggleSidebar()"><i class="fas fa-users-cog w-5"></i><span>Lead CRM</span></a>{% endif %}
+            {% if moderator.has_permission('can_access_kyc') %}<a href="/admin/kyc" class="flex items-center space-x-3 p-3 rounded-xl transition text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800" onclick="toggleSidebar()"><i class="fas fa-id-card w-5"></i><span>KYC</span></a>{% endif %}
+            {% if moderator.has_permission('can_access_notifications') %}<a href="/admin/notifications" class="flex items-center space-x-3 p-3 rounded-xl transition text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800" onclick="toggleSidebar()"><i class="fas fa-bell w-5"></i><span>Notifications</span></a>{% endif %}
+            {% if moderator.has_permission('can_access_challenges') %}<a href="/admin/challenges" class="flex items-center space-x-3 p-3 rounded-xl transition text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800" onclick="toggleSidebar()"><i class="fas fa-trophy w-5"></i><span>Challenges</span></a>{% endif %}
+            {% if moderator.has_permission('can_access_progression') %}<a href="/admin/progression-requests" class="flex items-center space-x-3 p-3 rounded-xl transition text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800" onclick="toggleSidebar()"><i class="fas fa-route w-5"></i><span>Progression</span></a>{% endif %}
+            {% if moderator.has_permission('can_access_rulebook') %}<a href="/admin/rulebook" class="flex items-center space-x-3 p-3 rounded-xl transition text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800" onclick="toggleSidebar()"><i class="fas fa-book-open w-5"></i><span>Rulebook</span></a>{% endif %}
+            {% if moderator.has_permission('can_access_blog') %}<a href="{{ url_for('admin_blog.list_posts') }}" class="flex items-center space-x-3 p-3 rounded-xl transition text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800" onclick="toggleSidebar()"><i class="fas fa-blog w-5"></i><span>Blog</span></a>{% endif %}
+            {% if moderator.has_permission('can_access_support') %}<a href="/admin/support" class="flex items-center space-x-3 p-3 rounded-xl transition text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800" onclick="toggleSidebar()"><i class="fas fa-headset w-5"></i><span>Support</span></a>{% endif %}
+            {% if moderator.has_permission('can_access_faqs') %}<a href="/admin/faq" class="flex items-center space-x-3 p-3 rounded-xl transition text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800" onclick="toggleSidebar()"><i class="fas fa-question-circle w-5"></i><span>FAQs</span></a>{% endif %}
+            <div class="px-3 py-2 mt-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Account</div>
+            <a href="/logout" class="flex items-center space-x-3 p-3 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-xl transition" onclick="toggleSidebar()"><i class="fas fa-sign-out-alt w-5"></i><span>Logout</span></a>
+            {% endif %}
         </nav>
-
     </div>
-
 
     <!-- Main Content -->
     <div class="desktop-content">
-        <!-- Desktop Header -->
-        <header
-            class="hidden lg:flex bg-white dark:bg-dark-card shadow-sm border-b border-gray-200 dark:border-dark-border sticky top-0 z-20">
+        <header class="hidden lg:flex bg-white dark:bg-dark-card shadow-sm border-b border-gray-200 dark:border-dark-border sticky top-0 z-20">
             <div class="flex justify-between items-center p-6 w-full">
                 <div>
-                    <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{% block header_title %}Admin{%
-                        endblock %}</h1>
-                    <p class="text-gray-600 dark:text-gray-400">{% block header_subtitle %}Control Panel{% endblock %}
-                    </p>
+                    <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{% block header_title %}Admin{% endblock %}</h1>
+                    <p class="text-gray-600 dark:text-gray-400">{% block header_subtitle %}Control Panel{% endblock %}</p>
                 </div>
                 <div class="flex items-center space-x-4">
                     {% block header_actions %}{% endblock %}
                     <div class="text-right border-l border-gray-200 dark:border-gray-700 pl-4 ml-4">
                         <p class="text-sm text-gray-600 dark:text-gray-400">Logged in as</p>
-                        <p class="font-semibold text-gray-900 dark:text-white">{{ session.user_name }}</p>
+                        <p class="font-semibold text-gray-900 dark:text-white">{{ session.user_name or session.moderator_name }}</p>
                     </div>
-                    <a href="/logout"
-                        class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-medium transition">
+                    <a href="/logout" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-medium transition">
                         <i class="fas fa-sign-out-alt mr-2"></i>Logout
                     </a>
                 </div>
@@ -656,8 +498,7 @@
         {% if messages %}
         <div class="p-4 lg:p-6 pb-0">
             {% for category, message in messages %}
-            <div
-                class="p-4 mb-4 rounded-lg {% if category == 'error' %}bg-red-100 text-red-700 border border-red-200{% elif category == 'success' %}bg-green-100 text-green-700 border border-green-200{% else %}bg-blue-100 text-blue-700 border border-blue-200{% endif %}">
+            <div class="p-4 mb-4 rounded-lg {% if category == 'error' %}bg-red-100 text-red-700 border border-red-200{% elif category == 'success' %}bg-green-100 text-green-700 border border-green-200{% else %}bg-blue-100 text-blue-700 border border-blue-200{% endif %}">
                 {{ message }}
             </div>
             {% endfor %}
@@ -671,23 +512,18 @@
     </div>
 
     <script>
-        // Mobile sidebar toggle
         function toggleSidebar() {
             const sidebar = document.getElementById('mobileSidebar');
             const overlay = document.getElementById('overlay');
             sidebar.classList.toggle('open');
             overlay.classList.toggle('active');
         }
-
-        // Close sidebar when clicking outside on mobile
         document.addEventListener('click', function (event) {
             const sidebar = document.getElementById('mobileSidebar');
             if (sidebar.classList.contains('open') && !sidebar.contains(event.target) && !event.target.closest('button')) {
                 toggleSidebar();
             }
         });
-
-        // Dark Mode Logic
         function toggleTheme() {
             if (document.documentElement.classList.contains('dark')) {
                 document.documentElement.classList.remove('dark');
@@ -697,36 +533,23 @@
                 localStorage.setItem('color-theme', 'dark');
             }
         }
-
-        // Initialize theme toggles
         function initThemeToggles() {
             const themeToggleDesktop = document.getElementById('theme-toggle-desktop');
             const themeToggleMobile = document.getElementById('theme-toggle-mobile');
-            
             if (themeToggleDesktop) {
                 themeToggleDesktop.removeEventListener('click', toggleTheme);
                 themeToggleDesktop.addEventListener('click', toggleTheme);
             }
-            
             if (themeToggleMobile) {
                 themeToggleMobile.removeEventListener('click', toggleTheme);
                 themeToggleMobile.addEventListener('click', toggleTheme);
             }
-            
-            // Re-bind sidebar close logic for mobile overlay
             const overlay = document.getElementById('overlay');
-            if (overlay) {
-                overlay.onclick = toggleSidebar;
-            }
+            if (overlay) { overlay.onclick = toggleSidebar; }
         }
-
-        // Initialize on page load
         document.addEventListener('DOMContentLoaded', initThemeToggles);
-        
-        // Re-initialize on Turbo navigation
         document.addEventListener('turbo:load', initThemeToggles);
     </script>
     {% block scripts %}{% endblock %}
 </body>
-
 </html>

@@ -51,6 +51,22 @@ def create_notification(
                 db.session.add(UserNotification(notification_id=existing.id, user_id=user_id))
         return existing
 
+    # FIX: Validate admin_id - if it's a moderator ID, find the super admin
+    safe_admin_id = None
+    if admin_id:
+        from models import User
+        admin_user = User.query.get(admin_id)
+        if admin_user and admin_user.is_admin:
+            safe_admin_id = admin_id
+        else:
+            # It's a moderator ID or invalid - fall back to first super admin
+            super_admin = User.query.filter_by(is_admin=True).first()
+            safe_admin_id = super_admin.id if super_admin else None
+    else:
+        # No admin_id provided - use first super admin
+        super_admin = User.query.filter_by(is_admin=True).first()
+        safe_admin_id = super_admin.id if super_admin else None
+
     notification = Notification(
         title=title,
         message=message,
@@ -60,7 +76,7 @@ def create_notification(
         dedupe_key=dedupe_key,
         is_global=is_global,
         target_user_id=user_id,
-        created_by_admin_id=admin_id,
+        created_by_admin_id=safe_admin_id,
         expires_at=expires_at,
     )
     db.session.add(notification)

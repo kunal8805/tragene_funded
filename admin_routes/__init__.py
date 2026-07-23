@@ -144,19 +144,123 @@ def _payout_stats(query=None):
         'average': (sum(p.amount or 0 for p in payouts) / len(payouts)) if payouts else 0
     }
 
+# ========================================================================
+# UPDATED admin_required - ACCEPTS BOTH SUPER ADMIN AND MODERATOR
+# ========================================================================
 def admin_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if 'user_id' not in session:
-            flash('Please login to access admin panel.', 'error')
-            return redirect(url_for('auth.login'))
-        user = User.query.get(session['user_id'])
-        if not user or not user.is_admin:
-            flash('Access denied. Admin privileges required.', 'error')
-            return redirect(url_for('user.dashboard'))
-        return f(*args, **kwargs)
+        # Check if super admin (has user_id + is_admin)
+        if 'user_id' in session:
+            user = User.query.get(session['user_id'])
+            if user and user.is_admin:
+                return f(*args, **kwargs)
+        
+        # Check if moderator (has moderator_id)
+        if 'moderator_id' in session:
+            from models import Moderator
+            moderator = Moderator.query.get(session['moderator_id'])
+            if moderator and moderator.is_active():
+                return f(*args, **kwargs)
+        
+        flash('Please login to access this page.', 'error')
+        return redirect(url_for('auth.login'))
     return decorated_function
 
+# ========================================================================
+# MODERATOR MANAGEMENT - HELPER FUNCTIONS
+# ========================================================================
+from models import Moderator, ModeratorActivityLog, MODERATOR_PERMISSIONS, RESTRICTED_PERMISSIONS
+
+def get_current_moderator():
+    """Get moderator from session if exists"""
+    if 'moderator_id' in session:
+        return Moderator.query.get(session['moderator_id'])
+    return None
+
+def moderator_required(permission_key=None):
+    """Decorator to check moderator authentication and optional permission"""
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            # First check if super admin
+            if 'user_id' in session:
+                user = User.query.get(session['user_id'])
+                if user and user.is_admin:
+                    return f(*args, **kwargs)
+            
+            # Check moderator session
+            moderator = get_current_moderator()
+            if not moderator:
+                flash('Please login to access this page.', 'error')
+                return redirect(url_for('auth.login'))
+            
+            if not moderator.is_active():
+                flash('Your account is currently disabled. Contact admin.', 'error')
+                session.pop('moderator_id', None)
+                return redirect(url_for('auth.login'))
+            
+            # Check specific permission if required
+            if permission_key and not moderator.has_permission(permission_key):
+                flash('Access denied. Insufficient permissions.', 'error')
+                return redirect(url_for('admin.moderator_dashboard'))
+            
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
+
+def log_moderator_activity(moderator_id, module, action, description=None, 
+                           target_type=None, target_id=None, 
+                           before_state=None, after_state=None, status='success'):
+    """Securely log moderator action with context"""
+    try:
+        module = str(module)[:50]
+        action = str(action)[:100]
+        description = str(description)[:500] if description else None
+        target_type = str(target_type)[:50] if target_type else None
+        
+        ip = request.headers.get('X-Forwarded-For', request.remote_addr)
+        if ip and ',' in ip:
+            ip = ip.split(',')[0].strip()
+        ip = ip[:45] if ip else None
+        
+        user_agent = str(request.headers.get('User-Agent', ''))[:500]
+        
+        log = ModeratorActivityLog(
+            moderator_id=moderator_id,
+            module=module,
+            action=action,
+            description=description,
+            target_type=target_type,
+            target_id=target_id,
+            before_state=before_state,
+            after_state=after_state,
+            ip_address=ip,
+            user_agent=user_agent,
+            status=status
+        )
+        db.session.add(log)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        print(f"[SECURITY] Failed to log moderator activity: {e}")
+
+def validate_permissions(permissions_dict):
+    """Validate and sanitize permissions"""
+    if not isinstance(permissions_dict, dict):
+        return {}
+    
+    validated = {}
+    for key in MODERATOR_PERMISSIONS:
+        if key in permissions_dict:
+            validated[key] = bool(permissions_dict[key])
+        else:
+            validated[key] = False
+    
+    for restricted in RESTRICTED_PERMISSIONS:
+        validated[restricted] = False
+    
+    return validated
 
 
 @admin_bp.route('/')
@@ -167,15 +271,12 @@ def admin_dashboard():
     approved_kyc = User.query.filter_by(kyc_status='approved').count()
     recent_users = User.query.order_by(User.created_at.desc()).limit(5).all()
     
-    # Count open support tickets
     open_tickets = SupportTicket.query.filter_by(status='open').count()
     
-    # Calculate revenue dynamic
     total_revenue = db.session.query(db.func.coalesce(db.func.sum(Payment.amount), 0)).filter(
         Payment.status.in_(['SUCCESS', 'success'])
     ).scalar() or 0
 
-    # Calculate monthly revenue change
     now = datetime.now(timezone.utc)
     start_of_this_month = datetime(now.year, now.month, 1, tzinfo=timezone.utc)
     if now.month == 1:
@@ -201,7 +302,6 @@ def admin_dashboard():
     else:
         revenue_change = 0.0
     
-    # 🔒 GET MARKETPLACE LOCKDOWN SETTINGS
     settings = SiteSettings.get_settings()
     
     return render_template('admin/admin_dashboard.html', 
@@ -220,11 +320,10 @@ def admin_404(error):
     return render_template('admin/404.html'), 404
 
 
-
-
 # Import routes to register them with admin_bp
 from . import admin_users
 from . import admin_challenges
 from . import admin_finance
 from . import admin_engagement
 from . import admin_email
+from . import moderators
