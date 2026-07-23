@@ -18,6 +18,7 @@ ALL FEATURES:
 from datetime import datetime, timezone, date, timedelta
 from collections import defaultdict
 from models import (
+    SYNC_ELIGIBLE_STATUSES,
     db, TradingJourney, RuleLog, TradeHistory, RuleViolation,
     ViolationEvidence, EATrade, Notification, UserNotification
 )
@@ -161,14 +162,7 @@ def process_sync(challenge, data):
     try:
         print(f"\n[RULE ENGINE] ── Challenge {challenge.id} ─────────────────────")
 
-        if challenge.status not in (
-            ChallengeState.ACTIVE,
-            ChallengeState.FUNDED,
-            ChallengeState.PHASE1_ACTIVE,
-            ChallengeState.PHASE2_ACTIVE,
-            ChallengeState.FUNDED_ACTIVE,
-            ChallengeState.UNDER_REVIEW
-        ):
+        if challenge.status not in SYNC_ELIGIBLE_STATUSES:
             print(f"[IGNORED] Challenge status {challenge.status}")
             return
 

@@ -1662,24 +1662,17 @@ class FollowUp(db.Model):
     def to_dict(self):
         return {'id': self.id, 'user_id': self.user_id, 'admin_id': self.admin_id, 'followup_date': self.followup_date.isoformat() if self.followup_date else None, 'followup_type': self.followup_type, 'notes': self.notes, 'is_completed': self.is_completed, 'completed_at': self.completed_at.isoformat() if self.completed_at else None, 'created_at': self.created_at.isoformat() if self.created_at else None, 'admin_name': self.admin.get_full_name() if self.admin else 'Unknown'}
     def __repr__(self): return f'<FollowUp {self.id} - User {self.user_id} - {self.followup_type}>'
-
-
-
-
 class SiteSettings(db.Model):
     """Global site settings - SINGLE ROW (singleton pattern)"""
     __tablename__ = 'site_settings'
-    
     id = db.Column(db.Integer, primary_key=True)
     marketplace_locked = db.Column(db.Boolean, default=False, nullable=False)
     marketplace_lock_reason = db.Column(db.String(500), default='')
     marketplace_locked_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     marketplace_locked_at = db.Column(db.DateTime(timezone=True), nullable=True)
     updated_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
-    
     # Relationship to know which admin locked it
     locked_by_admin = db.relationship('User', foreign_keys=[marketplace_locked_by])
-    
     @classmethod
     def get_settings(cls):
         """Always returns the ONE settings row (creates if not exists)"""
@@ -1688,6 +1681,7 @@ class SiteSettings(db.Model):
             settings = cls()
             db.session.add(settings)
             db.session.flush()
+<<<<<<< HEAD
         return settings    
 
 
@@ -1878,3 +1872,19 @@ class ModeratorActivityLog(db.Model):
     
     def __repr__(self):
         return f'<ModeratorActivityLog {self.action} by {self.moderator_id}>'        
+=======
+        return settings
+
+# ========================================================================
+# SINGLE SOURCE OF TRUTH: statuses eligible for MT5 sync + rule processing
+# Add new statuses HERE ONLY. Both mt5_receiver.py and rule_engine.py import this.
+# ========================================================================
+SYNC_ELIGIBLE_STATUSES = [
+    'active',
+    'funded',
+    'under_review',
+    'phase1_active',
+    'phase2_active',
+    'funded_active',
+]
+>>>>>>> ae676909ea8d9c067b04c5b2b931b85794de9f36
